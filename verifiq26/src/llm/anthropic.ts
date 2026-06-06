@@ -1,150 +1,139 @@
 /**
- * VerifIQ — Anthropic LLM adapter (Phase 1)
+ * VerifIQ — Anthropic provider adapter.
  *
- * Purpose: Implements LLMProvider against the Anthropic Messages API. Applies
- *   prompt caching to system prompts (the standards corpus + persona amortise
- *   across files), maps roles to Claude models via config.ts, and normalises
- *   errors into ProviderError so the router can fail over per-call.
+ * Implements LLMProvider against @anthropic-ai/sdk. System prompts are sent as
+ * cached blocks (prompt caching) so the large standards-corpus system prompt
+ * amortises across files. Models per role come from config.ts.
  *
- * Implements: 02_agent_architecture.md (Anthropic wiring), 20 § failover.
- * Version: phase1-v0.1
+ * Spec references: verifiq-prompts/02_agent_architecture.md; docs/28 § D2.
+ * Version: 0.3.0-phase1
  */
 
 import Anthropic from "@anthropic-ai/sdk";
 import {
   type CompleteOptions,
-  type CompletionResult,
   type LLMProvider,
+  type LLMResult,
   type LLMRole,
-  type TokenUsage,
-  type VisionImage,
-  ProviderError,
-} from "./types";
-import { costFor, modelFor } from "./config";
+  RetryableLLMError,
+} from "./types.js";
+import { costEur, modelFor } from "./config.js";
+import { toBase64 } from "./util.js";
 
 const DEFAULT_MAX_TOKENS = 4096;
 
 export class AnthropicProvider implements LLMProvider {
   readonly name = "anthropic" as const;
-  private readonly client: Anthropic;
+  private client: Anthropic;
 
-  constructor(apiKey: string | undefined = process.env.ANTHROPIC_API_KEY) {
-    if (!apiKey) {
-      throw new ProviderError("ANTHROPIC_API_KEY is not set", { retryable: false });
-    }
+  constructor(apiKey: string) {
     this.client = new Anthropic({ apiKey });
   }
 
-  /** Resolve the model id for a role, honouring a per-call override. */
-  private resolveModel(role: LLMRole, options?: CompleteOptions): string {
-    const model = options?.model ?? modelFor(role, this.name);
-    if (!model) {
-      throw new ProviderError(`No Anthropic model configured for role ${role}`, {
-        retryable: false,
-      });
-    }
-    return model;
+  private model(role: LLMRole): string {
+    const m = modelFor(role, "anthropic");
+    if (!m) throw new Error(`No Anthropic model configured for role "${role}"`);
+    return m;
   }
 
-  async complete(
-    role: LLMRole,
-    prompt: string,
-    options?: CompleteOptions,
-  ): Promise<CompletionResult> {
-    return this.call(role, [{ type: "text", text: prompt }], options);
+  async complete(role: LLMRole, prompt: string, options: CompleteOptions = {}): Promise<LLMResult> {
+    const model = this.model(role);
+    const started = Date.now();
+    try {
+      const resp = await this.client.messages.create({
+        model,
+        max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
+        temperature: options.temperature,
+        system: this.systemBlocks(options),
+        messages: [{ role: "user", content: prompt }],
+      });
+      return this.toResult(role, model, resp, started);
+    } catch (err) {
+      throw this.mapError(err);
+    }
   }
 
   async completeVision(
     role: LLMRole,
-    image: VisionImage,
+    imageBuffer: Uint8Array,
     prompt: string,
-    options?: CompleteOptions,
-  ): Promise<CompletionResult> {
-    return this.call(
-      role,
-      [
-        {
-          type: "image",
-          source: {
-            type: "base64",
-            media_type: image.media_type,
-            data: image.buffer.toString("base64"),
-          },
-        },
-        { type: "text", text: prompt },
-      ],
-      options,
-    );
-  }
-
-  private async call(
-    role: LLMRole,
-    content: Anthropic.MessageParam["content"],
-    options?: CompleteOptions,
-  ): Promise<CompletionResult> {
-    const model = this.resolveModel(role, options);
+    options: CompleteOptions = {},
+  ): Promise<LLMResult> {
+    const model = this.model(role);
     const started = Date.now();
-
-    // System prompt as a cacheable block when requested (prompt caching cuts
-    // the cost of the shared corpus/persona on subsequent calls).
-    const system: Anthropic.TextBlockParam[] | undefined = options?.system
-      ? [
-          {
-            type: "text",
-            text: options.system,
-            ...(options.cacheSystem ? { cache_control: { type: "ephemeral" } } : {}),
-          },
-        ]
-      : undefined;
-
     try {
-      const response = await this.client.messages.create({
+      const resp = await this.client.messages.create({
         model,
-        max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
-        ...(options?.temperature !== undefined ? { temperature: options.temperature } : {}),
-        ...(system ? { system } : {}),
-        messages: [{ role: "user", content }],
+        max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
+        temperature: options.temperature,
+        system: this.systemBlocks(options),
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: { type: "base64", media_type: "image/png", data: toBase64(imageBuffer) },
+              },
+              { type: "text", text: prompt },
+            ],
+          },
+        ],
       });
-
-      const text = response.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
-        .join("");
-
-      const tokens_in = response.usage.input_tokens;
-      const tokens_out = response.usage.output_tokens;
-
-      return {
-        text,
-        tokens_in,
-        tokens_out,
-        model_used: model,
-        provider_used: this.name,
-        cost_eur: costFor(model, tokens_in, tokens_out),
-        latency_ms: Date.now() - started,
-      };
+      return this.toResult(role, model, resp, started);
     } catch (err) {
-      throw toProviderError(err);
+      throw this.mapError(err);
     }
   }
 
-  getCost(role: LLMRole, tokens: TokenUsage): number {
-    const model = modelFor(role, this.name);
-    if (!model) return 0;
-    return costFor(model, tokens.input_tokens, tokens.output_tokens);
+  getCost(role: LLMRole, tokensIn: number, tokensOut: number): number {
+    return costEur(this.model(role), tokensIn, tokensOut);
   }
-}
 
-/** Normalise SDK errors into ProviderError with a retryability verdict. */
-function toProviderError(err: unknown): ProviderError {
-  if (err instanceof ProviderError) return err;
-  const status =
-    typeof err === "object" && err !== null && "status" in err
-      ? (err as { status?: number }).status
-      : undefined;
-  const message = err instanceof Error ? err.message : String(err);
-  // 429 (rate limit) and 5xx are retryable; so are transport-level failures
-  // (no status). 4xx other than 429 are not.
-  const retryable = status === undefined || status === 429 || (status >= 500 && status < 600);
-  return new ProviderError(`Anthropic call failed: ${message}`, { retryable, status, cause: err });
+  /** Build the system field, marking it for prompt caching unless disabled. */
+  private systemBlocks(options: CompleteOptions): Anthropic.MessageCreateParams["system"] {
+    if (!options.system) return undefined;
+    if (options.cacheSystem === false) return options.system;
+    // cache_control enables prompt caching; cast guards across SDK minor versions.
+    return [
+      { type: "text", text: options.system, cache_control: { type: "ephemeral" } },
+    ] as unknown as Anthropic.MessageCreateParams["system"];
+  }
+
+  private toResult(
+    role: LLMRole,
+    model: string,
+    resp: Anthropic.Message,
+    started: number,
+  ): LLMResult {
+    const text = resp.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+    const tokens_in = resp.usage.input_tokens;
+    const tokens_out = resp.usage.output_tokens;
+    return {
+      text,
+      tokens_in,
+      tokens_out,
+      model_used: model,
+      provider_used: this.name,
+      cost_eur: costEur(model, tokens_in, tokens_out),
+      latency_ms: Date.now() - started,
+    };
+  }
+
+  /** Map SDK errors to RetryableLLMError for rate-limit / 5xx / network. */
+  private mapError(err: unknown): Error {
+    if (err instanceof Anthropic.APIConnectionError) {
+      return new RetryableLLMError(`anthropic connection error: ${err.message}`, this.name);
+    }
+    if (err instanceof Anthropic.APIError) {
+      const status = err.status ?? 0;
+      if (status === 429 || status >= 500) {
+        return new RetryableLLMError(`anthropic ${status}: ${err.message}`, this.name);
+      }
+    }
+    return err instanceof Error ? err : new Error(String(err));
+  }
 }

@@ -1,44 +1,40 @@
 /**
- * VerifIQ — Cloudflare R2 storage adapter (Phase 1)
+ * VerifIQ — Cloudflare R2 storage adapter.
  *
- * Purpose: Implements StorageProvider against R2 via the S3-compatible API.
- *   Generates presigned upload URLs for direct browser→R2 upload (single PUT,
- *   or multipart for files >5 MB), presigned 1-hour download URLs, supports
- *   ranged reads for streaming PDFs, and verifies SHA-256 on completion.
+ * R2 is S3-compatible, so this uses @aws-sdk/client-s3 pointed at the R2
+ * endpoint (`https://<account>.r2.cloudflarestorage.com`, region "auto"). It
+ * provides signed upload/download URLs for direct browser↔R2 transfer (tus.io
+ * compatible), range reads for streaming PDFs, and multipart helpers for files
+ * over 5 MB.
  *
- * Implements: docs/27 (R2 hybrid), 20_platform_architecture.md § 1.
- * Version: phase1-v0.1
+ * Spec references: docs/27 (R2 hybrid, zero-egress, no blob ceiling);
+ * verifiq-prompts/20_platform_architecture.md § 1; docs/28 § D3.
+ * Version: 0.3.0-phase1
  */
 
 import {
-  AbortMultipartUploadCommand,
-  CompleteMultipartUploadCommand,
-  CreateMultipartUploadCommand,
-  DeleteObjectCommand,
-  GetObjectCommand,
-  HeadObjectCommand,
-  PutObjectCommand,
   S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  CreateMultipartUploadCommand,
   UploadPartCommand,
+  CompleteMultipartUploadCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { sha256Hex } from "../lib/hash";
 import {
-  buildObjectKey,
+  type ByteRange,
   type FileMeta,
-  type GetObjectOptions,
-  type MultipartPart,
-  type ObjectBody,
   type ObjectHead,
   type StorageProvider,
   type UploadTarget,
-} from "./types";
+  buildObjectKey,
+} from "./types.js";
 
-const DOWNLOAD_EXPIRY_SECONDS = 3600; // 1 hour (per Phase 1 brief).
-const UPLOAD_EXPIRY_SECONDS = 3600;
-const MULTIPART_THRESHOLD_BYTES = 5 * 1024 * 1024; // 5 MB.
-const PART_SIZE_BYTES = 5 * 1024 * 1024;
-const SHA256_METADATA_KEY = "sha256";
+const ONE_HOUR = 3600;
+/** S3 minimum part size for multipart uploads. */
+export const MULTIPART_THRESHOLD_BYTES = 5 * 1024 * 1024;
 
 export interface R2Config {
   accountId: string;
@@ -47,109 +43,113 @@ export interface R2Config {
   bucket: string;
 }
 
-/** Read R2 config from env, throwing a clear error if anything is missing. */
-export function r2ConfigFromEnv(): R2Config {
-  const accountId = process.env.R2_ACCOUNT_ID;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-  const bucket = process.env.R2_BUCKET_NAME;
-  const missing = [
-    ["R2_ACCOUNT_ID", accountId],
-    ["R2_ACCESS_KEY_ID", accessKeyId],
-    ["R2_SECRET_ACCESS_KEY", secretAccessKey],
-    ["R2_BUCKET_NAME", bucket],
-  ]
-    .filter(([, val]) => !val)
-    .map(([name]) => name);
-  if (missing.length > 0) {
-    throw new Error(`Missing R2 env vars: ${missing.join(", ")}`);
-  }
-  return {
-    accountId: accountId!,
-    accessKeyId: accessKeyId!,
-    secretAccessKey: secretAccessKey!,
-    bucket: bucket!,
-  };
-}
-
-export class R2StorageProvider implements StorageProvider {
+export class R2Provider implements StorageProvider {
   readonly name = "r2" as const;
-  private readonly client: S3Client;
-  private readonly bucket: string;
+  private client: S3Client;
+  private bucket: string;
 
-  constructor(config: R2Config = r2ConfigFromEnv()) {
-    this.bucket = config.bucket;
+  constructor(cfg: R2Config) {
+    this.bucket = cfg.bucket;
     this.client = new S3Client({
       region: "auto",
-      endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-      },
+      endpoint: `https://${cfg.accountId}.r2.cloudflarestorage.com`,
+      credentials: { accessKeyId: cfg.accessKeyId, secretAccessKey: cfg.secretAccessKey },
     });
   }
 
   async getUploadUrl(meta: FileMeta): Promise<UploadTarget> {
     const key = buildObjectKey(meta);
-    const expires_at = Date.now() + UPLOAD_EXPIRY_SECONDS * 1000;
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ContentType: meta.content_type,
+      // R2 stores the client-computed hash so completion can be checked.
+      Metadata: { sha256: meta.sha256 },
+    });
+    const url = await getSignedUrl(this.client, command, { expiresIn: ONE_HOUR });
+    return {
+      url,
+      key,
+      method: "PUT",
+      headers: meta.content_type ? { "Content-Type": meta.content_type } : undefined,
+      expires_in: ONE_HOUR,
+    };
+  }
 
-    if (meta.size_bytes >= MULTIPART_THRESHOLD_BYTES) {
-      const created = await this.client.send(
-        new CreateMultipartUploadCommand({
-          Bucket: this.bucket,
-          Key: key,
-          ContentType: meta.content_type,
-          Metadata: meta.sha256 ? { [SHA256_METADATA_KEY]: meta.sha256 } : undefined,
-        }),
+  async getDownloadUrl(key: string, expiresInSeconds = ONE_HOUR): Promise<string> {
+    const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
+    return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
+  }
+
+  async getObject(key: string, range?: ByteRange): Promise<Uint8Array> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Range: range ? `bytes=${range.start}-${range.end}` : undefined,
+    });
+    const resp = await this.client.send(command);
+    const body = resp.Body as { transformToByteArray(): Promise<Uint8Array> } | undefined;
+    if (!body) return new Uint8Array();
+    return body.transformToByteArray();
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  async headObject(key: string): Promise<ObjectHead | null> {
+    try {
+      const resp = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
       );
-      const uploadId = created.UploadId;
-      if (!uploadId) throw new Error("R2 did not return an UploadId");
-
-      const partCount = Math.ceil(meta.size_bytes / PART_SIZE_BYTES);
-      const parts: MultipartPart[] = [];
-      for (let n = 1; n <= partCount; n++) {
-        const url = await getSignedUrl(
-          this.client,
-          new UploadPartCommand({
-            Bucket: this.bucket,
-            Key: key,
-            UploadId: uploadId,
-            PartNumber: n,
-          }),
-          { expiresIn: UPLOAD_EXPIRY_SECONDS },
-        );
-        parts.push({ part_number: n, url });
-      }
-
       return {
-        provider: this.name,
-        key,
-        method: "PUT",
-        expires_at,
-        multipart: { upload_id: uploadId, part_size_bytes: PART_SIZE_BYTES, parts },
+        size_bytes: resp.ContentLength ?? 0,
+        etag: resp.ETag,
+        content_type: resp.ContentType,
       };
+    } catch {
+      return null;
     }
+  }
 
-    // Single-PUT presigned URL (no network round-trip required).
-    const url = await getSignedUrl(
-      this.client,
-      new PutObjectCommand({
+  // ── Multipart upload (files > 5 MB; file 20 § 1) ──────────────────────────
+
+  /** Begin a multipart upload; returns the uploadId. */
+  async createMultipartUpload(meta: FileMeta): Promise<{ key: string; uploadId: string }> {
+    const key = buildObjectKey(meta);
+    const resp = await this.client.send(
+      new CreateMultipartUploadCommand({
         Bucket: this.bucket,
         Key: key,
         ContentType: meta.content_type,
-        Metadata: meta.sha256 ? { [SHA256_METADATA_KEY]: meta.sha256 } : undefined,
+        Metadata: { sha256: meta.sha256 },
       }),
-      { expiresIn: UPLOAD_EXPIRY_SECONDS },
     );
-
-    return { provider: this.name, key, url, method: "PUT", expires_at };
+    if (!resp.UploadId) throw new Error("R2 did not return an UploadId");
+    return { key, uploadId: resp.UploadId };
   }
 
-  /** Finalise a multipart upload after all parts are PUT. */
+  /** Signed URL for a single part (1-indexed). */
+  async getUploadPartUrl(
+    key: string,
+    uploadId: string,
+    partNumber: number,
+    expiresInSeconds = ONE_HOUR,
+  ): Promise<string> {
+    const command = new UploadPartCommand({
+      Bucket: this.bucket,
+      Key: key,
+      UploadId: uploadId,
+      PartNumber: partNumber,
+    });
+    return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
+  }
+
+  /** Finalise a multipart upload from the per-part ETags. */
   async completeMultipartUpload(
     key: string,
     uploadId: string,
-    parts: Array<{ part_number: number; etag: string }>,
+    parts: { partNumber: number; etag: string }[],
   ): Promise<void> {
     await this.client.send(
       new CompleteMultipartUploadCommand({
@@ -158,95 +158,24 @@ export class R2StorageProvider implements StorageProvider {
         UploadId: uploadId,
         MultipartUpload: {
           Parts: parts
-            .sort((a, b) => a.part_number - b.part_number)
-            .map((p) => ({ PartNumber: p.part_number, ETag: p.etag })),
+            .sort((a, b) => a.partNumber - b.partNumber)
+            .map((p) => ({ PartNumber: p.partNumber, ETag: p.etag })),
         },
       }),
     );
   }
-
-  async abortMultipartUpload(key: string, uploadId: string): Promise<void> {
-    await this.client.send(
-      new AbortMultipartUploadCommand({ Bucket: this.bucket, Key: key, UploadId: uploadId }),
-    );
-  }
-
-  async getDownloadUrl(key: string): Promise<string> {
-    return getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
-      expiresIn: DOWNLOAD_EXPIRY_SECONDS,
-    });
-  }
-
-  async getObject(key: string, options?: GetObjectOptions): Promise<ObjectBody> {
-    const range = options?.range
-      ? `bytes=${options.range.start}-${options.range.end ?? ""}`
-      : undefined;
-    const response = await this.client.send(
-      new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: range }),
-    );
-    return {
-      body: response.Body,
-      ...(response.ContentLength !== undefined ? { size_bytes: response.ContentLength } : {}),
-      ...(response.ContentType !== undefined ? { content_type: response.ContentType } : {}),
-      ...(response.ContentRange !== undefined ? { content_range: response.ContentRange } : {}),
-    };
-  }
-
-  async deleteObject(key: string): Promise<void> {
-    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
-  }
-
-  async headObject(key: string): Promise<ObjectHead> {
-    try {
-      const response = await this.client.send(
-        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
-      );
-      return {
-        exists: true,
-        ...(response.ContentLength !== undefined ? { size_bytes: response.ContentLength } : {}),
-        ...(response.ContentType !== undefined ? { content_type: response.ContentType } : {}),
-        ...(response.Metadata?.[SHA256_METADATA_KEY]
-          ? { sha256: response.Metadata[SHA256_METADATA_KEY] }
-          : {}),
-      };
-    } catch (err) {
-      if (isNotFound(err)) return { exists: false };
-      throw err;
-    }
-  }
-
-  /** Server-side direct upload (used in tests + small server-generated artefacts). */
-  async putObject(key: string, body: Buffer, contentType?: string, sha256?: string): Promise<void> {
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-        Body: body,
-        ContentType: contentType,
-        Metadata: sha256 ? { [SHA256_METADATA_KEY]: sha256 } : undefined,
-      }),
-    );
-  }
-
-  /**
-   * Verify a stored object against an expected SHA-256 by downloading and
-   * re-hashing. Returns true on match (20 § Integrity-checked).
-   */
-  async verifyUpload(key: string, expectedSha256: string): Promise<boolean> {
-    const response = await this.client.send(
-      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
-    );
-    const body = response.Body as { transformToByteArray?: () => Promise<Uint8Array> } | undefined;
-    if (!body?.transformToByteArray) {
-      throw new Error("R2 object body is not readable for verification");
-    }
-    const bytes = await body.transformToByteArray();
-    return sha256Hex(bytes) === expectedSha256;
-  }
 }
 
-function isNotFound(err: unknown): boolean {
-  if (typeof err !== "object" || err === null) return false;
-  const e = err as { name?: string; $metadata?: { httpStatusCode?: number } };
-  return e.name === "NotFound" || e.$metadata?.httpStatusCode === 404;
+/** Build an R2Provider from environment variables, or null if unconfigured. */
+export function r2FromEnv(env: Record<string, string | undefined>): R2Provider | null {
+  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME } = env;
+  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET_NAME) {
+    return null;
+  }
+  return new R2Provider({
+    accountId: R2_ACCOUNT_ID,
+    accessKeyId: R2_ACCESS_KEY_ID,
+    secretAccessKey: R2_SECRET_ACCESS_KEY,
+    bucket: R2_BUCKET_NAME,
+  });
 }

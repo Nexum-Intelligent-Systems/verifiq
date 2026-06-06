@@ -1,30 +1,37 @@
 /**
- * VerifIQ — Convex database schema (Phase 1)
+ * VerifIQ — Convex database schema (Phase 1).
  *
- * Purpose: Defines every table required for the VerifIQ MVP. The structured
- *   tables (`findings`, `discipline_summaries`, `reports`) mirror the canonical
- *   JSON shapes in `verifiq-prompts/05_output_schemas.md` (§ 05.1–05.3) exactly.
- *   The platform tables (`jobs`, `inference_cache`) follow
- *   `verifiq-prompts/20_platform_architecture.md` § 2. The `documents` table
- *   carries BOTH `convex_storage_id` and `r2_key` per the hybrid storage
- *   decision in `docs/27-stack-decision-storage-and-platform.md`.
+ * Purpose: the single source of truth for every persisted entity in the
+ * VerifIQ Pre-Build Compliance Council platform. Tables mirror the canonical
+ * JSON shapes in `verifiq-prompts/05_output_schemas.md` (§05.1 Finding,
+ * §05.2 DisciplineSummary, §05.3 BuildReadinessReport, §05.4 DB mapping),
+ * the job-queue + inference-cache model in `verifiq-prompts/20_platform_architecture.md`
+ * §2, the feedback taxonomy in `verifiq-prompts/14_feedback_taxonomy.md`, and
+ * the lessons-learnt registry in `verifiq-prompts/15_lessons_learnt_loop.md`.
  *
- * Implements: 05_output_schemas.md, 20_platform_architecture.md,
- *   14_feedback_taxonomy.md, 15_lessons_learnt_loop.md, docs/27.
- * Version: phase1-v0.1
+ * Storage follows the locked Convex + Cloudflare R2 hybrid decision
+ * (`docs/27-stack-decision-storage-and-platform.md`): the `documents` table
+ * carries BOTH an optional Convex `storage_id` AND an optional `r2_key`.
+ *
+ * Scope note (docs/28 Phase 1): this file defines structure only. Agents, the
+ * workflow orchestrator, peer challenge, adjudication and the chair report are
+ * Phase 2+. The tables that those phases write to exist here so they are never
+ * retrofitted onto a live table.
+ *
+ * Version: 0.3.0-phase1
  */
 
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-// ===========================================================================
-// SHARED VALIDATORS (single source of truth for enum literals)
-// Re-exported so application code + the TypeScript type-mirror in
-// `src/types/index.ts` derive from exactly these definitions.
-// ===========================================================================
+// ============================================================================
+// Shared enums — expressed as v.union(v.literal(...)) per the Convex pattern.
+// These mirror the controlled vocabularies in files 01 and 05; never widen
+// them to free strings, or the schema-locked promise in CLAUDE.md is lost.
+// ============================================================================
 
-/** Finding stage — 05.1 `stage`. */
-export const vStage = v.union(
+/** Project / pack lifecycle stage (Finding §05.1 `stage`). */
+export const Stage = v.union(
   v.literal("design"),
   v.literal("pre-tender"),
   v.literal("pre-build"),
@@ -32,8 +39,8 @@ export const vStage = v.union(
   v.literal("handover"),
 );
 
-/** Finding status — 05.1 `status`. */
-export const vFindingStatus = v.union(
+/** Finding status — the 8 classifications from file 01 / §05.1. */
+export const FindingStatus = v.union(
   v.literal("Compliant"),
   v.literal("Non-compliant"),
   v.literal("Not demonstrated"),
@@ -44,8 +51,8 @@ export const vFindingStatus = v.union(
   v.literal("Outside current scope"),
 );
 
-/** Risk rating — 05.1 `risk`. */
-export const vRisk = v.union(
+/** Risk rating — the 5 levels from file 01 / §05.1. */
+export const Risk = v.union(
   v.literal("Critical"),
   v.literal("High"),
   v.literal("Medium"),
@@ -53,8 +60,8 @@ export const vRisk = v.union(
   v.literal("Advisory"),
 );
 
-/** Build-readiness impact — 05.1 `build_readiness_impact`. */
-export const vBuildReadinessImpact = v.union(
+/** Build-readiness impact of a single finding (§05.1). */
+export const BuildReadinessImpact = v.union(
   v.literal("Build blocker"),
   v.literal("Proceed with condition"),
   v.literal("Pre-tender close-out"),
@@ -64,8 +71,8 @@ export const vBuildReadinessImpact = v.union(
   v.literal("Advisory"),
 );
 
-/** Council decision — 05.1 `council_decision`. Populated only after Stage 6. */
-export const vCouncilDecision = v.union(
+/** Adjudicated council decision on a finding (§05.1; set only after Stage 6). */
+export const CouncilDecision = v.union(
   v.literal("Retained"),
   v.literal("Amended"),
   v.literal("Merged"),
@@ -74,8 +81,8 @@ export const vCouncilDecision = v.union(
   v.literal("Deleted"),
 );
 
-/** Discipline summary overall status — 05.2 `overall_status`. */
-export const vOverallStatus = v.union(
+/** Discipline-summary overall status (§05.2). */
+export const DisciplineOverallStatus = v.union(
   v.literal("Acceptable"),
   v.literal("Partial"),
   v.literal("Not demonstrated"),
@@ -83,24 +90,33 @@ export const vOverallStatus = v.union(
   v.literal("Critical risk"),
 );
 
-/** Build readiness rating — 05.3 `build_readiness_rating`. */
-export const vBuildReadinessRating = v.union(
+/** Build Readiness Report rating (§05.3); maps 1:1 to executive decision per file 06. */
+export const BuildReadinessRating = v.union(
   v.literal("Green"),
   v.literal("Amber"),
   v.literal("Red"),
   v.literal("Grey"),
 );
 
-/** Executive decision — 05.3 `executive_decision`. Exactly one of four. */
-export const vExecutiveDecision = v.union(
+/** The four — and only four — executive decisions (file 01 / §05.3). */
+export const ExecutiveDecision = v.union(
   v.literal("Proceed"),
   v.literal("Proceed with conditions"),
   v.literal("Pause before build"),
   v.literal("Insufficient information"),
 );
 
-/** Long-running scan-state machine — 20_platform_architecture.md § 5. */
-export const vScanState = v.union(
+/** Per-file processing status used by the classifier (file 20 §3-4). */
+export const DocumentStatus = v.union(
+  v.literal("uploaded"),
+  v.literal("classifying"),
+  v.literal("classified"),
+  v.literal("confirmed"),
+  v.literal("failed"),
+);
+
+/** Long-running scan-state machine for a project/pack (file 20 §5). */
+export const ScanState = v.union(
   v.literal("pending"),
   v.literal("uploading"),
   v.literal("classifying"),
@@ -113,8 +129,8 @@ export const vScanState = v.union(
   v.literal("released"),
 );
 
-/** Job type — 20_platform_architecture.md § 2. */
-export const vJobType = v.union(
+/** Job-queue job types (file 20 §2). */
+export const JobType = v.union(
   v.literal("classify"),
   v.literal("review_discipline"),
   v.literal("cross_reference"),
@@ -123,8 +139,8 @@ export const vJobType = v.union(
   v.literal("report"),
 );
 
-/** Job status — 20_platform_architecture.md § 2. */
-export const vJobStatus = v.union(
+/** Job-queue status (file 20 §2). */
+export const JobStatus = v.union(
   v.literal("pending"),
   v.literal("running"),
   v.literal("succeeded"),
@@ -132,16 +148,16 @@ export const vJobStatus = v.union(
   v.literal("retrying"),
 );
 
-/** Design-team response to a released finding — 14_feedback_taxonomy.md. */
-export const vDesignTeamResponse = v.union(
+/** Design-team response to a released finding (file 14). */
+export const DesignTeamResponse = v.union(
   v.literal("Accepted"),
   v.literal("Accepted with risk re-rated"),
   v.literal("Rejected"),
   v.literal("Already actioned"),
 );
 
-/** Rejection reason — 14_feedback_taxonomy.md REJ-01 .. REJ-12. */
-export const vRejectionReason = v.union(
+/** The 12 rejection categories REJ-01..REJ-12 (file 14). */
+export const RejectionReason = v.union(
   v.literal("REJ-01"),
   v.literal("REJ-02"),
   v.literal("REJ-03"),
@@ -156,132 +172,131 @@ export const vRejectionReason = v.union(
   v.literal("REJ-12"),
 );
 
-/** Prompt-version change type — 15_lessons_learnt_loop.md (semver class). */
-export const vChangeType = v.union(v.literal("patch"), v.literal("minor"), v.literal("major"));
-
-/** Prompt-version lifecycle — 15_lessons_learnt_loop.md. */
-export const vPromptVersionStatus = v.union(
-  v.literal("active"),
+/** Prompt-version lifecycle (file 15 Stage 5-7). */
+export const PromptVersionStatus = v.union(
+  v.literal("draft"),
   v.literal("testing"),
+  v.literal("active"),
   v.literal("retired"),
 );
 
-// ===========================================================================
-// SCHEMA
-// ===========================================================================
+// ============================================================================
+// Schema
+// ============================================================================
 
 export default defineSchema({
-  // -------------------------------------------------------------------------
-  // users — linked to Clerk eventually; Phase 1 stub (clerk_user_id optional).
-  // Data-minimised: only what auth + audit attribution requires.
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // users — tenant principals. Phase 1 uses a stub (no Clerk wiring yet); the
+  // `clerk_user_id` field is the future link. Data-minimised: identity + role
+  // only, nothing not required to operate (docs/28 DoD).
+  // --------------------------------------------------------------------------
   users: defineTable({
     clerk_user_id: v.optional(v.string()),
     email: v.string(),
     name: v.optional(v.string()),
-    org_id: v.optional(v.string()),
-    // Reviewer charter where relevant (RIAI / EI / SCSI / IFSE / other).
-    charter: v.optional(v.string()),
+    role: v.union(v.literal("customer"), v.literal("reviewer"), v.literal("admin")),
+    is_stub: v.boolean(),
     created_at: v.number(),
   })
     .index("by_clerk_user_id", ["clerk_user_id"])
     .index("by_email", ["email"]),
 
-  // -------------------------------------------------------------------------
-  // projects — core project record. The structured intake fields
-  // (03_review_workflow.md Stage 1); long-tail answers live in intake_answers.
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // projects — core project record. Holds the structured intake fields; the
+  // free-form / wizard answers live in `intake_answers`. (§05.4)
+  // The canonical 17 intake fields are specified in
+  // `docs/09-sector-role-onboarding-wizard-spec.docx`; the set below is the
+  // Phase-1 structured subset (see docs/29 deviations).
+  // --------------------------------------------------------------------------
   projects: defineTable({
+    owner_user_id: v.id("users"),
     name: v.string(),
     address: v.optional(v.string()),
     building_type: v.optional(v.string()),
-    stage: v.optional(vStage),
-    // New build / refurbishment / extension / change of use / material
-    // alteration / maintenance.
-    project_type: v.optional(v.string()),
-    sector_use: v.optional(v.string()),
-    occupant_profile: v.optional(v.string()),
+    sector: v.optional(v.string()),
+    stage: v.optional(Stage),
+    scan_state: ScanState,
+    project_value_band: v.optional(v.string()),
+    client_name: v.optional(v.string()),
+    lead_designer: v.optional(v.string()),
+    planning_reference: v.optional(v.string()),
     planning_status: v.optional(v.string()),
-    fsc_status: v.optional(v.string()),
-    dac_status: v.optional(v.string()),
     bcar_applicable: v.optional(v.boolean()),
-    conservation_status: v.optional(v.string()),
-    disciplines_appointed: v.optional(v.array(v.string())),
-    // Live scan-state machine (20 § 5).
-    state: vScanState,
-    created_by: v.optional(v.id("users")),
+    fsc_required: v.optional(v.boolean()),
+    dac_required: v.optional(v.boolean()),
+    protected_structure: v.optional(v.boolean()),
+    occupancy_type: v.optional(v.string()),
+    gross_floor_area_m2: v.optional(v.number()),
+    storeys: v.optional(v.number()),
+    corpus_version: v.optional(v.string()),
     created_at: v.number(),
     updated_at: v.number(),
   })
-    .index("by_state", ["state"])
-    .index("by_created_by", ["created_by"]),
+    .index("by_owner", ["owner_user_id"])
+    .index("by_scan_state", ["scan_state"]),
 
-  // -------------------------------------------------------------------------
-  // intake_answers — key/value pairs from the project intake form. Captures
-  // the full Stage-1 questionnaire (sleeping risk, HIQA relevance, etc.).
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // intake_answers — key/value pairs from the intake wizard. (§05.4)
+  // --------------------------------------------------------------------------
   intake_answers: defineTable({
     project_id: v.id("projects"),
     key: v.string(),
     value: v.string(),
-    answered_at: v.number(),
   })
     .index("by_project", ["project_id"])
     .index("by_project_key", ["project_id", "key"]),
 
-  // -------------------------------------------------------------------------
-  // documents — uploaded files. Carries BOTH storage references per docs/27;
-  // exactly one is populated at runtime depending on file size routing.
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // documents — uploaded files. Carries BOTH storage_id (Convex-native) AND
+  // r2_key (Cloudflare R2) per docs/27; exactly one is populated per row.
+  // --------------------------------------------------------------------------
   documents: defineTable({
     project_id: v.id("projects"),
     filename: v.string(),
     sha256: v.string(),
     size_bytes: v.number(),
-    mime_type: v.optional(v.string()),
-    // Hybrid storage — docs/27. One of these is set.
-    convex_storage_id: v.optional(v.id("_storage")),
+    // Storage location — one of these is set (docs/27 hybrid pattern).
+    storage_id: v.optional(v.id("_storage")),
     r2_key: v.optional(v.string()),
-    // Classification output (02 § Document Classification; 20 § 3).
+    // Classification metadata (file 20 §3).
     discipline: v.optional(v.string()),
     doc_type: v.optional(v.string()),
     drawing_number: v.optional(v.string()),
     revision: v.optional(v.string()),
     date: v.optional(v.string()),
-    status: v.optional(v.string()),
-    stage: v.optional(vStage),
     author: v.optional(v.string()),
+    stage: v.optional(Stage),
     classifier_confidence: v.optional(v.number()),
-    uploaded_at: v.number(),
+    status: DocumentStatus,
+    created_at: v.number(),
   })
     .index("by_project", ["project_id"])
     .index("by_sha256", ["sha256"])
-    .index("by_project_discipline", ["project_id", "discipline"]),
+    .index("by_project_discipline", ["project_id", "discipline"])
+    .index("by_project_status", ["project_id", "status"]),
 
-  // -------------------------------------------------------------------------
-  // modules — activated regulatory modules per project (03 Stage 3).
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // modules — activated regulatory modules per project (§05.4).
+  // --------------------------------------------------------------------------
   modules: defineTable({
     project_id: v.id("projects"),
     module_name: v.string(),
-    trigger_reason: v.optional(v.string()),
-    activated_by: v.optional(v.string()),
     activated_at: v.number(),
+    activated_by: v.string(),
   })
     .index("by_project", ["project_id"])
     .index("by_project_module", ["project_id", "module_name"]),
 
-  // -------------------------------------------------------------------------
-  // findings — the atomic finding object. Mirrors 05_output_schemas.md § 05.1
-  // field-for-field, plus operational fields for the lessons-learnt loop.
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // findings — the atomic unit (§05.1). `issue_id` is the stable business id
+  // ({disc}-{stage}-{seq}); the Convex `_id` is the storage id.
+  // --------------------------------------------------------------------------
   findings: defineTable({
     project_id: v.id("projects"),
-    // Stable business identifier: {discipline_code}-{stage_code}-{sequence}.
     issue_id: v.string(),
     discipline_origin: v.string(),
     interface_disciplines: v.array(v.string()),
-    stage: vStage,
+    stage: Stage,
     project_area: v.optional(v.string()),
     location: v.optional(v.string()),
     source_document: v.string(),
@@ -289,25 +304,21 @@ export default defineSchema({
     related_documents: v.array(v.string()),
     requirement: v.string(),
     finding: v.string(),
-    status: vFindingStatus,
-    risk: vRisk,
-    build_readiness_impact: vBuildReadinessImpact,
+    status: FindingStatus,
+    risk: Risk,
+    build_readiness_impact: BuildReadinessImpact,
     question: v.optional(v.string()),
     required_evidence: v.array(v.string()),
     owner: v.string(),
     secondary_owner: v.optional(v.string()),
     close_out_stage: v.optional(v.string()),
-    // Populated only after Stage 6 (Adjudication).
-    council_decision: v.optional(vCouncilDecision),
-    // Required when council_decision is not "Retained".
+    // Populated only after Stage 6 adjudication.
+    council_decision: v.optional(CouncilDecision),
     rationale: v.optional(v.string()),
-    // Verbatim quote from the source document (guardrail 13 / 08).
-    source_quote: v.optional(v.string()),
-    // Lessons-learnt attribution (15 § 2).
+    // Provenance for the lessons-learnt join (files 13, 15).
     model_used: v.optional(v.string()),
     prompt_version: v.optional(v.string()),
     corpus_version: v.optional(v.string()),
-    // Links back to the agent self-check audit entry (13).
     self_check_audit_entry_id: v.optional(v.id("audit_log")),
     created_at: v.number(),
     updated_at: v.number(),
@@ -318,60 +329,59 @@ export default defineSchema({
     .index("by_project_risk", ["project_id", "risk"])
     .index("by_project_discipline", ["project_id", "discipline_origin"]),
 
-  // -------------------------------------------------------------------------
-  // finding_interfaces — many-to-many: which findings interface with which
-  // disciplines (drives the Stage-5 cross-discipline challenge matrix).
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // finding_interfaces — many-to-many: which findings interface which
+  // disciplines (§05.4). Keyed by the finding's issue_id.
+  // --------------------------------------------------------------------------
   finding_interfaces: defineTable({
     project_id: v.id("projects"),
-    finding_id: v.id("findings"),
+    issue_id: v.string(),
     interface_discipline: v.string(),
   })
-    .index("by_finding", ["finding_id"])
-    .index("by_project_discipline", ["project_id", "interface_discipline"]),
+    .index("by_project", ["project_id"])
+    .index("by_issue", ["project_id", "issue_id"])
+    .index("by_discipline", ["project_id", "interface_discipline"]),
 
-  // -------------------------------------------------------------------------
-  // challenges — peer challenge records (Stage 5; 07 § peer challenge).
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // challenges — peer-challenge records (Stage 5; §05.4).
+  // --------------------------------------------------------------------------
   challenges: defineTable({
     project_id: v.id("projects"),
-    finding_id: v.id("findings"),
+    issue_id: v.string(),
     challenger_discipline: v.string(),
     decision: v.string(),
-    revised_risk: v.optional(vRisk),
+    revised_risk: v.optional(Risk),
     rationale: v.string(),
     model_used: v.optional(v.string()),
     created_at: v.number(),
   })
     .index("by_project", ["project_id"])
-    .index("by_finding", ["finding_id"]),
+    .index("by_issue", ["project_id", "issue_id"]),
 
-  // -------------------------------------------------------------------------
-  // adjudications — adjudicator decisions (Stage 6). Immutable once made;
-  // pre-state remains in audit_log.
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // adjudications — adjudicator decisions (Stage 6; §05.4). Immutable once
+  // written; the pre-state lives in audit_log.
+  // --------------------------------------------------------------------------
   adjudications: defineTable({
     project_id: v.id("projects"),
-    finding_id: v.id("findings"),
-    council_decision: vCouncilDecision,
+    issue_id: v.string(),
+    council_decision: CouncilDecision,
     rationale: v.string(),
-    revised_risk: v.optional(vRisk),
-    revised_owner: v.optional(v.string()),
     adjudicator_model: v.string(),
     adjudicated_at: v.number(),
   })
     .index("by_project", ["project_id"])
-    .index("by_finding", ["finding_id"]),
+    .index("by_issue", ["project_id", "issue_id"]),
 
-  // -------------------------------------------------------------------------
-  // discipline_summaries — one per discipline per project. Mirrors § 05.2.
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // discipline_summaries — one per discipline per project (§05.2).
+  // --------------------------------------------------------------------------
   discipline_summaries: defineTable({
     project_id: v.id("projects"),
     discipline: v.string(),
     documents_reviewed: v.array(v.string()),
     documents_missing: v.array(v.string()),
-    overall_status: vOverallStatus,
+    overall_status: DisciplineOverallStatus,
     critical_findings_count: v.number(),
     high_findings_count: v.number(),
     medium_findings_count: v.number(),
@@ -392,10 +402,11 @@ export default defineSchema({
     .index("by_project", ["project_id"])
     .index("by_project_discipline", ["project_id", "discipline"]),
 
-  // -------------------------------------------------------------------------
-  // reports — Build Readiness Report records. Mirrors § 05.3. Array fields
-  // hold issue_id references (not duplicated content), per § 05.3 field rules.
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // reports — Build Readiness Report records (§05.3). Version-stamped; the
+  // matrix/array sections are populated via report_findings (issue_id refs),
+  // not duplicated content (§05.4 note).
+  // --------------------------------------------------------------------------
   reports: defineTable({
     project_id: v.id("projects"),
     version: v.string(),
@@ -405,46 +416,34 @@ export default defineSchema({
     review_date: v.string(),
     regulatory_modules_activated: v.array(v.string()),
     disciplines_reviewed: v.array(v.string()),
-    build_readiness_rating: vBuildReadinessRating,
-    executive_decision: vExecutiveDecision,
+    build_readiness_rating: BuildReadinessRating,
+    executive_decision: ExecutiveDecision,
     council_summary: v.string(),
-    // The following arrays carry issue_id references into report sections.
-    critical_blockers: v.array(v.string()),
-    high_risk_conditions: v.array(v.string()),
-    discipline_action_matrix: v.array(v.string()),
-    interface_risk_matrix: v.array(v.string()),
-    statutory_approval_risks: v.array(v.string()),
-    planning_condition_risks: v.array(v.string()),
-    tender_cost_risks: v.array(v.string()),
-    construction_hold_points: v.array(v.string()),
-    handover_evidence_requirements: v.array(v.string()),
     final_recommendation: v.string(),
-    // Export provenance (05.5 / CLAUDE.md): every export carries these.
-    corpus_version: v.optional(v.string()),
     reviewer_initials: v.optional(v.string()),
-    document_hashes: v.array(v.string()),
+    corpus_version: v.optional(v.string()),
     created_at: v.number(),
   })
     .index("by_project", ["project_id"])
     .index("by_project_version", ["project_id", "version"]),
 
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
   // report_findings — many-to-many: which findings appear in which report
-  // section (drives § 05.3 reference-not-duplicate rule).
-  // -------------------------------------------------------------------------
+  // section (§05.4).
+  // --------------------------------------------------------------------------
   report_findings: defineTable({
     report_id: v.id("reports"),
-    finding_id: v.id("findings"),
+    issue_id: v.string(),
     section: v.string(),
   })
     .index("by_report", ["report_id"])
-    .index("by_finding", ["finding_id"]),
+    .index("by_report_section", ["report_id", "section"]),
 
-  // -------------------------------------------------------------------------
-  // audit_log — every state transition. The customer's primary trust artefact
-  // (05 § Audit log). Writes happen via mutations so they survive action
-  // retries (20 § "Audit-log writes are mutations, never actions").
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // audit_log — every state transition. Non-negotiable customer trust artefact
+  // (§05.4, file 20 §2 "audit-log writes are mutations, never actions").
+  // The Convex `_id` is the entry_id.
+  // --------------------------------------------------------------------------
   audit_log: defineTable({
     project_id: v.optional(v.id("projects")),
     actor: v.string(),
@@ -456,49 +455,49 @@ export default defineSchema({
   })
     .index("by_project", ["project_id"])
     .index("by_target", ["target_type", "target_id"])
-    .index("by_occurred_at", ["occurred_at"]),
+    .index("by_action", ["action"]),
 
-  // -------------------------------------------------------------------------
-  // jobs — the job queue. Mirrors 20_platform_architecture.md § 2.
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // jobs — the job queue (file 20 §2). Per-discipline isolation via depends_on;
+  // idempotency_key is a deterministic hash of job_type + payload.
+  // --------------------------------------------------------------------------
   jobs: defineTable({
     project_id: v.id("projects"),
-    job_type: vJobType,
-    payload_json: v.string(),
-    status: vJobStatus,
+    job_type: JobType,
+    payload: v.string(),
+    status: JobStatus,
     attempts: v.number(),
     idempotency_key: v.string(),
     depends_on: v.array(v.id("jobs")),
-    scheduled_for: v.number(),
+    scheduled_for: v.optional(v.number()),
     started_at: v.optional(v.number()),
     completed_at: v.optional(v.number()),
     error: v.optional(v.string()),
     result_ref: v.optional(v.string()),
+    created_at: v.number(),
   })
     .index("by_project", ["project_id"])
     .index("by_status", ["status"])
     .index("by_idempotency_key", ["idempotency_key"])
     .index("by_status_scheduled", ["status", "scheduled_for"]),
 
-  // -------------------------------------------------------------------------
-  // findings_feedback — customer rejection feedback. Mirrors the feedback
-  // object in 14_feedback_taxonomy.md; primary input to the lessons-learnt
-  // loop (15).
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // findings_feedback — customer rejection feedback (file 14). Carries the
+  // self-check audit-entry id as the key join back to agent reasoning.
+  // --------------------------------------------------------------------------
   findings_feedback: defineTable({
     project_id: v.id("projects"),
-    finding_id: v.id("findings"),
+    issue_id: v.string(),
     discipline: v.string(),
-    original_status: vFindingStatus,
-    original_risk: vRisk,
-    design_team_response: vDesignTeamResponse,
-    rejection_primary_reason: v.optional(vRejectionReason),
-    rejection_secondary_reason: v.optional(vRejectionReason),
+    original_status: FindingStatus,
+    original_risk: Risk,
+    design_team_response: DesignTeamResponse,
+    rejection_primary_reason: v.optional(RejectionReason),
+    rejection_secondary_reason: v.optional(RejectionReason),
     design_team_comment: v.optional(v.string()),
-    responding_party: v.optional(v.string()),
+    responding_party: v.string(),
     responding_party_charter: v.optional(v.string()),
     responded_at: v.number(),
-    // Join key back to the agent self-check decision (15 § 2).
     agent_audit_log_entry_id: v.optional(v.id("audit_log")),
     model_used: v.optional(v.string()),
     corpus_version: v.optional(v.string()),
@@ -506,31 +505,29 @@ export default defineSchema({
     reviewer_action: v.optional(v.string()),
   })
     .index("by_project", ["project_id"])
-    .index("by_finding", ["finding_id"])
-    .index("by_rejection_reason", ["rejection_primary_reason"]),
+    .index("by_issue", ["project_id", "issue_id"])
+    .index("by_reason", ["rejection_primary_reason"]),
 
-  // -------------------------------------------------------------------------
-  // prompt_versions — version registry for the lessons-learnt loop (15 § 7).
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // prompt_versions — version registry for the lessons-learnt loop (file 15).
+  // --------------------------------------------------------------------------
   prompt_versions: defineTable({
     agent_id: v.string(),
     version: v.string(),
-    change_type: vChangeType,
-    status: vPromptVersionStatus,
+    status: PromptVersionStatus,
     notes: v.optional(v.string()),
-    created_by: v.optional(v.string()),
     created_at: v.number(),
-    deployed_at: v.optional(v.number()),
+    activated_at: v.optional(v.number()),
   })
     .index("by_agent", ["agent_id"])
     .index("by_agent_version", ["agent_id", "version"])
     .index("by_status", ["status"]),
 
-  // -------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
   // inference_cache — LLM call cache keyed by
   // hash(model + prompt_version + document_sha256 + agent_id + corpus_version)
-  // per 20 § Idempotency. TTL 30 days (matches inference-log retention).
-  // -------------------------------------------------------------------------
+  // (file 20 §2; idempotency). TTL 30 days via expires_at.
+  // --------------------------------------------------------------------------
   inference_cache: defineTable({
     cache_key: v.string(),
     model: v.string(),
@@ -538,10 +535,9 @@ export default defineSchema({
     document_sha256: v.string(),
     agent_id: v.string(),
     corpus_version: v.string(),
-    response_text: v.string(),
+    result_text: v.string(),
     tokens_in: v.number(),
     tokens_out: v.number(),
-    cost_eur: v.number(),
     created_at: v.number(),
     expires_at: v.number(),
   })

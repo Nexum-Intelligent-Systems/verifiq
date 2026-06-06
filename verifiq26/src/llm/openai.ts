@@ -1,128 +1,124 @@
 /**
- * VerifIQ — OpenAI LLM adapter (Phase 1)
+ * VerifIQ — OpenAI provider adapter.
  *
- * Purpose: Implements LLMProvider against the OpenAI Chat Completions API. Used
- *   as the fallback family for most roles and as the primary for peer-challenge
- *   (a different model family avoids shared blind spots — 02). Normalises errors
- *   into ProviderError so the router can fail over per-call.
+ * Implements LLMProvider against the `openai` SDK. Default use is the
+ * peer-challenge role (a different model family from Anthropic, per file 02)
+ * and as the per-call failover target. Models per role come from config.ts.
  *
- * Implements: 02_agent_architecture.md (OpenAI wiring), 20 § failover.
- * Version: phase1-v0.1
+ * Spec references: verifiq-prompts/02_agent_architecture.md; docs/28 § D2.
+ * Version: 0.3.0-phase1
  */
 
 import OpenAI from "openai";
-import type {
-  ChatCompletionContentPart,
-  ChatCompletionMessageParam,
-} from "openai/resources/chat/completions";
 import {
   type CompleteOptions,
-  type CompletionResult,
   type LLMProvider,
+  type LLMResult,
   type LLMRole,
-  type TokenUsage,
-  type VisionImage,
-  ProviderError,
-} from "./types";
-import { costFor, modelFor } from "./config";
+  RetryableLLMError,
+} from "./types.js";
+import { costEur, modelFor } from "./config.js";
+import { toBase64 } from "./util.js";
 
 const DEFAULT_MAX_TOKENS = 4096;
 
 export class OpenAIProvider implements LLMProvider {
   readonly name = "openai" as const;
-  private readonly client: OpenAI;
+  private client: OpenAI;
 
-  constructor(apiKey: string | undefined = process.env.OPENAI_API_KEY) {
-    if (!apiKey) {
-      throw new ProviderError("OPENAI_API_KEY is not set", { retryable: false });
-    }
+  constructor(apiKey: string) {
     this.client = new OpenAI({ apiKey });
   }
 
-  private resolveModel(role: LLMRole, options?: CompleteOptions): string {
-    const model = options?.model ?? modelFor(role, this.name);
-    if (!model) {
-      throw new ProviderError(`No OpenAI model configured for role ${role}`, { retryable: false });
-    }
-    return model;
+  private model(role: LLMRole): string {
+    const m = modelFor(role, "openai");
+    if (!m) throw new Error(`No OpenAI model configured for role "${role}"`);
+    return m;
   }
 
-  async complete(
-    role: LLMRole,
-    prompt: string,
-    options?: CompleteOptions,
-  ): Promise<CompletionResult> {
-    return this.call(role, prompt, options);
+  async complete(role: LLMRole, prompt: string, options: CompleteOptions = {}): Promise<LLMResult> {
+    const model = this.model(role);
+    const started = Date.now();
+    try {
+      const resp = await this.client.chat.completions.create({
+        model,
+        max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
+        temperature: options.temperature,
+        messages: [
+          ...(options.system ? [{ role: "system" as const, content: options.system }] : []),
+          { role: "user" as const, content: prompt },
+        ],
+      });
+      return this.toResult(model, resp, started);
+    } catch (err) {
+      throw this.mapError(err);
+    }
   }
 
   async completeVision(
     role: LLMRole,
-    image: VisionImage,
+    imageBuffer: Uint8Array,
     prompt: string,
-    options?: CompleteOptions,
-  ): Promise<CompletionResult> {
-    const dataUri = `data:${image.media_type};base64,${image.buffer.toString("base64")}`;
-    const parts: ChatCompletionContentPart[] = [
-      { type: "text", text: prompt },
-      { type: "image_url", image_url: { url: dataUri } },
-    ];
-    return this.call(role, parts, options);
-  }
-
-  private async call(
-    role: LLMRole,
-    userContent: string | ChatCompletionContentPart[],
-    options?: CompleteOptions,
-  ): Promise<CompletionResult> {
-    const model = this.resolveModel(role, options);
+    options: CompleteOptions = {},
+  ): Promise<LLMResult> {
+    const model = this.model(role);
     const started = Date.now();
-
-    const messages: ChatCompletionMessageParam[] = [];
-    if (options?.system) {
-      messages.push({ role: "system", content: options.system });
-    }
-    messages.push({ role: "user", content: userContent });
-
+    const dataUrl = `data:image/png;base64,${toBase64(imageBuffer)}`;
     try {
-      const response = await this.client.chat.completions.create({
+      const resp = await this.client.chat.completions.create({
         model,
-        max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
-        ...(options?.temperature !== undefined ? { temperature: options.temperature } : {}),
-        messages,
+        max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
+        temperature: options.temperature,
+        messages: [
+          ...(options.system ? [{ role: "system" as const, content: options.system }] : []),
+          {
+            role: "user" as const,
+            content: [
+              { type: "text" as const, text: prompt },
+              { type: "image_url" as const, image_url: { url: dataUrl } },
+            ],
+          },
+        ],
       });
-
-      const text = response.choices[0]?.message?.content ?? "";
-      const tokens_in = response.usage?.prompt_tokens ?? 0;
-      const tokens_out = response.usage?.completion_tokens ?? 0;
-
-      return {
-        text,
-        tokens_in,
-        tokens_out,
-        model_used: model,
-        provider_used: this.name,
-        cost_eur: costFor(model, tokens_in, tokens_out),
-        latency_ms: Date.now() - started,
-      };
+      return this.toResult(model, resp, started);
     } catch (err) {
-      throw toProviderError(err);
+      throw this.mapError(err);
     }
   }
 
-  getCost(role: LLMRole, tokens: TokenUsage): number {
-    const model = modelFor(role, this.name);
-    if (!model) return 0;
-    return costFor(model, tokens.input_tokens, tokens.output_tokens);
+  getCost(role: LLMRole, tokensIn: number, tokensOut: number): number {
+    return costEur(this.model(role), tokensIn, tokensOut);
   }
-}
 
-function toProviderError(err: unknown): ProviderError {
-  if (err instanceof ProviderError) return err;
-  const status =
-    typeof err === "object" && err !== null && "status" in err
-      ? (err as { status?: number }).status
-      : undefined;
-  const message = err instanceof Error ? err.message : String(err);
-  const retryable = status === undefined || status === 429 || (status >= 500 && status < 600);
-  return new ProviderError(`OpenAI call failed: ${message}`, { retryable, status, cause: err });
+  private toResult(
+    model: string,
+    resp: OpenAI.Chat.Completions.ChatCompletion,
+    started: number,
+  ): LLMResult {
+    const text = resp.choices[0]?.message?.content ?? "";
+    const tokens_in = resp.usage?.prompt_tokens ?? 0;
+    const tokens_out = resp.usage?.completion_tokens ?? 0;
+    return {
+      text,
+      tokens_in,
+      tokens_out,
+      model_used: model,
+      provider_used: this.name,
+      cost_eur: costEur(model, tokens_in, tokens_out),
+      latency_ms: Date.now() - started,
+    };
+  }
+
+  private mapError(err: unknown): Error {
+    if (err instanceof OpenAI.APIConnectionError) {
+      return new RetryableLLMError(`openai connection error: ${err.message}`, this.name);
+    }
+    if (err instanceof OpenAI.APIError) {
+      const status = err.status ?? 0;
+      if (status === 429 || status >= 500) {
+        return new RetryableLLMError(`openai ${status}: ${err.message}`, this.name);
+      }
+    }
+    return err instanceof Error ? err : new Error(String(err));
+  }
 }

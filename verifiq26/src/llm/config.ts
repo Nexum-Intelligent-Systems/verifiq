@@ -1,94 +1,95 @@
 /**
- * VerifIQ — role-to-provider mapping (Phase 1)
+ * VerifIQ — role→provider/model mapping + cost table.
  *
- * Purpose: Maps each agent role to an ordered provider chain (primary first,
- *   fallback after) and to the model used per provider. Everything is
- *   env-overridable so a role can be reassigned without code changes
- *   (02_agent_architecture.md § Provider abstraction). Pricing is centralised
- *   here for getCost().
+ * Source of truth: verifiq-prompts/02_agent_architecture.md § Recommended
+ * initial wiring + Fallback chain. Changing a role's provider must be possible
+ * here without touching any agent code (CLAUDE.md modular rule).
  *
- * Implements: 02_agent_architecture.md § Multi-LLM configuration + Fallback chain.
- * Version: phase1-v0.1
+ * Version: 0.3.0-phase1
  */
 
-import type { LLMRole, ProviderName } from "./types";
+import type { LLMRole, ProviderName } from "./types.js";
 
-/** EUR cost per 1,000,000 tokens, per model. Approximate; tune with billing. */
-export interface ModelPricing {
-  input_per_m: number;
-  output_per_m: number;
+export interface RoleWiring {
+  /** Ordered provider chain: try [0] first, fail over to the rest per-call. */
+  chain: { provider: ProviderName; model: string }[];
 }
 
-/**
- * Default model ids. All overridable via env so the adjudicator can be pointed
- * at Opus (02 allows "Opus, or Sonnet with explicit adjudicator prompt") or any
- * model without touching code.
- */
-const ANTHROPIC_HAIKU = process.env.ANTHROPIC_MODEL_HAIKU ?? "claude-haiku-4-5-20251001";
-const ANTHROPIC_SONNET = process.env.ANTHROPIC_MODEL_SONNET ?? "claude-sonnet-4-6";
-// Adjudicator: defaults to Sonnet-with-adjudicator-prompt; set ANTHROPIC_MODEL_ADJUDICATOR
-// to a higher-reasoning model in the environment to upgrade the final gate.
-const ANTHROPIC_ADJUDICATOR = process.env.ANTHROPIC_MODEL_ADJUDICATOR ?? ANTHROPIC_SONNET;
-
-const OPENAI_PRIMARY = process.env.OPENAI_MODEL ?? "gpt-4o";
-const OPENAI_MINI = process.env.OPENAI_MODEL_MINI ?? "gpt-4o-mini";
-
-/** Per-role configuration: ordered provider chain + the model for each provider. */
-export interface RoleConfig {
-  /** Provider chain — index 0 is primary, the rest are failover targets. */
-  chain: ProviderName[];
-  models: Partial<Record<ProviderName, string>>;
-}
+// Model ids (current generation). Vision uses the same Sonnet model.
+const CLAUDE_SONNET = "claude-sonnet-4-6";
+const CLAUDE_HAIKU = "claude-haiku-4-5-20251001";
+const CLAUDE_OPUS = "claude-opus-4-8";
+const GPT_4_CLASS = "gpt-4o";
 
 /**
- * Role wiring per 02_agent_architecture.md § Recommended initial wiring.
- * Peer challenge leads with OpenAI deliberately — a different model family
- * avoids shared blind spots.
+ * Role wiring per file 02. Each role lists a primary then fallback providers;
+ * failover is per-call (file 20 § Multi-provider failover at the call level).
  */
-export const ROLE_CONFIG: Record<LLMRole, RoleConfig> = {
+export const ROLE_WIRING: Record<LLMRole, RoleWiring> = {
+  // Cheap, fast, low-stakes.
   classification: {
-    chain: ["anthropic", "openai"],
-    models: { anthropic: ANTHROPIC_HAIKU, openai: OPENAI_MINI },
+    chain: [
+      { provider: "anthropic", model: CLAUDE_HAIKU },
+      { provider: "openai", model: GPT_4_CLASS },
+    ],
   },
+  // High capability; prompt caching on system prompts.
   "discipline-primary-review": {
-    chain: ["anthropic", "openai"],
-    models: { anthropic: ANTHROPIC_SONNET, openai: OPENAI_PRIMARY },
+    chain: [
+      { provider: "anthropic", model: CLAUDE_SONNET },
+      { provider: "openai", model: GPT_4_CLASS },
+    ],
   },
+  // Different model family avoids shared blind spots.
   "peer-challenge": {
-    chain: ["openai", "anthropic"],
-    models: { openai: OPENAI_PRIMARY, anthropic: ANTHROPIC_SONNET },
+    chain: [
+      { provider: "openai", model: GPT_4_CLASS },
+      { provider: "anthropic", model: CLAUDE_SONNET },
+    ],
   },
+  // Highest reasoning capacity; final gate.
   adjudicator: {
-    chain: ["anthropic", "openai"],
-    models: { anthropic: ANTHROPIC_ADJUDICATOR, openai: OPENAI_PRIMARY },
+    chain: [
+      { provider: "anthropic", model: CLAUDE_OPUS },
+      { provider: "openai", model: GPT_4_CLASS },
+    ],
   },
+  // Cost-controlled report generation.
   "council-chair": {
-    chain: ["anthropic", "openai"],
-    models: { anthropic: ANTHROPIC_SONNET, openai: OPENAI_PRIMARY },
+    chain: [
+      { provider: "anthropic", model: CLAUDE_SONNET },
+      { provider: "openai", model: GPT_4_CLASS },
+    ],
   },
+  // Vision-capable Sonnet for title-block extraction.
   "title-block-extraction": {
-    chain: ["anthropic", "openai"],
-    models: { anthropic: ANTHROPIC_SONNET, openai: OPENAI_PRIMARY },
+    chain: [
+      { provider: "anthropic", model: CLAUDE_SONNET },
+      { provider: "openai", model: GPT_4_CLASS },
+    ],
   },
 };
 
-/** EUR pricing per 1M tokens by model id. Unknown models cost 0 (logged). */
-export const PRICING: Record<string, ModelPricing> = {
-  [ANTHROPIC_HAIKU]: { input_per_m: 0.8, output_per_m: 4 },
-  [ANTHROPIC_SONNET]: { input_per_m: 3, output_per_m: 15 },
-  [ANTHROPIC_ADJUDICATOR]: { input_per_m: 3, output_per_m: 15 },
-  [OPENAI_PRIMARY]: { input_per_m: 2.5, output_per_m: 10 },
-  [OPENAI_MINI]: { input_per_m: 0.15, output_per_m: 0.6 },
+/**
+ * Indicative pricing in EUR per 1,000 tokens, {input, output}. Used by getCost.
+ * These are planning figures for cost telemetry, refreshed from provider price
+ * sheets; they are not contractual. (file 20 § Financial dashboard)
+ */
+export const MODEL_COST_EUR_PER_1K: Record<string, { in: number; out: number }> = {
+  [CLAUDE_SONNET]: { in: 0.0028, out: 0.014 },
+  [CLAUDE_HAIKU]: { in: 0.0008, out: 0.004 },
+  [CLAUDE_OPUS]: { in: 0.014, out: 0.07 },
+  [GPT_4_CLASS]: { in: 0.0023, out: 0.0092 },
 };
 
-/** Resolve the configured model id for a (role, provider) pair. */
+/** Resolve the model a given provider uses for a role (first match in chain). */
 export function modelFor(role: LLMRole, provider: ProviderName): string | undefined {
-  return ROLE_CONFIG[role].models[provider];
+  return ROLE_WIRING[role].chain.find((c) => c.provider === provider)?.model;
 }
 
-/** Compute EUR cost for a token count under a model. */
-export function costFor(model: string, inputTokens: number, outputTokens: number): number {
-  const p = PRICING[model];
-  if (!p) return 0;
-  return (inputTokens / 1_000_000) * p.input_per_m + (outputTokens / 1_000_000) * p.output_per_m;
+/** Cost in EUR for a token count under a model (0 if model unknown). */
+export function costEur(model: string, tokensIn: number, tokensOut: number): number {
+  const rate = MODEL_COST_EUR_PER_1K[model];
+  if (!rate) return 0;
+  return (tokensIn / 1000) * rate.in + (tokensOut / 1000) * rate.out;
 }

@@ -1,100 +1,67 @@
 /**
- * VerifIQ — Convex-native storage adapter (Phase 1)
+ * VerifIQ — Convex-native storage adapter (fallback for small artefacts).
  *
- * Purpose: Fallback StorageProvider for small artefacts (generated reports,
- *   audit PDFs) per docs/27. Convex storage is only reachable from inside a
- *   Convex function, so this adapter wraps an injected Convex storage context
- *   rather than importing the SDK — keeping it conformant to StorageProvider
- *   while remaining usable from Convex actions.
+ * Used for small generated artefacts (report exports, signed forms) per docs/27.
+ * Convex's storage API is only available inside a Convex function context, so
+ * this adapter wraps the `ctx.storage` handle. For Convex, the object "key" is
+ * the storage id, which is only known AFTER the client completes the upload
+ * (the POST returns it) — so `getUploadUrl` returns an empty key.
  *
- * Implements: docs/27 (Convex-native small-artefact path).
- * Version: phase1-v0.1
+ * Callers inside Convex pass `ctx.storage` (cast to `ConvexStorage`, since the
+ * generated `Id<"_storage">` brand is intentionally not imported here).
+ *
+ * Spec references: docs/27; docs/28 § D3.
+ * Version: 0.3.0-phase1
  */
 
 import {
+  type ByteRange,
   type FileMeta,
-  type GetObjectOptions,
-  type ObjectBody,
   type ObjectHead,
   type StorageProvider,
   type UploadTarget,
-} from "./types";
+} from "./types.js";
 
-const UPLOAD_EXPIRY_SECONDS = 3600;
-
-/**
- * The subset of Convex's storage context this adapter needs. In a Convex
- * action/mutation this is satisfied by `ctx.storage`.
- */
-export interface ConvexStorageCtx {
+/** The minimal slice of Convex's `ctx.storage` this adapter needs. */
+export interface ConvexStorage {
   generateUploadUrl(): Promise<string>;
   getUrl(storageId: string): Promise<string | null>;
+  get(storageId: string): Promise<Blob | null>;
   delete(storageId: string): Promise<void>;
-  get?(storageId: string): Promise<Blob | null>;
-  getMetadata?(
-    storageId: string,
-  ): Promise<{ size?: number; contentType?: string; sha256?: string } | null>;
 }
+
+const UPLOAD_URL_TTL = 3600;
 
 export class ConvexStorageProvider implements StorageProvider {
   readonly name = "convex" as const;
+  constructor(private storage: ConvexStorage) {}
 
-  constructor(private readonly ctx: ConvexStorageCtx) {}
-
-  /**
-   * Convex issues a one-time POST upload URL; the storage id is returned in the
-   * upload response, so `key` is empty here and persisted by the caller after
-   * the upload completes. `meta` is part of the interface contract.
-   */
   async getUploadUrl(_meta: FileMeta): Promise<UploadTarget> {
-    void _meta;
-    const url = await this.ctx.generateUploadUrl();
-    return {
-      provider: this.name,
-      key: "",
-      url,
-      method: "POST",
-      expires_at: Date.now() + UPLOAD_EXPIRY_SECONDS * 1000,
-    };
+    const url = await this.storage.generateUploadUrl();
+    // Convex returns the storage id in the upload POST response, not now.
+    return { url, key: "", method: "POST", expires_in: UPLOAD_URL_TTL };
   }
 
   async getDownloadUrl(key: string): Promise<string> {
-    const url = await this.ctx.getUrl(key);
-    if (!url) throw new Error(`Convex storage object not found: ${key}`);
+    const url = await this.storage.getUrl(key);
+    if (!url) throw new Error(`No Convex storage object for id "${key}"`);
     return url;
   }
 
-  /** Convex storage reads are whole-object; `range` is accepted but not applied. */
-  async getObject(key: string, _options?: GetObjectOptions): Promise<ObjectBody> {
-    void _options;
-    if (!this.ctx.get) {
-      throw new Error("Convex storage context does not support get()");
-    }
-    const blob = await this.ctx.get(key);
-    if (!blob) throw new Error(`Convex storage object not found: ${key}`);
-    return {
-      body: blob,
-      size_bytes: blob.size,
-      content_type: blob.type,
-    };
+  async getObject(key: string, range?: ByteRange): Promise<Uint8Array> {
+    const blob = await this.storage.get(key);
+    if (!blob) throw new Error(`No Convex storage object for id "${key}"`);
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    return range ? bytes.slice(range.start, range.end + 1) : bytes;
   }
 
   async deleteObject(key: string): Promise<void> {
-    await this.ctx.delete(key);
+    await this.storage.delete(key);
   }
 
-  async headObject(key: string): Promise<ObjectHead> {
-    if (this.ctx.getMetadata) {
-      const meta = await this.ctx.getMetadata(key);
-      if (!meta) return { exists: false };
-      return {
-        exists: true,
-        ...(meta.size !== undefined ? { size_bytes: meta.size } : {}),
-        ...(meta.contentType !== undefined ? { content_type: meta.contentType } : {}),
-        ...(meta.sha256 !== undefined ? { sha256: meta.sha256 } : {}),
-      };
-    }
-    const url = await this.ctx.getUrl(key);
-    return { exists: url !== null };
+  async headObject(key: string): Promise<ObjectHead | null> {
+    const blob = await this.storage.get(key);
+    if (!blob) return null;
+    return { size_bytes: blob.size, content_type: blob.type || undefined };
   }
 }

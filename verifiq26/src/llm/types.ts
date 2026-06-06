@@ -1,16 +1,22 @@
 /**
- * VerifIQ — LLM provider interface (Phase 1)
+ * VerifIQ — LLM adapter interface.
  *
- * Purpose: The provider-agnostic contract every agent role calls through. No
- *   non-adapter code may import a vendor SDK directly (anti-pattern in the
- *   Phase 1 brief). Concrete adapters (anthropic.ts, openai.ts) implement this;
- *   index.ts selects + fails over between them per role.
+ * Purpose: the provider-agnostic contract every agent role calls through. No
+ * non-adapter code may name a concrete provider (CLAUDE.md anti-patterns);
+ * everything goes through `LLMProvider` and the role→provider config.
  *
- * Implements: 02_agent_architecture.md § Provider abstraction.
- * Version: phase1-v0.1
+ * Spec references: verifiq-prompts/02_agent_architecture.md § Multi-LLM
+ * configuration; docs/28 § Deliverable 2.
+ * Version: 0.3.0-phase1
  */
 
-/** Agent roles that map to a provider chain in config.ts. */
+/** Provider identifiers. Used only inside the adapter + config layers. */
+export type ProviderName = "anthropic" | "openai";
+
+/**
+ * Agent role strings. The config layer maps each to a provider + model so the
+ * caller never picks a model directly.
+ */
 export type LLMRole =
   | "classification"
   | "discipline-primary-review"
@@ -19,28 +25,22 @@ export type LLMRole =
   | "council-chair"
   | "title-block-extraction";
 
-export type ProviderName = "anthropic" | "openai";
-
-export interface TokenUsage {
-  input_tokens: number;
-  output_tokens: number;
-}
-
+/** Per-call options. */
 export interface CompleteOptions {
-  /** Cap on output tokens. */
-  maxTokens?: number;
-  /** Sampling temperature. */
-  temperature?: number;
-  /** System prompt (loaded from verifiq-prompts/ — never inlined in code). */
+  /** System prompt; cached (Anthropic) when `cacheSystem` is true. */
   system?: string;
-  /** Apply provider prompt-caching to the system block (Anthropic). */
+  maxTokens?: number;
+  temperature?: number;
+  /** Cache the system block (Anthropic prompt caching). Default true. */
   cacheSystem?: boolean;
-  /** Override the configured model id for this single call. */
-  model?: string;
+  /** Recorded in the audit entry / inference cache key (file 20 §2). */
+  promptVersion?: string;
+  agentId?: string;
+  corpusVersion?: string;
 }
 
 /** Structured result returned by every adapter call. */
-export interface CompletionResult {
+export interface LLMResult {
   text: string;
   tokens_in: number;
   tokens_out: number;
@@ -50,63 +50,51 @@ export interface CompletionResult {
   latency_ms: number;
 }
 
-/** A vision input: raw image bytes plus their media type. */
-export interface VisionImage {
-  buffer: Buffer;
-  media_type: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
-}
-
+/** A single provider adapter (Anthropic, OpenAI, …). */
 export interface LLMProvider {
   readonly name: ProviderName;
-
-  /** Text completion for the given role. */
-  complete(role: LLMRole, prompt: string, options?: CompleteOptions): Promise<CompletionResult>;
-
-  /** Vision completion (e.g. title-block extraction) for the given role. */
+  /** Text completion for a role. */
+  complete(role: LLMRole, prompt: string, options?: CompleteOptions): Promise<LLMResult>;
+  /** Vision completion (e.g. title-block extraction) for a role. */
   completeVision(
     role: LLMRole,
-    image: VisionImage,
+    imageBuffer: Uint8Array,
     prompt: string,
     options?: CompleteOptions,
-  ): Promise<CompletionResult>;
-
-  /** Estimated cost in EUR for a token usage under the model for this role. */
-  getCost(role: LLMRole, tokens: TokenUsage): number;
+  ): Promise<LLMResult>;
+  /** Estimated cost in EUR for a token count under a role's model. */
+  getCost(role: LLMRole, tokensIn: number, tokensOut: number): number;
 }
 
 /**
- * Audit record for a single LLM call. The router emits one of these per call
- * to an injected sink, which persists to the `audit_log` table via a Convex
- * mutation (20 § "Audit-log writes are mutations, never actions").
+ * Audit sink — the adapter calls this on every LLM call so the call is recorded
+ * to `audit_log` (docs/28 D2: "Log every call to audit_log via a Convex
+ * mutation"). Injected as a dependency to keep the adapter decoupled from
+ * Convex and unit-testable.
  */
-export interface LlmCallAuditEntry {
+export type AuditSink = (entry: LLMAuditEntry) => Promise<void> | void;
+
+export interface LLMAuditEntry {
+  action: "llm_call" | "llm_failover" | "llm_error";
   role: LLMRole;
-  provider_used: ProviderName;
-  model_used: string;
-  tokens_in: number;
-  tokens_out: number;
-  cost_eur: number;
-  latency_ms: number;
-  outcome: "success" | "failover" | "error";
-  /** Provider attempts in order, with any error message. */
-  attempts: Array<{ provider: ProviderName; error?: string }>;
-  project_id?: string;
+  provider_used?: ProviderName;
+  model_used?: string;
+  tokens_in?: number;
+  tokens_out?: number;
+  cost_eur?: number;
+  latency_ms?: number;
+  prompt_version?: string;
+  agent_id?: string;
+  error?: string;
 }
 
-export type AuditSink = (entry: LlmCallAuditEntry) => void | Promise<void>;
-
-/** Error carrying retryability so the router can decide to fail over. */
-export class ProviderError extends Error {
-  readonly retryable: boolean;
-  readonly status?: number;
-
-  constructor(message: string, opts: { retryable: boolean; status?: number; cause?: unknown }) {
+/** Error class that marks an LLM failure as retryable (rate limit / 5xx / network). */
+export class RetryableLLMError extends Error {
+  constructor(
+    message: string,
+    public readonly provider: ProviderName,
+  ) {
     super(message);
-    this.name = "ProviderError";
-    this.retryable = opts.retryable;
-    this.status = opts.status;
-    if (opts.cause !== undefined) {
-      (this as { cause?: unknown }).cause = opts.cause;
-    }
+    this.name = "RetryableLLMError";
   }
 }

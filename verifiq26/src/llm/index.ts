@@ -1,113 +1,122 @@
 /**
- * VerifIQ — LLM router / provider selector (Phase 1)
+ * VerifIQ — LLM provider selector + per-call failover.
  *
- * Purpose: The single entry point agents call. Reads the role→provider chain
- *   from config.ts, invokes the configured provider, and FAILS OVER PER CALL
- *   (not per scan) to the next provider in the chain on a retryable error
- *   (20 § "Multi-provider failover at the call level"). Emits one audit record
- *   per call to an injected sink that persists via a Convex mutation.
+ * Reads configured providers, resolves the provider chain for a role from
+ * config.ts, and tries each in order. On a retryable error (rate limit / 5xx /
+ * network) it fails over to the next provider WITHIN THE SAME CALL (file 20
+ * § Multi-provider failover at the call level). If every provider in the chain
+ * fails, the error propagates so the caller can hold the pack in the reviewer
+ * queue rather than ship degraded output (file 02 § Fallback chain).
  *
- *   Providers are injectable so tests (and the smoke test) can run without
- *   network access or API keys.
+ * Every attempt is recorded to the audit log via the injected AuditSink
+ * (docs/28 § D2). The sink is a dependency so this module never imports Convex.
  *
- * Implements: 02_agent_architecture.md § Fallback chain, 20 § failover.
- * Version: phase1-v0.1
+ * Spec references: verifiq-prompts/02_agent_architecture.md; docs/28 § D2.
+ * Version: 0.3.0-phase1
  */
 
-import { AnthropicProvider } from "./anthropic";
-import { OpenAIProvider } from "./openai";
-import { ROLE_CONFIG } from "./config";
 import {
   type AuditSink,
   type CompleteOptions,
-  type CompletionResult,
   type LLMProvider,
+  type LLMResult,
   type LLMRole,
-  type LlmCallAuditEntry,
   type ProviderName,
-  type VisionImage,
-  ProviderError,
-} from "./types";
+  RetryableLLMError,
+} from "./types.js";
+import { ROLE_WIRING } from "./config.js";
+import { AnthropicProvider } from "./anthropic.js";
+import { OpenAIProvider } from "./openai.js";
 
-export interface RouterContext {
-  project_id?: string;
+export * from "./types.js";
+export { ROLE_WIRING, modelFor, costEur } from "./config.js";
+
+export interface LLMClient {
+  complete(role: LLMRole, prompt: string, options?: CompleteOptions): Promise<LLMResult>;
+  completeVision(
+    role: LLMRole,
+    imageBuffer: Uint8Array,
+    prompt: string,
+    options?: CompleteOptions,
+  ): Promise<LLMResult>;
 }
 
-export interface LLMRouterOptions {
-  /** Called once per LLM call to persist the audit entry (e.g. Convex mutation). */
-  auditSink?: AuditSink;
-  /** Inject providers (for tests). Missing providers are lazily constructed. */
+export interface CreateLLMOptions {
+  /** Inject provider instances (used by tests / custom wiring). */
   providers?: Partial<Record<ProviderName, LLMProvider>>;
+  /** Records every call/failover/error to audit_log. */
+  audit?: AuditSink;
+  /** Keys for auto-instantiation when `providers` is not supplied. */
+  anthropicApiKey?: string;
+  openaiApiKey?: string;
 }
 
-export class LLMRouter {
-  private readonly auditSink?: AuditSink;
-  private readonly providers: Partial<Record<ProviderName, LLMProvider>>;
+/**
+ * Build the LLM client. With no injected providers it instantiates from the
+ * supplied keys (or the ANTHROPIC_API_KEY / OPENAI_API_KEY env vars).
+ */
+export function createLLM(opts: CreateLLMOptions = {}): LLMClient {
+  const registry = buildRegistry(opts);
+  if (Object.keys(registry).length === 0) {
+    throw new Error(
+      "No LLM providers configured. Set ANTHROPIC_API_KEY and/or OPENAI_API_KEY, or inject providers.",
+    );
+  }
+  return new FailoverClient(registry, opts.audit);
+}
 
-  constructor(options: LLMRouterOptions = {}) {
-    this.auditSink = options.auditSink;
-    this.providers = { ...options.providers };
+function buildRegistry(opts: CreateLLMOptions): Partial<Record<ProviderName, LLMProvider>> {
+  if (opts.providers) return opts.providers;
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+  const registry: Partial<Record<ProviderName, LLMProvider>> = {};
+  const anthropicKey = opts.anthropicApiKey ?? env.ANTHROPIC_API_KEY;
+  const openaiKey = opts.openaiApiKey ?? env.OPENAI_API_KEY;
+  if (anthropicKey) registry.anthropic = new AnthropicProvider(anthropicKey);
+  if (openaiKey) registry.openai = new OpenAIProvider(openaiKey);
+  return registry;
+}
+
+class FailoverClient implements LLMClient {
+  constructor(
+    private registry: Partial<Record<ProviderName, LLMProvider>>,
+    private audit?: AuditSink,
+  ) {}
+
+  complete(role: LLMRole, prompt: string, options?: CompleteOptions): Promise<LLMResult> {
+    return this.run(role, options, (p) => p.complete(role, prompt, options));
   }
 
-  /** Lazily construct + cache a provider. Returns undefined if unavailable. */
-  private getProvider(name: ProviderName): LLMProvider | undefined {
-    const existing = this.providers[name];
-    if (existing) return existing;
-    try {
-      const created = name === "anthropic" ? new AnthropicProvider() : new OpenAIProvider();
-      this.providers[name] = created;
-      return created;
-    } catch {
-      // Missing API key / construction failure → provider unavailable.
-      return undefined;
-    }
-  }
-
-  async complete(
+  completeVision(
     role: LLMRole,
+    imageBuffer: Uint8Array,
     prompt: string,
     options?: CompleteOptions,
-    ctx?: RouterContext,
-  ): Promise<CompletionResult> {
-    return this.run(role, ctx, (provider) => provider.complete(role, prompt, options));
+  ): Promise<LLMResult> {
+    return this.run(role, options, (p) => p.completeVision(role, imageBuffer, prompt, options));
   }
 
-  async completeVision(
-    role: LLMRole,
-    image: VisionImage,
-    prompt: string,
-    options?: CompleteOptions,
-    ctx?: RouterContext,
-  ): Promise<CompletionResult> {
-    return this.run(role, ctx, (provider) => provider.completeVision(role, image, prompt, options));
-  }
-
-  /** Walk the role's provider chain, failing over on retryable errors. */
+  /** Walk the role's provider chain, failing over per-call on retryable errors. */
   private async run(
     role: LLMRole,
-    ctx: RouterContext | undefined,
-    invoke: (provider: LLMProvider) => Promise<CompletionResult>,
-  ): Promise<CompletionResult> {
-    const chain = ROLE_CONFIG[role].chain;
-    const attempts: LlmCallAuditEntry["attempts"] = [];
+    options: CompleteOptions | undefined,
+    call: (provider: LLMProvider) => Promise<LLMResult>,
+  ): Promise<LLMResult> {
+    const available = ROLE_WIRING[role].chain
+      .map((c) => this.registry[c.provider])
+      .filter((p): p is LLMProvider => Boolean(p));
+
+    if (available.length === 0) {
+      throw new Error(`No configured provider in the chain for role "${role}"`);
+    }
+
     let lastError: unknown;
-
-    for (let i = 0; i < chain.length; i++) {
-      const name = chain[i]!;
-      const isLast = i === chain.length - 1;
-      const provider = this.getProvider(name);
-
-      if (!provider) {
-        attempts.push({ provider: name, error: "provider unavailable (no credentials)" });
-        lastError = new ProviderError(`Provider ${name} unavailable`, { retryable: true });
-        if (isLast) break;
-        continue;
-      }
-
+    for (let i = 0; i < available.length; i++) {
+      const provider = available[i]!;
+      const isLast = i === available.length - 1;
       try {
-        const result = await invoke(provider);
-        attempts.push({ provider: name });
-        await this.emit({
+        const result = await call(provider);
+        await this.log({
+          action: "llm_call",
           role,
           provider_used: result.provider_used,
           model_used: result.model_used,
@@ -115,51 +124,40 @@ export class LLMRouter {
           tokens_out: result.tokens_out,
           cost_eur: result.cost_eur,
           latency_ms: result.latency_ms,
-          outcome: attempts.length > 1 ? "failover" : "success",
-          attempts,
-          ...(ctx?.project_id ? { project_id: ctx.project_id } : {}),
+          prompt_version: options?.promptVersion,
+          agent_id: options?.agentId,
         });
         return result;
       } catch (err) {
         lastError = err;
-        const message = err instanceof Error ? err.message : String(err);
-        attempts.push({ provider: name, error: message });
-        const retryable = err instanceof ProviderError ? err.retryable : true;
+        const retryable = err instanceof RetryableLLMError;
         if (retryable && !isLast) {
-          continue; // fail over to next provider in the chain
+          await this.log({
+            action: "llm_failover",
+            role,
+            provider_used: provider.name,
+            error: (err as Error).message,
+            prompt_version: options?.promptVersion,
+            agent_id: options?.agentId,
+          });
+          continue;
         }
-        break; // non-retryable, or chain exhausted
+        await this.log({
+          action: "llm_error",
+          role,
+          provider_used: provider.name,
+          error: err instanceof Error ? err.message : String(err),
+          prompt_version: options?.promptVersion,
+          agent_id: options?.agentId,
+        });
+        throw err;
       }
     }
-
-    await this.emit({
-      role,
-      provider_used: chain[chain.length - 1]!,
-      model_used: "n/a",
-      tokens_in: 0,
-      tokens_out: 0,
-      cost_eur: 0,
-      latency_ms: 0,
-      outcome: "error",
-      attempts,
-      ...(ctx?.project_id ? { project_id: ctx.project_id } : {}),
-    });
-
-    throw lastError instanceof Error
-      ? lastError
-      : new ProviderError(`All providers failed for role ${role}`, { retryable: false });
+    // Chain exhausted on retryable errors — surface so the pack can be held.
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
   }
 
-  private async emit(entry: LlmCallAuditEntry): Promise<void> {
-    if (!this.auditSink) return;
-    await this.auditSink(entry);
+  private async log(entry: Parameters<AuditSink>[0]): Promise<void> {
+    if (this.audit) await this.audit(entry);
   }
 }
-
-/** Convenience factory. */
-export function createLLMRouter(options?: LLMRouterOptions): LLMRouter {
-  return new LLMRouter(options);
-}
-
-export * from "./types";
-export { ROLE_CONFIG, costFor, modelFor } from "./config";

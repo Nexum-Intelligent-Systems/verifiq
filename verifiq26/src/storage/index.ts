@@ -1,84 +1,104 @@
 /**
- * VerifIQ — storage selector / router (Phase 1)
+ * VerifIQ — storage selector (size-aware routing).
  *
- * Purpose: Routes uploads by file size — files at/above the threshold go to R2
- *   (no per-blob ceiling, zero egress), smaller files go to Convex-native
- *   storage (docs/27). Non-upload operations route to the named provider the
- *   `documents` row recorded at upload time.
+ * Routes by file size per docs/27: files at/above the threshold (default
+ * 100 MB) go to Cloudflare R2; smaller artefacts may use Convex-native storage.
+ * For read/delete/head, the location is inferred from the key shape — R2 keys
+ * follow `proj/.../<sha>.<ext>` (contain "/"), Convex storage ids do not.
  *
- * Implements: docs/27 § Recommendation, 20_platform_architecture.md § 1.
- * Version: phase1-v0.1
+ * Spec references: docs/27; docs/28 § D3.
+ * Version: 0.3.0-phase1
  */
 
-import { ConvexStorageProvider } from "./convex";
-import { R2StorageProvider } from "./r2";
 import {
+  type ByteRange,
   type FileMeta,
+  type ObjectHead,
   type StorageProvider,
-  type StorageProviderName,
   type UploadTarget,
-} from "./types";
+} from "./types.js";
+import { R2Provider, r2FromEnv } from "./r2.js";
+import { ConvexStorageProvider, type ConvexStorage } from "./convex.js";
 
-/** Default routing threshold: 100 MB (docs/27). Env-overridable. */
-export function r2ThresholdBytes(): number {
-  const raw = process.env.STORAGE_R2_THRESHOLD_BYTES;
-  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-  return Number.isFinite(parsed) ? parsed : 100 * 1024 * 1024;
-}
+export * from "./types.js";
+export { R2Provider, r2FromEnv, MULTIPART_THRESHOLD_BYTES } from "./r2.js";
+export { ConvexStorageProvider } from "./convex.js";
 
-/** Decide which provider a file of the given size should upload to. */
-export function routeProviderName(
-  sizeBytes: number,
-  thresholdBytes: number = r2ThresholdBytes(),
-): StorageProviderName {
-  return sizeBytes >= thresholdBytes ? "r2" : "convex";
-}
+/** Default size threshold for routing to R2 (100 MB; docs/27 / .env example). */
+export const DEFAULT_R2_THRESHOLD_BYTES = 100 * 1024 * 1024;
 
 export interface StorageRouterOptions {
-  r2?: StorageProvider;
-  convex?: StorageProvider;
+  r2?: R2Provider | null;
+  convex?: ConvexStorageProvider | null;
   thresholdBytes?: number;
 }
 
-export class StorageRouter {
-  private readonly r2?: StorageProvider;
-  private readonly convex?: StorageProvider;
-  private readonly threshold: number;
+/**
+ * Size-aware storage router implementing the 5-method StorageProvider contract.
+ * Upload routing uses `meta.size_bytes`; other ops route by key shape.
+ */
+export class StorageRouter implements StorageProvider {
+  readonly name = "r2" as const; // nominal; routing happens per call
+  private r2: R2Provider | null;
+  private convex: ConvexStorageProvider | null;
+  private threshold: number;
 
-  constructor(options: StorageRouterOptions = {}) {
-    this.r2 = options.r2;
-    this.convex = options.convex;
-    this.threshold = options.thresholdBytes ?? r2ThresholdBytes();
-  }
-
-  /** Pick the upload target by size, with a sensible fallback when one provider
-   * is not wired (e.g. Convex storage is unavailable outside a Convex action). */
-  async getUploadTarget(meta: FileMeta): Promise<UploadTarget> {
-    const preferred = routeProviderName(meta.size_bytes, this.threshold);
-    const provider = this.resolve(preferred);
-    return provider.getUploadUrl(meta);
-  }
-
-  /** Return a specific provider for download/head/get/delete operations. */
-  provider(name: StorageProviderName): StorageProvider {
-    return this.resolve(name);
-  }
-
-  private resolve(name: StorageProviderName): StorageProvider {
-    const chosen = name === "r2" ? this.r2 : this.convex;
-    if (chosen) return chosen;
-    const fallback = this.r2 ?? this.convex;
-    if (!fallback) {
-      throw new Error("No storage provider configured on the StorageRouter");
+  constructor(opts: StorageRouterOptions) {
+    this.r2 = opts.r2 ?? null;
+    this.convex = opts.convex ?? null;
+    this.threshold = opts.thresholdBytes ?? DEFAULT_R2_THRESHOLD_BYTES;
+    if (!this.r2 && !this.convex) {
+      throw new Error("StorageRouter needs at least one of: r2, convex");
     }
-    return fallback;
+  }
+
+  /** Pick the provider for an upload of the given size. */
+  forUpload(sizeBytes: number): StorageProvider {
+    if (sizeBytes >= this.threshold) {
+      return this.require(this.r2, "R2");
+    }
+    // Prefer Convex for small artefacts when available, else fall back to R2.
+    return this.convex ?? this.require(this.r2, "R2");
+  }
+
+  /** Pick the provider for an existing key by its shape. */
+  private forKey(key: string): StorageProvider {
+    const looksLikeR2 = key.includes("/");
+    return looksLikeR2 ? this.require(this.r2, "R2") : this.convex ?? this.require(this.r2, "R2");
+  }
+
+  private require<T>(value: T | null, label: string): T {
+    if (!value) throw new Error(`${label} storage provider is not configured`);
+    return value;
+  }
+
+  getUploadUrl(meta: FileMeta): Promise<UploadTarget> {
+    return this.forUpload(meta.size_bytes).getUploadUrl(meta);
+  }
+  getDownloadUrl(key: string, expiresInSeconds?: number): Promise<string> {
+    return this.forKey(key).getDownloadUrl(key, expiresInSeconds);
+  }
+  getObject(key: string, range?: ByteRange): Promise<Uint8Array> {
+    return this.forKey(key).getObject(key, range);
+  }
+  deleteObject(key: string): Promise<void> {
+    return this.forKey(key).deleteObject(key);
+  }
+  headObject(key: string): Promise<ObjectHead | null> {
+    return this.forKey(key).headObject(key);
   }
 }
 
-/** Construct an R2 provider from env. */
-export function createR2Provider(): R2StorageProvider {
-  return new R2StorageProvider();
+/**
+ * Build a StorageRouter from environment variables. The Convex-native adapter
+ * is added separately (it needs a function ctx), so this wires R2 only.
+ */
+export function storageFromEnv(env: Record<string, string | undefined>): StorageRouter {
+  const r2 = r2FromEnv(env);
+  const threshold = env.STORAGE_R2_THRESHOLD_BYTES
+    ? Number(env.STORAGE_R2_THRESHOLD_BYTES)
+    : DEFAULT_R2_THRESHOLD_BYTES;
+  return new StorageRouter({ r2, thresholdBytes: threshold });
 }
 
-export { ConvexStorageProvider, R2StorageProvider };
-export * from "./types";
+export type { ConvexStorage };

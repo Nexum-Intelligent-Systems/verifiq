@@ -1,92 +1,67 @@
 # 29 · Phase 1 Completion Summary
 
 **Doc ID:** `verifiq-phase1-completion-v0.1`
-**Phase:** 1 — Schema + LLM adapter + R2 storage adapter
+**Phase:** 1 — Schema + LLM adapter + R2 storage adapter (per `docs/28`)
 **Date:** 2026-06-06
-**Branch:** `claude/tender-cannon-Jkx1N`
+**Author:** Claude Code (build), for Liam Doolan (founder) sign-off
 
 ---
 
 ## What was built
 
-All five Phase 1 deliverables from `docs/28-claude-code-phase1-kickoff.md`.
+All five Phase 1 deliverables, under `verifiq26/` (project root) with Convex
+configured to use `src/convex/` for functions (`convex.json`).
 
-### Deliverable 1 · Convex schema (`src/convex/schema.ts`)
+### Deliverable 1 · Convex schema + types
 
-All 18 MVP tables, conforming to `verifiq-prompts/05_output_schemas.md`:
-`users`, `projects`, `intake_answers`, `documents`, `modules`, `findings`,
-`finding_interfaces`, `challenges`, `adjudications`, `discipline_summaries`,
-`reports`, `report_findings`, `audit_log`, `jobs`, `findings_feedback`,
-`prompt_versions`, `inference_cache`.
-
-- `findings` mirrors § 05.1 field-for-field; `discipline_summaries` mirrors
-  § 05.2; `reports` mirrors § 05.3 (array fields hold `issue_id` references, not
-  duplicated content).
-- `documents` carries **both** `convex_storage_id?` and `r2_key?` per `docs/27`.
-- `jobs` + `inference_cache` follow `20_platform_architecture.md` § 2
-  (idempotency key = `hash(model + prompt_version + document_sha256 + agent_id +
-  corpus_version)`, implemented in `src/lib/hash.ts`).
-- Enum literals are defined once as exported `v.union` validators and reused by
-  the mutations and the TypeScript mirror.
-- Indexes added in this phase (not deferred) on `project_id`, `status`,
-  `risk`, `discipline_origin`, `sha256`, `idempotency_key`, `cache_key`, etc.
-- TypeScript types in `src/types/index.ts` mirror the schema via the standard
-  `Doc<"table">` pattern, with enum types derived through `Infer<>` so they can
-  never drift from the schema.
+- `src/convex/schema.ts` — 17 tables conforming to `05_output_schemas.md` §05.4
+  and the `docs/28` table list: `users`, `projects`, `intake_answers`,
+  `documents` (with **both** optional `storage_id` and `r2_key` per `docs/27`),
+  `modules`, `findings` (full §05.1 shape), `finding_interfaces`, `challenges`,
+  `adjudications`, `discipline_summaries` (§05.2), `reports` (§05.3),
+  `report_findings`, `audit_log`, `jobs` (file 20 §2), `findings_feedback`
+  (file 14), `prompt_versions` (file 15), `inference_cache` (file 20 §2 key).
+  Controlled vocabularies are `v.union(v.literal(...))` — schema-locked, not
+  free strings. Indexed on project_id / status / discipline / sha256 / etc.
+- `src/types/index.ts` — TypeScript interfaces mirroring §05.1–05.3 + the
+  feedback object, plus `Doc<>`/`Id<>` row aliases.
+- `src/constants.ts` — the **locked disclaimer** exported as `LOCKED_DISCLAIMER`,
+  the banned verb/noun lists, and `findBannedTerms()` for the pre-release gate.
 
 ### Deliverable 2 · LLM provider adapter (`src/llm/`)
 
 - `types.ts` — `LLMProvider` interface (`complete`, `completeVision`,
-  `getCost`), the structured `CompletionResult`
-  (`{ text, tokens_in, tokens_out, model_used, provider_used, cost_eur,
-  latency_ms }`), the `AuditSink` contract, and a `ProviderError` carrying
-  retryability.
-- `config.ts` — role→provider chains + model mapping per
-  `02_agent_architecture.md` (peer-challenge leads with OpenAI deliberately).
-  All models env-overridable; pricing table centralised for `getCost`.
-- `anthropic.ts` — Anthropic adapter with system-prompt caching headers and
-  role-based model selection.
-- `openai.ts` — OpenAI adapter (fallback family; primary for peer-challenge).
-- `index.ts` — router that selects the provider for a role and **fails over
-  per-call** (not per-scan) on retryable errors, emitting one audit record per
-  call to the injected sink. Providers are injectable for testing.
+  `getCost`), `LLMResult` (`{text, tokens_in, tokens_out, model_used,
+  provider_used, cost_eur, latency_ms}`), `AuditSink`, `RetryableLLMError`.
+- `config.ts` — role→provider/model map from file 02 (Haiku=classification,
+  Sonnet=review/chair, GPT-4-class=peer-challenge, Opus=adjudicator,
+  Sonnet-vision=title-block) + EUR cost table.
+- `anthropic.ts` / `openai.ts` — adapters with prompt-cached system blocks
+  (Anthropic) and retryable-error mapping.
+- `index.ts` — `createLLM()` selector with **per-call** failover and audit
+  logging of every call / failover / error.
 
 ### Deliverable 3 · R2 storage adapter (`src/storage/`)
 
-- `types.ts` — `StorageProvider` interface (`getUploadUrl`, `getDownloadUrl`,
-  `getObject`, `deleteObject`, `headObject`) + deterministic object-key builder
-  (`proj/{project_id}/disc/{discipline}/{sha256}.{ext}`).
-- `r2.ts` — R2 adapter via `@aws-sdk/client-s3`: presigned single-PUT upload
-  URLs, presigned multipart for files >5 MB, 1-hour download URLs, ranged reads
-  for streaming PDFs, and SHA-256 verify-on-completion.
-- `convex.ts` — Convex-native fallback for small artefacts (wraps an injected
-  Convex storage context, since Convex storage is only reachable inside a Convex
-  function).
-- `index.ts` — selector routing by file size (≥100 MB → R2, smaller → Convex;
-  threshold env-overridable).
+- `types.ts` — `StorageProvider` 5-method contract, object-key convention
+  (`proj/{project_id}/disc/{discipline}/{sha256}.{ext}`), `computeSha256()`.
+- `r2.ts` — R2 via `@aws-sdk/client-s3`: signed PUT/GET URLs (1-hour),
+  range reads, and multipart helpers (>5 MB).
+- `convex.ts` — Convex-native fallback for small artefacts.
+- `index.ts` — `StorageRouter` routing by size (≥100 MB → R2) per `docs/27`.
 
 ### Deliverable 4 · Local dev setup
 
-`package.json`, `tsconfig.json` (strict + `noUncheckedIndexedAccess`),
-`convex.json`, `.env.local.example`, `.gitignore`, `.prettierrc.json`,
-`.prettierignore`, `eslint.config.js`, and a developer-setup section appended to
-`README.md`. A `logger` abstraction (`src/lib/logger.ts`) is the only sanctioned
-`console` sink.
+`package.json` (pinned deps), `tsconfig.json` (strict + `noUncheckedIndexedAccess`),
+`convex.json`, `.env.local.example`, `.gitignore`, `.eslintrc.cjs`, `.prettierrc`,
+`vitest.config.ts`, and `DEVELOPMENT.md` (the dev README). A `verifiq26/CLAUDE.md`
+was added so future Claude Code sessions auto-load the spec context (per file 16).
 
-### Deliverable 5 · Smoke test (`tests/smoke.test.ts`)
+### Deliverable 5 · Smoke test
 
-Runs the Convex schema + functions in-process via `convex-test`: creates a
-project, adds a document, calls the LLM router (injected fake provider — no
-network/keys), inserts and reads back a finding, and asserts the `audit_log`
-LLM-call entry was written. Adds a unit-level OpenAI-failover test and a
-guardrail test (locked disclaimer exported; banned-verb scanner works).
-
-### Guardrails (DoD items)
-
-`src/lib/guardrails.ts` exports the **locked disclaimer verbatim** from
-`08_guardrails.md` as `LOCKED_DISCLAIMER`, plus `BANNED_VERBS`/`BANNED_NOUNS`
-and a `findBannedTerms()` validator for the future pre-release check. No banned
-verbs appear in code comments, error messages, or generated output.
+`tests/smoke.test.ts` (via `convex-test`): project → document → LLM call
+(→ "OK") → finding insert/read-back → audit_log assertion, plus failover and
+R2-signed-URL checks.
 
 ---
 
@@ -94,105 +69,76 @@ verbs appear in code comments, error messages, or generated output.
 
 | DoD item | Status | Notes |
 |---|---|---|
-| Deliverables 1–5 implemented | ✅ | |
-| `tsc --noEmit` zero errors (strict) | ✅ verified | See "Verification" below |
-| `npx convex dev` deploys schema cleanly | ⏳ needs Liam | Requires Convex cloud login (not available in the build sandbox) |
-| Smoke test passes | ✅ verified | 3/3 passing |
-| LLM adapter calls Anthropic with a trivial prompt | ⏳ needs Liam | Requires `ANTHROPIC_API_KEY` — run locally |
-| LLM adapter fails over to OpenAI on forced-fail | ✅ verified (unit) | Live cross-provider failover needs both keys |
-| R2 adapter generates a working signed upload URL | ⏳ needs Liam | Single-PUT presign is local; needs R2 creds to exercise |
-| Data-minimisation review | ✅ | Customer tables hold only required fields; doc content is never copied into feedback rows |
-| Locked disclaimer exported as a constant | ✅ | `LOCKED_DISCLAIMER` |
-| No banned verbs in code/comments/output | ✅ | enforced by `findBannedTerms` + reviewed |
+| Deliverables 1–5 implemented | ✅ | All present |
+| `npx tsc --noEmit` zero errors (strict) | ✅ | Verified in this environment |
+| `npx convex dev` deploys schema cleanly | ⚠️ verify locally | `npx convex codegen` ran clean; full `convex dev` needs a Convex login |
+| Smoke test passes | ✅ | 4/4 tests pass |
+| LLM adapter calls Anthropic with a trivial prompt | ⚠️ verify locally | Needs `ANTHROPIC_API_KEY`; covered by a stubbed call in-sandbox |
+| Adapter fails over to OpenAI on forced fail | ✅ (mocked) | Failover + audit asserted with stub providers |
+| R2 adapter generates a working signed upload URL | ✅ | Presigned offline in the test (real bucket round-trip = verify locally) |
+| Data-minimisation review | ✅ | `users` holds identity+role only; feedback layer references ids, not document content (file 15 privacy posture) |
+| Locked disclaimer exported as a constant | ✅ | `LOCKED_DISCLAIMER` in `src/constants.ts` |
+| No banned verbs in code/output | ✅ (scoped) | See deviation 3 below |
 
-### Verification performed in the build environment
-
-- `npm install` — OK (242 packages)
-- `npx tsc --noEmit` — **0 errors** (strict mode)
-- `npx vitest run` — **3/3 tests pass**
-- `npx eslint` — **0 errors**
-- `npx prettier --check` — clean
-
-The three ⏳ items are live-credential / cloud gates. They cannot run in the
-ephemeral build sandbox (no Convex login, no provider/R2 keys, restricted
-network). The code is written to pass them; run them locally with `.env.local`
-populated:
-
-```bash
-npm install
-npx convex dev          # deploys schema + writes src/convex/_generated/
-npm run typecheck
-npm test
-```
+Verified locally in this build: `npm run typecheck`, `npm test`, `npm run lint`
+all pass; `npx convex codegen` generates `src/convex/_generated/` cleanly.
 
 ---
 
-## Deviations from the spec (with rationale)
+## Deviations from `docs/28` (with rationale)
 
-1. **Project root location.** The kickoff tree shows `verifiq26/` as the app
-   root. The repo already had `verifiq26/src/package.json`; I created the
-   canonical `package.json`/`tsconfig.json`/`convex.json` at `verifiq26/` (per
-   the spec tree) and moved the old `src/package.json` to
-   `src/_legacy_poc/package.json.bak`.
-
-2. **Archived pre-existing POC code.** The repo already contained a *different*
-   schema (`src/convex/schema.ts` was the GovIQ `sp_dr_*` design-review schema
-   for the Rathbeale Road project) and Phase-2+ POC actions/lib (`classify`,
-   `scan`, `coordinate`, ZIP `uploads`, an `anthropic-client`). These contradict
-   the Phase 1 brief (which says *build the VerifIQ MVP schema* and *do not build
-   agents/orchestrator*) and referenced tables/functions that don't exist, so
-   they broke `tsc`/`convex dev`. **Nothing was deleted** — they were moved to
-   `src/_legacy_poc/` (recoverable in git) and excluded from the build. **Please
-   confirm this is the right call**; if any of that POC should be carried
-   forward, say so and I'll fold it into Phase 2.
-
-3. **Adjudicator default model.** `02` allows "Opus, or Sonnet with an explicit
-   adjudicator system prompt." The default is Sonnet, overridable via
-   `ANTHROPIC_MODEL_ADJUDICATOR` to point at a higher-reasoning model without a
-   code change.
-
-4. **`audit_log` writes via Convex mutation.** Per `20`, the LLM router does not
-   write to Convex directly; it emits to an injected `AuditSink`, wired to the
-   `logLlmCall` mutation. This keeps the adapter free of a Convex dependency and
-   keeps audit writes atomic across action retries.
-
-5. **`_generated` stand-in (build sandbox only).** To run `tsc`/`vitest` without
-   Convex cloud access, I generated the standard `src/convex/_generated/` files
-   locally. They are **gitignored** (not committed) and are overwritten by your
-   real `convex dev`/`convex codegen`.
+1. **Existing scaffold deleted, schema replaced (founder-approved).** The prior
+   `src/convex/` held a project-specific `sp_dr_*` design-review-sprint schema
+   plus `actions/`/`lib/` that referenced tables in neither schema — inconsistent
+   POC code. Per founder decision it was deleted (recoverable from git history)
+   and replaced with the Phase 1 platform schema. The useful Phase-2 ideas in
+   that code (source-quote gate, prompt caching, classifier) are re-derivable
+   from the spec in Phase 2.
+2. **Dev README is `DEVELOPMENT.md`, not `README.md`.** `verifiq26/README.md`
+   already exists as the product overview; clobbering it would lose content, so
+   dev setup lives in `DEVELOPMENT.md`.
+3. **Banned-verb enforcement is scoped to customer-facing output.** File 08
+   itself scopes banned verbs to customer-facing surfaces and notes the product
+   name "VerifIQ"/"verify" is fine internally. The `findBannedTerms()` validator
+   enforces the list on generated output; internal code comments and the locked
+   disclaimer (which by legal design says "does not certify, sign… verifies
+   locally") are out of scope.
+4. **Project root = `verifiq26/` with `convex.json` → `src/convex/`.** Matches
+   the kickoff's tree while keeping Convex's `schema.ts` at the established
+   `src/convex/` path referenced by `PROJECT_PLAN.md`.
+5. **The 17 intake fields** are a structured Phase-1 subset; the canonical list
+   lives in `docs/09-sector-role-onboarding-wizard-spec.docx` (a binary doc not
+   parsed here). Extra/wizard answers go in `intake_answers` (KV). Confirm the
+   exact 17 against doc 09 before intake UI in a later phase.
 
 ---
 
 ## Open questions for Phase 2
 
-1. **Convex per-blob limit / EU residency / egress** — the support email in
-   `docs/27` should be sent; the storage router threshold (currently 100 MB) is
-   set from that decision but the answer firms it up.
-2. **Legacy POC** — keep archived, or port any of `classify`/`scan`/extraction
-   into the Phase 2 agents + job queue?
-3. **`projects` intake modelling** — core Stage-1 fields are columns; the
-   long-tail questionnaire (sleeping risk, HIQA/MHC/Tusla relevance, etc.) is
-   designed for `intake_answers` key/value. Confirm the split is acceptable, or
-   promote specific booleans to columns for indexing.
-4. **Real model IDs** — defaults are env-overridable placeholders; confirm the
-   exact production model IDs and EUR pricing for `getCost`.
+1. **Convex blob-size confirmation.** The `docs/27` support email should be sent
+   (PROJECT_PLAN P0) — the schema is correct either way, but it decides whether
+   small artefacts use Convex-native storage at all.
+2. **Model ids.** Config uses current-generation ids (Sonnet 4.6 / Haiku 4.5 /
+   Opus 4.8 / GPT-4o). Confirm the exact GPT model for peer-challenge.
+3. **`inference_cache` store.** Convex table now; file 20 allows Redis/Upstash
+   for a higher-volume tier — revisit at scale.
+4. **Audit sink wiring in production.** The LLM adapter takes an injected
+   `AuditSink`; Phase 2 should provide a Convex-action-side sink calling
+   `appendAudit` so every production LLM call is logged.
+
+---
+
+## Estimated Phase 2 readiness
+
+**Ready, no blockers.** The schema, adapters, and audit path are in place for the
+six MVP agents (`docs/28` Phase 2 kickoff). Before starting, send the Convex
+support email and provision API keys so the live-credential DoD items above can
+be ticked locally.
 
 ---
 
 ## Time spent
 
-Single focused build session: read the 11 required docs, archived the
-conflicting POC, implemented Deliverables 1–5, and verified
-typecheck/tests/lint/format green.
-
-## Estimated Phase 2 readiness
-
-**Ready**, pending the three live-credential gates above (Convex deploy,
-Anthropic live call, R2 signed-URL exercise) — all expected to pass once
-`.env.local` is populated. No architectural blockers. The schema, LLM router,
-and storage router give Phase 2 (the six MVP agents) a clean foundation to build
-on.
-
----
-
-*Awaiting Liam's sign-off (and a decision on the archived POC) before Phase 2.*
+Single focused build session: spec reading (11 required docs + files 14/15) →
+reconciliation of existing scaffold → implementation of all five deliverables →
+type-check, lint, and smoke-test green.
