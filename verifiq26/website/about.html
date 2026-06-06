@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VerifIQ — About · Pilot Reviewer</title>
+<link rel="stylesheet" href="verifiq-system.css" />
+<link rel="stylesheet" href="verifiq-cad.css" />
+<style>
+  body { background: var(--bone); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+  .wrap-narrow { max-width: 760px; margin: 0 auto; padding: 0 32px; }
+  .top-nav { position: sticky; top: 0; z-index: 50; background: rgba(245,241,235,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--ink); }
+  .top-nav .inner { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .wordmark { font-family: var(--font-serif); font-weight: 600; font-size: 1.4rem; letter-spacing: 0.06em; color: var(--ink); border-bottom: 0; }
+  .header { padding: 64px 0 56px; border-bottom: 1px solid var(--ink); }
+  .header h1 { font-family: var(--font-serif); font-weight: 600; font-size: clamp(2.5rem,5vw,4.5rem); line-height: 1.05; margin: 16px 0 12px; }
+  .header .lede { font-family: var(--font-serif); font-style: italic; font-size: 1.25rem; color: var(--ink-soft); max-width: 60ch; }
+  .section { padding: 64px 0; border-bottom: 1px solid var(--ink); }
+  .section.tint { background: var(--vellum); }
+  .section-head h2 { font-family: var(--font-serif); font-weight: 500; font-size: clamp(1.5rem,2.5vw,2rem); margin: 0 0 14px; }
+  .section-head p { font-family: var(--font-serif); font-style: italic; color: var(--ink-soft); margin: 0 0 28px; max-width: 60ch; }
+  .reviewer-grid { display: grid; grid-template-columns: 1fr; gap: 28px; margin-top: 32px; }
+  @media (min-width: 720px) { .reviewer-grid { grid-template-columns: 1fr 2fr; gap: 48px; } }
+  .reviewer-card { border: 1px solid var(--ink); background: var(--paper); padding: 28px 24px; }
+  .reviewer-card .name { font-family: var(--font-serif); font-weight: 500; font-size: 1.5rem; margin-bottom: 6px; }
+  .reviewer-card .title { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--draft); margin-bottom: 18px; }
+  .scope-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .scope-list li { display: flex; align-items: baseline; gap: 10px; font-family: var(--font-sans); font-size: 0.9375rem; color: var(--ink-soft); line-height: 1.5; }
+  .scope-list .check { color: var(--moss); font-weight: 700; font-size: 1.125rem; line-height: 0.8; }
+  .scope-list .x { color: var(--sanguine); font-weight: 700; font-size: 1.125rem; line-height: 0.8; }
+  .pending { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .pending span { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase; padding: 6px 12px; border: 1px solid var(--draft); color: var(--draft); background: var(--bone); }
+  .body-text p { font-family: var(--font-sans); font-size: 1rem; line-height: 1.7; color: var(--ink-soft); margin: 0 0 18px; max-width: 64ch; }
+  .body-text p strong { color: var(--ink); font-weight: 600; }
+  .locked-block { padding: 48px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); background: var(--paper); text-align: center; }
+  .locked-block .lb-text { font-family: var(--font-serif); font-style: italic; font-size: 1rem; line-height: 1.7; color: var(--ink); max-width: 58ch; margin: 14px auto; padding: 0 20px; }
+  footer { padding: 36px 0 40px; background: var(--ink); color: var(--bone); }
+  footer .foot-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--vellum); }
+  footer a { color: var(--vellum); border-bottom: 1px solid var(--graphite); }
+</style>
+</head>
+<body class="paper-texture">
+<nav class="top-nav"><div class="wrap inner"><a href="index.html" class="wordmark">VerifIQ</a><span style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.22em;text-transform:uppercase;color:var(--draft);">— About · Pilot Reviewer</span><a href="onboarding-wizard.html" style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.22em;text-transform:uppercase;color:var(--ink);border-bottom:1px solid var(--ink);">Request the brief ↗</a></div></nav>
+
+<header class="header"><div class="wrap"><span class="t-eyebrow">— Drawing 12 · About</span><h1>Who reads your pack.</h1><p class="lede">VerifIQ is a small atelier in Dublin, run inside GovIQ Ltd. During the pilot cohort, one chartered eye reads every paid pack — yours. We tell you who, with what scope, and what we hand off as the panel forms.</p></div></header>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head"><h2>The pilot reviewer.</h2><p>Honest, scoped, specialism-named. Findings outside this scope are surfaced — never signed by this reviewer.</p></div>
+
+    <div class="reviewer-grid">
+      <div class="reviewer-card">
+        <div class="name">Liam Doolan</div>
+        <div class="title">Founder · VerifIQ · GovIQ Ltd</div>
+        <p style="font-family:var(--font-sans);font-size:.9375rem;line-height:1.6;color:var(--ink-soft);margin:0 0 18px;">Specialist in Irish public-sector capital delivery. Background in procurement governance, CWMF / PW-CF compliance, and tender-pack coordination across HSE / OPW / local-authority capital programmes. The reviewer signing your pilot pack.</p>
+        <span class="t-eyebrow" style="display:block;margin-bottom:8px;">— Bench experience</span>
+        <p style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.1em;color:var(--graphite);line-height:1.6;margin:0;">Capital delivery · multi-discipline coordination · contract-form (PW-CF) audit · CWMF / OGP procurement · BCAR doc-set hygiene · public-sector tender packs at Stage 2C / 3 / 4</p>
+      </div>
+
+      <div class="body-text">
+        <p><strong>What Liam signs as the chartered-reviewed reviewer:</strong></p>
+        <ul class="scope-list">
+          <li><span class="check">✓</span>Contract-form coherence (PW-CF variants, LD mechanics, Dates)</li>
+          <li><span class="check">✓</span>CWMF / OGP procurement risk</li>
+          <li><span class="check">✓</span>Tender-pack document hygiene (versions, dates, registers, completeness)</li>
+          <li><span class="check">✓</span>BCAR doc-set completeness (NOT BCAR Assigned Certifier function)</li>
+          <li><span class="check">✓</span>Cross-discipline coordination (spec vs schedule vs drawing)</li>
+          <li><span class="check">✓</span>Cost / QS coordination (BoQ vs spec coordination)</li>
+          <li><span class="check">✓</span>Address / title block / metadata anomalies</li>
+          <li><span class="check">✓</span>Standards prefix / typo flags (e.g., "I.S. EN 10101" does not exist)</li>
+        </ul>
+
+        <p style="margin-top:28px;"><strong>What Liam does NOT sign — pending specialist join:</strong></p>
+        <ul class="scope-list">
+          <li><span class="x">✕</span>Architectural design adequacy / TGD B compliance — <em>RIAI Architect required</em></li>
+          <li><span class="x">✕</span>Structural design / Eurocode application — <em>CEng C&amp;S required</em></li>
+          <li><span class="x">✕</span>M&amp;E specification adequacy — <em>CEng MEP required</em></li>
+          <li><span class="x">✕</span>Fire engineering / cause-and-effect — <em>FSE / IFSE required</em></li>
+          <li><span class="x">✕</span>Detailed energy / Part L compliance — <em>SEAI-registered EED required</em></li>
+          <li><span class="x">✕</span>BCAR Assigned Certifier function — <em>out of VerifIQ scope, ever</em></li>
+        </ul>
+
+        <p style="margin-top:18px;">Findings in these disciplines are <strong>still surfaced</strong> on the pack — they appear on your register marked as "AI-surfaced · pending chartered review · [discipline]" until the relevant specialist joins the cohort. You see everything; you know exactly what level of human review backs each finding.</p>
+
+        <div class="pending">
+          <span>+ Architecture · RIAI · joining</span>
+          <span>+ Structures · CEng C&amp;S · joining</span>
+          <span>+ M&amp;E · CEng MEP · joining</span>
+          <span>+ Fire · FSE · joining</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section tint">
+  <div class="wrap-narrow">
+    <div class="section-head"><h2>Why this matters.</h2></div>
+    <div class="body-text">
+      <p>Most AI products for the design industry oversell. They imply expert review where none is happening, or hide the reviewer's identity behind an "expert panel" trademark that nobody at the company has actually been to.</p>
+      <p>VerifIQ takes the opposite posture. <strong>The reviewer is named. The discipline scope is published. Findings outside scope are marked. The audit log carries the reviewer's initials.</strong> If we cannot back a finding with a chartered eye, we say so on the register — we do not pretend.</p>
+      <p>This is what makes the pilot cohort an actual pilot, not a launch dressed up as one. As discipline specialists join — Architecture · Structures · M&amp;E · Fire — the "pending chartered review" tags retire one discipline at a time, with each new reviewer's name appearing on the bio page alongside Liam's.</p>
+      <p>When all four are in place and operational across enough live packs, the cohort closes and the product moves to standard release at full panel cover.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap-narrow">
+    <div class="section-head"><h2>The atelier, in numbers.</h2></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;background:var(--ink);border:1px solid var(--ink);margin-top:24px;">
+      <div style="background:var(--bone);padding:24px;text-align:center;"><div style="font-family:var(--font-serif);font-weight:500;font-size:2.5rem;color:var(--brass);line-height:1;">1</div><div class="t-meta" style="margin-top:8px;">Pilot reviewer</div></div>
+      <div style="background:var(--bone);padding:24px;text-align:center;"><div style="font-family:var(--font-serif);font-weight:500;font-size:2.5rem;color:var(--brass);line-height:1;">4</div><div class="t-meta" style="margin-top:8px;">Packs per week cap</div></div>
+      <div style="background:var(--bone);padding:24px;text-align:center;"><div style="font-family:var(--font-serif);font-weight:500;font-size:2.5rem;color:var(--brass);line-height:1;">327</div><div class="t-meta" style="margin-top:8px;">Findings · validation pack</div></div>
+      <div style="background:var(--bone);padding:24px;text-align:center;"><div style="font-family:var(--font-serif);font-weight:500;font-size:2.5rem;color:var(--brass);line-height:1;">10</div><div class="t-meta" style="margin-top:8px;">Pilot seats open</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="locked-block"><div class="wrap-narrow"><span class="t-eyebrow">— Notice · Locked Disclaimer</span><p class="lb-text">VerifIQ is a software-based reading aid. It surfaces, in the documents' own words, what a registered professional may wish to read closely. It does not certify, sign, opine, or substitute for professional judgement. The registered designer reads our output, exercises their own judgement, verifies locally, and signs. The professional indemnity remains theirs. We carry product-quality risk only.</p></div></section>
+
+<footer><div class="wrap"><div class="foot-row"><span>© MMXXVI · VerifIQ · GovIQ Ltd · Dublin</span><span><a href="legal-notice.html">Legal · per jurisdiction ↗</a></span><span>Quietly · before the brief</span></div></div></footer>
+</body>
+</html>

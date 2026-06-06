@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VerifIQ — Atelier Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;700&family=Lato:wght@300;400&family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com/3.4.1"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          'luxury-black': '#080808',
+          'luxury-charcoal': '#121212',
+          'luxury-surface': '#0F0F0F',
+          'luxury-white': '#FDFDFD',
+          'luxury-gold': '#C5A059',
+          'luxury-gold-light': '#E5C585',
+          'luxury-gray': '#2A2A2A',
+        },
+        fontFamily: {
+          header: ['Cinzel', 'serif'],
+          sub: ['Playfair Display', 'serif'],
+          body: ['Lato', 'sans-serif'],
+          mono: ['JetBrains Mono', 'monospace'],
+        },
+        letterSpacing: { widest: '0.25em', extreme: '0.4em', mega: '0.6em' },
+      }
+    }
+  }
+</script>
+<style>
+  body { background:#080808; color:#FDFDFD; font-family: 'Lato', sans-serif; }
+  ::selection { background:#C5A059; color:#000; }
+  .noise { background-image:url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%220.06%22/%3E%3C/svg%3E'); }
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(197,160,89,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(197,160,89,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .gold-pulse { animation: gold-ring 2.6s ease-out infinite; }
+  @keyframes gold-ring {
+    0% { box-shadow: 0 0 0 0 rgba(197,160,89,0.55); }
+    70% { box-shadow: 0 0 0 14px rgba(197,160,89,0); }
+    100% { box-shadow: 0 0 0 0 rgba(197,160,89,0); }
+  }
+  .shimmer { position: relative; overflow: hidden; }
+  .shimmer::after {
+    content:''; position:absolute; inset:0;
+    background: linear-gradient(90deg, transparent, rgba(197,160,89,0.25), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .num-flip { animation: flipUp 0.4s ease-out; }
+  @keyframes flipUp { from { transform: translateY(6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .tab.active { color:#FDFDFD; border-bottom-color:#C5A059; }
+  .tab { border-bottom: 1px solid transparent; transition: all .3s ease; }
+  .tab:hover { color: #E5C585; }
+  /* discipline card states */
+  .card-pending { opacity: .55; border-color: rgba(197,160,89,0.10); }
+  .card-uploading { border-color: rgba(197,160,89,0.45); background: rgba(197,160,89,0.02); }
+  .card-scanning { border-color: rgba(197,160,89,0.7); background: rgba(197,160,89,0.04); box-shadow: 0 0 30px rgba(197,160,89,0.10); }
+  .card-review { border-color: rgba(229,197,133,0.5); background: rgba(229,197,133,0.03); }
+  .card-done { border-color: rgba(197,160,89,0.35); background: rgba(8,8,8,0.5); }
+  .severity-crit { color:#FCA5A5; border-color: rgba(252,165,165,0.4); background: rgba(252,165,165,0.05);}
+  .severity-high { color:#FDBA74; border-color: rgba(253,186,116,0.35); background: rgba(253,186,116,0.05);}
+  .severity-med  { color:#FDE68A; border-color: rgba(253,230,138,0.35); background: rgba(253,230,138,0.04);}
+  .severity-low  { color:#A7F3D0; border-color: rgba(167,243,208,0.30); background: rgba(167,243,208,0.04);}
+  .tier-step.active { border-color: rgba(197,160,89,0.85); background: linear-gradient(135deg, rgba(197,160,89,0.10), rgba(229,197,133,0.05)); box-shadow: 0 0 24px rgba(197,160,89,0.18); }
+  .tier-step.done { border-color: rgba(197,160,89,0.4); background: rgba(197,160,89,0.04); }
+  .tier-step { transition: all .5s ease; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #080808; }
+  ::-webkit-scrollbar-thumb { background: #2A2A2A; }
+  ::-webkit-scrollbar-thumb:hover { background: #C5A059; }
+</style>
+</head>
+<body class="bg-luxury-black text-luxury-white relative">
+
+<div class="fixed inset-0 noise pointer-events-none z-50 opacity-60"></div>
+
+<div class="relative min-h-screen flex flex-col">
+
+  <!-- NAV -->
+  <header class="border-b border-luxury-gold/20 bg-luxury-black/90 backdrop-blur-md sticky top-0 z-40">
+    <div class="container mx-auto px-6 md:px-10 flex items-center justify-between py-5">
+      <div class="flex items-center gap-6">
+        <a href="index.html" class="font-header text-luxury-gold text-xl tracking-[0.3em] font-bold">V_IQ</a>
+        <span class="hidden md:block h-5 w-px bg-luxury-gold/30"></span>
+        <span class="hidden md:block font-mono text-[10px] tracking-[0.3em] uppercase text-gray-400">Atelier Console · Live</span>
+      </div>
+      <div class="flex items-center gap-5">
+        <span class="hidden md:flex items-center gap-2 font-mono text-[10px] tracking-widest uppercase text-gray-500">
+          <span class="w-2 h-2 rounded-full bg-luxury-gold gold-pulse"></span>
+          EU · West (Dublin)
+        </span>
+        <span class="hidden md:block h-5 w-px bg-luxury-gold/20"></span>
+        <a href="index.html" class="text-[10px] tracking-[0.3em] font-body uppercase text-gray-300 hover:text-luxury-gold transition-colors">Atelier ↗</a>
+        <div class="w-9 h-9 rounded-full border border-luxury-gold/40 flex items-center justify-center font-header text-luxury-gold text-sm">LD</div>
+      </div>
+    </div>
+    <!-- TABS -->
+    <div class="container mx-auto px-6 md:px-10 flex items-center gap-10 -mt-px">
+      <button data-role="customer" class="tab active font-header text-xs tracking-widest uppercase py-4">Customer</button>
+      <button data-role="reviewer" class="tab font-header text-xs tracking-widest uppercase py-4 text-gray-400">Reviewer</button>
+      <button data-role="admin"    class="tab font-header text-xs tracking-widest uppercase py-4 text-gray-400">Atelier Master</button>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="flex-1 container mx-auto px-6 md:px-10 py-10 md:py-14 grid-bg">
+
+    <!-- PACK HEADER -->
+    <section class="border border-luxury-gold/20 bg-luxury-charcoal/40 p-6 md:p-8 mb-10 relative">
+      <div class="absolute -top-2 -left-2 w-4 h-4 border-t border-l border-luxury-gold"></div>
+      <div class="absolute -bottom-2 -right-2 w-4 h-4 border-b border-r border-luxury-gold"></div>
+
+      <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-6">
+        <div>
+          <span class="font-mono text-[10px] tracking-[0.3em] uppercase text-luxury-gold">Pack · No. 04-26</span>
+          <h1 class="font-header text-2xl md:text-4xl tracking-widest uppercase mt-2">Adult Day Service · Stage 2C</h1>
+          <p class="font-sub italic text-gray-400 mt-2 text-base md:text-lg">HSE Section 38 capital · Dublin region · Tier III pack</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-6 text-xs font-mono">
+          <div>
+            <div class="text-[9px] tracking-widest text-gray-500 uppercase">Pack ID</div>
+            <div class="text-luxury-white tabular-nums mt-1">VIQ-PCK-0426-DUB</div>
+          </div>
+          <div class="h-8 w-px bg-luxury-gold/20"></div>
+          <div>
+            <div class="text-[9px] tracking-widest text-gray-500 uppercase">Files</div>
+            <div class="text-luxury-white tabular-nums mt-1"><span id="filesCounter">187</span> / <span class="text-gray-500">600 cap</span></div>
+          </div>
+          <div class="h-8 w-px bg-luxury-gold/20"></div>
+          <div>
+            <div class="text-[9px] tracking-widest text-gray-500 uppercase">Disciplines</div>
+            <div class="text-luxury-white tabular-nums mt-1">7 of 7</div>
+          </div>
+          <div class="h-8 w-px bg-luxury-gold/20"></div>
+          <div>
+            <div class="text-[9px] tracking-widest text-gray-500 uppercase">ETA</div>
+            <div class="text-luxury-gold-light tabular-nums mt-1" id="etaCountdown">02:47:18</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TIER LADDER -->
+      <div class="border-t border-luxury-gold/15 pt-6">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-mono text-[10px] tracking-[0.3em] text-luxury-gold uppercase">— Tier · III · Large</span>
+          <span class="font-mono text-[10px] tracking-widest text-gray-500 uppercase">Pack capacity ladder</span>
+        </div>
+        <ol class="grid grid-cols-5 gap-3" id="tierLadder">
+          <li class="tier-step done border border-luxury-gold/30 px-3 py-3">
+            <div class="font-header text-luxury-gold tabular-nums">I</div>
+            <div class="font-body text-[10px] tracking-widest uppercase text-gray-400 mt-1">Small · 50</div>
+          </li>
+          <li class="tier-step done border border-luxury-gold/30 px-3 py-3">
+            <div class="font-header text-luxury-gold tabular-nums">II</div>
+            <div class="font-body text-[10px] tracking-widest uppercase text-gray-400 mt-1">Mid · 150</div>
+          </li>
+          <li class="tier-step active border border-luxury-gold/30 px-3 py-3">
+            <div class="font-header text-luxury-gold-light tabular-nums">III</div>
+            <div class="font-body text-[10px] tracking-widest uppercase text-luxury-gold-light mt-1">Large · 600</div>
+          </li>
+          <li class="tier-step border border-luxury-gold/15 px-3 py-3">
+            <div class="font-header text-gray-500 tabular-nums">IV</div>
+            <div class="font-body text-[10px] tracking-widest uppercase text-gray-600 mt-1">Programme · 1,500</div>
+          </li>
+          <li class="tier-step border border-luxury-gold/15 px-3 py-3">
+            <div class="font-header text-gray-500 tabular-nums">V</div>
+            <div class="font-body text-[10px] tracking-widest uppercase text-gray-600 mt-1">Mega · by arrangement</div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- HEADLINE COUNTERS -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-10">
+      <div class="border border-luxury-gold/20 bg-luxury-charcoal/40 p-5 md:p-6">
+        <div class="font-mono text-[10px] tracking-[0.3em] uppercase text-luxury-gold">Findings · Surfaced</div>
+        <div class="font-header text-luxury-white text-3xl md:text-5xl tabular-nums mt-3 num-flip" id="cFindings">214</div>
+        <div class="font-body text-[10px] tracking-widest uppercase text-gray-500 mt-3">Source-quoted · pending review</div>
+      </div>
+      <div class="border border-luxury-gold/20 bg-luxury-charcoal/40 p-5 md:p-6">
+        <div class="font-mono text-[10px] tracking-[0.3em] uppercase text-luxury-gold">Reviewer · Approved</div>
+        <div class="font-header text-luxury-white text-3xl md:text-5xl tabular-nums mt-3 num-flip" id="cApproved">142</div>
+        <div class="font-body text-[10px] tracking-widest uppercase text-gray-500 mt-3">Chartered eye · signed</div>
+      </div>
+      <div class="border border-luxury-gold/20 bg-luxury-charcoal/40 p-5 md:p-6">
+        <div class="font-mono text-[10px] tracking-[0.3em] uppercase text-luxury-gold">RFIs · Drafted</div>
+        <div class="font-header text-luxury-white text-3xl md:text-5xl tabular-nums mt-3 num-flip" id="cRfis">38</div>
+        <div class="font-body text-[10px] tracking-widest uppercase text-gray-500 mt-3">Yours to send · CA-routed</div>
+      </div>
+      <div class="border border-luxury-gold/20 bg-luxury-charcoal/40 p-5 md:p-6">
+        <div class="font-mono text-[10px] tracking-[0.3em] uppercase text-luxury-gold">Critical · Flagged</div>
+        <div class="font-header text-luxury-gold-light text-3xl md:text-5xl tabular-nums mt-3 num-flip" id="cCritical">3</div>
+        <div class="font-body text-[10px] tracking-widest uppercase text-gray-500 mt-3">Read closely · before award</div>
+      </div>
+    </section>
+
+    <!-- DISCIPLINE GATES -->
+    <section class="mb-10">
+      <div class="flex items-end justify-between mb-6">
+        <div>
+          <span class="font-mono text-[10px] tracking-[0.3em] uppercase text-luxury-gold">— Atelier · VIII</span>
+          <h2 class="font-header text-2xl md:text-3xl tracking-widest uppercase mt-2">Discipline Gates</h2>
+        </div>
+        <p class="font-sub italic text-gray-400 max-w-md text-sm hidden md:block text-right">Each consultant's pack moves through intake, classification, scan, reviewer eye, and release.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="disciplineGrid"></div>
+    </section>
+
+    <!-- LIVE FEED + COORDINATION -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+      <div class="lg:col-span-2 border border-luxury-gold/20 bg-luxury-charcoal/40 p-6 md:p-8">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <span class="font-mono text-[10px] tracking-[0.3em] uppercase text-luxury-gold">— Live Feed</span>
+            <h3 class="font-header text-xl tracking-widest uppercase mt-1">From the Bench</h3>
+          </div>
+          <span class="font-mono text-[10px] tracking-widest uppercase text-gray-500 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-luxury-gold gold-pulse"></span> Live · streaming
+          </span>
+        </div>
+        <ul id="liveFeed" class="space-y-3"></ul>
+      </div>
+      <div class="border border-luxury-gold/20 bg-luxury-charcoal/40 p-6 md:p-8">
+        <span class="font-mono text-[10px] tracking-[0.3em] uppercase text-luxury-gold">— Coordination</span>
+        <h3 class="font-header text-xl tracking-widest uppercase mt-1 mb-5">Cross-Discipline</h3>
+        <p class="font-body text-gray-400 text-sm leading-loose mb-6">Once all disciplines have closed, the coordination pass runs once — flagging contradictions between the spec, the schedule, and the drawings.</p>
+        <div class="border-t border-luxury-gold/15 pt-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-body text-xs text-gray-300">Disciplines closed</span>
+            <span class="font-mono text-sm text-luxury-gold-light tabular-nums" id="disciplinesClosed">4 / 7</span>
+          </div>
+          <div class="h-1 bg-luxury-gray rounded-full overflow-hidden">
+            <div id="coordinationBar" class="h-full bg-luxury-gold transition-all duration-700" style="width:57%"></div>
+          </div>
+          <p class="font-body text-[10px] tracking-widest uppercase text-gray-500 mt-4">Begins · after final close</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- LOCKED DISCLAIMER -->
+  <aside class="border-t border-b border-luxury-gold/30 bg-luxury-charcoal/60 py-12 md:py-14">
+    <div class="container mx-auto px-6 max-w-4xl">
+      <span class="font-mono text-[10px] md:text-xs tracking-[0.4em] uppercase text-luxury-gold block text-center mb-5">— Notice · Locked Disclaimer</span>
+      <p class="font-sub italic text-luxury-white text-base md:text-lg leading-relaxed text-center max-w-3xl mx-auto">
+        VerifIQ is a software-based reading aid. It surfaces, in the documents' own words, what a registered professional may wish to read closely. It does not certify, sign, opine, or substitute for professional judgement. The registered designer reads our output, exercises their own judgement, verifies locally, and signs. The professional indemnity remains theirs. We carry product-quality risk only.
+      </p>
+    </div>
+  </aside>
+
+  <footer class="border-t border-luxury-gold/20 py-8 px-6 md:px-10">
+    <div class="container mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-[10px] tracking-widest uppercase text-gray-500">
+      <span>VerifIQ · Atelier Console</span>
+      <a href="legal-notice.html" class="font-sub italic text-luxury-gold normal-case tracking-normal hover:text-luxury-gold-light transition-colors">Legal · per jurisdiction ↗</a>
+      <span>MMXXVI · Dublin</span>
+    </div>
+  </footer>
+</div>
+
+<script>
+  // ---------- STATE ----------
+  const disciplines = [
+    { key:'arch',  romanish:'I',   name:'Architecture',         lead:'A. Ní Cheallaigh, RIAI', files: 42, state:'done',      progress:100, findings: 71, critical: 1 },
+    { key:'cs',    romanish:'II',  name:'Structures (C&S)',     lead:'D. Murphy, CEng MIEI',   files: 18, state:'done',      progress:100, findings: 32, critical: 0 },
+    { key:'mech',  romanish:'III', name:'Mechanical',           lead:'S. Walsh, CEng MIEI',    files: 28, state:'scanning',  progress: 64, findings: 38, critical: 1 },
+    { key:'elec',  romanish:'IV',  name:'Electrical',           lead:'P. O’Brien, CEng',  files: 21, state:'scanning',  progress: 41, findings: 22, critical: 0 },
+    { key:'fire',  romanish:'V',   name:'Fire Safety',          lead:'M. Doyle, FSE',          files: 11, state:'review',    progress: 92, findings: 19, critical: 1 },
+    { key:'qs',    romanish:'VI',  name:'Quantity Surveyor',    lead:'C. Hennessy, FSCSI',     files: 36, state:'uploading', progress: 28, findings:  0, critical: 0 },
+    { key:'bcar',  romanish:'VII', name:'BCAR / Assigned Cert', lead:'E. Lynch, RIAI · AC',    files: 31, state:'pending',   progress:  0, findings:  0, critical: 0 },
+  ];
+
+  const stateLabel = {
+    pending:'Awaiting upload', uploading:'Receiving pack', scanning:'Reading pages',
+    review:'Reviewer queue', done:'Released to atelier'
+  };
+  const stateGlyph = {
+    pending: { c:'card-pending',   chip:'text-gray-500',     ring:'border-luxury-gray',          dot:'bg-gray-600' },
+    uploading:{ c:'card-uploading',chip:'text-luxury-gold-light', ring:'border-luxury-gold/60', dot:'bg-luxury-gold' },
+    scanning: { c:'card-scanning', chip:'text-luxury-gold-light', ring:'border-luxury-gold',     dot:'bg-luxury-gold gold-pulse' },
+    review:   { c:'card-review',   chip:'text-luxury-gold-light', ring:'border-luxury-gold/70',  dot:'bg-luxury-gold-light' },
+    done:     { c:'card-done',     chip:'text-luxury-gold',       ring:'border-luxury-gold/40',  dot:'bg-luxury-gold' },
+  };
+
+  // ---------- RENDER DISCIPLINES ----------
+  const grid = document.getElementById('disciplineGrid');
+  function renderDisciplines() {
+    grid.innerHTML = disciplines.map(d => {
+      const g = stateGlyph[d.state];
+      return `
+      <article class="border ${g.c} p-5 transition-all duration-500 relative">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <span class="font-mono text-[10px] tracking-[0.3em] uppercase text-luxury-gold">Plate · ${d.romanish}</span>
+            <h3 class="font-header text-lg tracking-widest uppercase mt-1">${d.name}</h3>
+            <p class="font-sub italic text-gray-500 text-xs mt-1">${d.lead}</p>
+          </div>
+          <span class="flex items-center gap-2 font-mono text-[10px] uppercase ${g.chip}">
+            <span class="w-2 h-2 rounded-full ${g.dot}"></span> ${stateLabel[d.state]}
+          </span>
+        </div>
+
+        <div class="flex items-center justify-between text-[10px] tracking-widest uppercase text-gray-500 mb-2 font-mono">
+          <span>Files · ${d.files}</span>
+          <span>${d.progress}%</span>
+        </div>
+        <div class="h-px bg-luxury-gold/15 mb-2 relative overflow-hidden">
+          <div class="absolute inset-y-0 left-0 h-full ${d.state==='scanning'||d.state==='uploading' ? 'shimmer' : ''} bg-luxury-gold transition-all duration-700" style="width:${d.progress}%"></div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mt-5 pt-4 border-t border-luxury-gold/10">
+          <div>
+            <div class="font-mono text-[9px] tracking-widest uppercase text-gray-500">Findings</div>
+            <div class="font-header text-luxury-white text-lg tabular-nums mt-1">${d.findings}</div>
+          </div>
+          <div>
+            <div class="font-mono text-[9px] tracking-widest uppercase text-gray-500">Critical</div>
+            <div class="font-header ${d.critical>0?'text-luxury-gold-light':'text-gray-600'} text-lg tabular-nums mt-1">${d.critical}</div>
+          </div>
+          <div>
+            <div class="font-mono text-[9px] tracking-widest uppercase text-gray-500">State</div>
+            <div class="font-sub italic text-luxury-gold text-sm mt-1">${d.romanish}</div>
+          </div>
+        </div>
+      </article>`;
+    }).join('');
+  }
+  renderDisciplines();
+
+  // ---------- LIVE FEED ----------
+  const feed = document.getElementById('liveFeed');
+  const severityClass = { CRITICAL:'severity-crit', HIGH:'severity-high', MEDIUM:'severity-med', LOW:'severity-low' };
+  const seedFeed = [
+    { sev:'CRITICAL', disc:'Architecture', t:'1 min ago',  q:'Date for Substantial Completion is left blank — LDs are unenforceable as drawn.',     src:'Form of Tender · §4.2', reviewer:'A.N.C.' },
+    { sev:'HIGH',     disc:'Mechanical',   t:'2 min ago',  q:'Hoist brand is named differently in the M&E spec, the Room Data Sheet, and the schedule.',  src:'M&E Spec · §11.4 / RDS · 12', reviewer:'queued' },
+    { sev:'HIGH',     disc:'Fire',         t:'4 min ago',  q:'Cause-and-effect matrix is referenced but not appended to the pack.',                  src:'Fire Strategy · §6',        reviewer:'M.D.' },
+    { sev:'MEDIUM',   disc:'Electrical',   t:'6 min ago',  q:'"I.S. EN 10101" is cited — this prefix does not exist; suspected typo for I.S. 10101.', src:'Elec Spec · §3.1.2',        reviewer:'queued' },
+    { sev:'LOW',      disc:'QS',           t:'9 min ago',  q:'BoQ schedule references an address that does not match the title block.',              src:'BoQ · cover',               reviewer:'queued' },
+  ];
+  function pushFeed(items){
+    feed.innerHTML = items.map(i=>`
+      <li class="border ${severityClass[i.sev]} px-4 py-3 num-flip">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3 mb-1">
+              <span class="font-mono text-[9px] tracking-[0.3em] uppercase border ${severityClass[i.sev]} px-2 py-0.5">${i.sev}</span>
+              <span class="font-mono text-[9px] tracking-widest uppercase text-gray-400">${i.disc}</span>
+              <span class="font-mono text-[9px] tracking-widest uppercase text-gray-500 ml-auto">${i.t}</span>
+            </div>
+            <p class="font-body text-sm text-luxury-white leading-relaxed">&ldquo;${i.q}&rdquo;</p>
+            <p class="font-mono text-[10px] tracking-widest uppercase text-gray-500 mt-2">
+              <span class="text-luxury-gold">Source ·</span> ${i.src}
+              <span class="ml-3 text-luxury-gold">Reviewer ·</span> ${i.reviewer}
+            </p>
+          </div>
+        </div>
+      </li>`).join('');
+  }
+  pushFeed(seedFeed);
+
+  // ---------- LIVE TICK ----------
+  let etaSec = 2*3600 + 47*60 + 18;
+  function fmtEta(s){ const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`; }
+  setInterval(()=>{ if(etaSec>0){ etaSec--; document.getElementById('etaCountdown').textContent = fmtEta(etaSec); }}, 1000);
+
+  // ---------- ANIMATION LOOP — discipline state progression ----------
+  let counters = { f: 214, a: 142, r: 38, c: 3, closed: 4 };
+  function bump(id, by){ const el = document.getElementById(id); el.textContent = (parseInt(el.textContent,10) + by); el.classList.remove('num-flip'); void el.offsetWidth; el.classList.add('num-flip'); }
+  function transition(d){
+    if (d.state === 'pending' && d.files > 0) { d.state='uploading'; d.progress=5; }
+    else if (d.state === 'uploading') { d.progress = Math.min(100, d.progress + Math.round(8 + Math.random()*8)); if(d.progress>=100){ d.state='scanning'; d.progress = 5; } }
+    else if (d.state === 'scanning')  { d.progress = Math.min(100, d.progress + Math.round(6 + Math.random()*8)); d.findings += Math.round(Math.random()*4); bump('cFindings', Math.round(Math.random()*4)); if(d.progress>=100){ d.state='review'; d.progress=5; } }
+    else if (d.state === 'review')    { d.progress = Math.min(100, d.progress + Math.round(10 + Math.random()*10)); bump('cApproved', Math.round(Math.random()*3)); bump('cRfis', Math.round(Math.random()*2)); if(d.progress>=100){ d.state='done'; d.progress=100; counters.closed++; document.getElementById('disciplinesClosed').textContent = `${counters.closed} / 7`; document.getElementById('coordinationBar').style.width = `${Math.round(counters.closed/7*100)}%`; } }
+  }
+  setInterval(()=>{
+    const candidates = disciplines.filter(d => d.state !== 'done');
+    if (!candidates.length) return;
+    const d = candidates[Math.floor(Math.random()*candidates.length)];
+    transition(d);
+    renderDisciplines();
+  }, 2400);
+
+  // ---------- TAB SWITCH (visual only — same dataset, different framing) ----------
+  document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active','text-luxury-white'));
+    document.querySelectorAll('.tab').forEach(b => b.classList.add('text-gray-400'));
+    btn.classList.add('active','text-luxury-white');
+    btn.classList.remove('text-gray-400');
+  }));
+</script>
+</body>
+</html>
