@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Convex generated code + local state
+src/convex/_generated/
+.convex/
+
+# Environment — never commit secrets
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Test / coverage
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
