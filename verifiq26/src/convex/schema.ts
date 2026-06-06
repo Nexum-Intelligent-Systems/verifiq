@@ -1,400 +1,546 @@
 /**
- * GovIQ — Design Review Findings Schema (Convex)
- * Project: 57 Rathbeale Road / CRC Omni Unit 48A
- * Sprint:  Full Multi-Disciplinary Design Review (27-May → 10-Jun-2026)
+ * VerifIQ — Convex database schema (Phase 1).
  *
- * Drop-in schema for the 10-skill chartered review output (arch / cs / ee /
- * 5x mech / qs-cwmf / contract-admin-pwcf). One row per finding; one row per
- * RFI; pre_contract_actions track the 14-item sequenced checklist; the live
- * variation_exposure rolls up € impact across CRITICAL + HIGH findings.
+ * Purpose: the single source of truth for every persisted entity in the
+ * VerifIQ Pre-Build Compliance Council platform. Tables mirror the canonical
+ * JSON shapes in `verifiq-prompts/05_output_schemas.md` (§05.1 Finding,
+ * §05.2 DisciplineSummary, §05.3 BuildReadinessReport, §05.4 DB mapping),
+ * the job-queue + inference-cache model in `verifiq-prompts/20_platform_architecture.md`
+ * §2, the feedback taxonomy in `verifiq-prompts/14_feedback_taxonomy.md`, and
+ * the lessons-learnt registry in `verifiq-prompts/15_lessons_learnt_loop.md`.
  *
- * Conventions:
- *   - finding_id format: <DISC>-<3-digit seq>  e.g. A-001, S-007, M-014, E-002, Q-019, C-003
- *   - rfi_id format:     RFI-<3-digit seq>      e.g. RFI-001
- *   - All € values stored in CENTS (integer) to avoid float drift
- *   - All dates stored as ISO-8601 strings (yyyy-mm-dd) or epoch ms (v.number())
+ * Storage follows the locked Convex + Cloudflare R2 hybrid decision
+ * (`docs/27-stack-decision-storage-and-platform.md`): the `documents` table
+ * carries BOTH an optional Convex `storage_id` AND an optional `r2_key`.
  *
- * Place at: convex/sp_designReview/schema.ts  (or merge into existing sp_* schema)
+ * Scope note (docs/28 Phase 1): this file defines structure only. Agents, the
+ * workflow orchestrator, peer challenge, adjudication and the chair report are
+ * Phase 2+. The tables that those phases write to exist here so they are never
+ * retrofitted onto a live table.
+ *
+ * Version: 0.3.0-phase1
  */
 
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-// =================================================================
-// ENUMS (as v.union literals — Convex pattern)
-// =================================================================
+// ============================================================================
+// Shared enums — expressed as v.union(v.literal(...)) per the Convex pattern.
+// These mirror the controlled vocabularies in files 01 and 05; never widen
+// them to free strings, or the schema-locked promise in CLAUDE.md is lost.
+// ============================================================================
 
-export const Severity = v.union(
-  v.literal("CRITICAL"),
-  v.literal("HIGH"),
-  v.literal("MEDIUM"),
-  v.literal("LOW"),
+/** Project / pack lifecycle stage (Finding §05.1 `stage`). */
+export const Stage = v.union(
+  v.literal("design"),
+  v.literal("pre-tender"),
+  v.literal("pre-build"),
+  v.literal("construction"),
+  v.literal("handover"),
 );
 
-export const Discipline = v.union(
-  v.literal("ARCHITECTURAL"),    // A-
-  v.literal("STRUCTURAL"),       // S-
-  v.literal("MECHANICAL"),       // M-
-  v.literal("ELECTRICAL"),       // E-
-  v.literal("QUANTITY_SURVEYING"), // Q-
-  v.literal("CONTRACT_ADMIN"),   // C-
-);
-
-export const FindingCategory = v.union(
-  v.literal("COMPLIANCE"),       // breach of TGD / IS / EN / BCAR / HIQA etc.
-  v.literal("COST"),             // variation exposure, pricing error
-  v.literal("PROGRAMME"),        // schedule risk, sequencing
-  v.literal("CONTRACT"),         // enforceability, ambiguity in PW-CF clauses
-  v.literal("DOCUMENT_HYGIENE"), // wrong references, blank fields, typos affecting interpretation
-  v.literal("OPERATIONAL"),      // future O&M / HIQA / clinical use impact
-);
-
+/** Finding status — the 8 classifications from file 01 / §05.1. */
 export const FindingStatus = v.union(
-  v.literal("OPEN"),
-  v.literal("STAKEHOLDER_REVIEW"),
-  v.literal("ACCEPTED"),
-  v.literal("REJECTED"),
-  v.literal("DEFERRED"),
-  v.literal("CLOSED"),
+  v.literal("Compliant"),
+  v.literal("Non-compliant"),
+  v.literal("Not demonstrated"),
+  v.literal("Clarification required"),
+  v.literal("Coordination issue"),
+  v.literal("Construction evidence required"),
+  v.literal("Handover evidence required"),
+  v.literal("Outside current scope"),
 );
 
-export const RfiStatus = v.union(
-  v.literal("DRAFT"),
-  v.literal("READY_TO_SUBMIT"),
-  v.literal("SUBMITTED"),
-  v.literal("RESPONDED"),
-  v.literal("CLOSED"),
+/** Risk rating — the 5 levels from file 01 / §05.1. */
+export const Risk = v.union(
+  v.literal("Critical"),
+  v.literal("High"),
+  v.literal("Medium"),
+  v.literal("Low"),
+  v.literal("Advisory"),
 );
 
-export const RfiDirection = v.union(
-  v.literal("PRE_ISSUE_INTERNAL"),  // change request to Employer/ER before tender issue
-  v.literal("POST_ISSUE_BIDDER"),   // formal RFI to CA via eTenders during query window
+/** Build-readiness impact of a single finding (§05.1). */
+export const BuildReadinessImpact = v.union(
+  v.literal("Build blocker"),
+  v.literal("Proceed with condition"),
+  v.literal("Pre-tender close-out"),
+  v.literal("Pre-construction close-out"),
+  v.literal("Construction hold point"),
+  v.literal("Handover requirement"),
+  v.literal("Advisory"),
 );
 
-export const OwnerParty = v.union(
-  v.literal("EMPLOYER"),
-  v.literal("CONTRACTING_AUTHORITY"),
-  v.literal("ER"),                  // Employer's Representative
-  v.literal("LEAD_DESIGNER"),
-  v.literal("ARCH_DESIGNER"),
-  v.literal("CS_DESIGNER"),
-  v.literal("ME_DESIGNER"),
-  v.literal("EE_DESIGNER"),
-  v.literal("QS"),
-  v.literal("PSDP"),
-  v.literal("ASSIGNED_CERTIFIER"),
-  v.literal("CONTRACTOR"),          // post-LoA only
+/** Adjudicated council decision on a finding (§05.1; set only after Stage 6). */
+export const CouncilDecision = v.union(
+  v.literal("Retained"),
+  v.literal("Amended"),
+  v.literal("Merged"),
+  v.literal("Downgraded"),
+  v.literal("Escalated"),
+  v.literal("Deleted"),
 );
 
-export const SkillSource = v.union(
-  v.literal("arch-review-ireland"),
-  v.literal("cs-review-ireland"),
-  v.literal("ee-review-ireland"),
-  v.literal("mech-review-hvac-ireland"),
-  v.literal("mech-review-plumbing-ireland"),
-  v.literal("mech-review-bms-ireland"),
-  v.literal("mech-review-fire-ireland"),
-  v.literal("mech-review-medgas-ireland"),
-  v.literal("qs-review-cwmf-ireland"),
-  v.literal("contract-admin-pwcf-ireland"),
-  v.literal("MANUAL"),              // human-entered (e.g. stakeholder review session)
+/** Discipline-summary overall status (§05.2). */
+export const DisciplineOverallStatus = v.union(
+  v.literal("Acceptable"),
+  v.literal("Partial"),
+  v.literal("Not demonstrated"),
+  v.literal("High risk"),
+  v.literal("Critical risk"),
 );
 
-// =================================================================
-// TABLES
-// =================================================================
+/** Build Readiness Report rating (§05.3); maps 1:1 to executive decision per file 06. */
+export const BuildReadinessRating = v.union(
+  v.literal("Green"),
+  v.literal("Amber"),
+  v.literal("Red"),
+  v.literal("Grey"),
+);
+
+/** The four — and only four — executive decisions (file 01 / §05.3). */
+export const ExecutiveDecision = v.union(
+  v.literal("Proceed"),
+  v.literal("Proceed with conditions"),
+  v.literal("Pause before build"),
+  v.literal("Insufficient information"),
+);
+
+/** Per-file processing status used by the classifier (file 20 §3-4). */
+export const DocumentStatus = v.union(
+  v.literal("uploaded"),
+  v.literal("classifying"),
+  v.literal("classified"),
+  v.literal("confirmed"),
+  v.literal("failed"),
+);
+
+/** Long-running scan-state machine for a project/pack (file 20 §5). */
+export const ScanState = v.union(
+  v.literal("pending"),
+  v.literal("uploading"),
+  v.literal("classifying"),
+  v.literal("confirm_classify"),
+  v.literal("scanning"),
+  v.literal("cross_ref"),
+  v.literal("peer_challenge"),
+  v.literal("adjudicate"),
+  v.literal("reviewer_queue"),
+  v.literal("released"),
+);
+
+/** Job-queue job types (file 20 §2). */
+export const JobType = v.union(
+  v.literal("classify"),
+  v.literal("review_discipline"),
+  v.literal("cross_reference"),
+  v.literal("peer_challenge"),
+  v.literal("adjudicate"),
+  v.literal("report"),
+);
+
+/** Job-queue status (file 20 §2). */
+export const JobStatus = v.union(
+  v.literal("pending"),
+  v.literal("running"),
+  v.literal("succeeded"),
+  v.literal("failed"),
+  v.literal("retrying"),
+);
+
+/** Design-team response to a released finding (file 14). */
+export const DesignTeamResponse = v.union(
+  v.literal("Accepted"),
+  v.literal("Accepted with risk re-rated"),
+  v.literal("Rejected"),
+  v.literal("Already actioned"),
+);
+
+/** The 12 rejection categories REJ-01..REJ-12 (file 14). */
+export const RejectionReason = v.union(
+  v.literal("REJ-01"),
+  v.literal("REJ-02"),
+  v.literal("REJ-03"),
+  v.literal("REJ-04"),
+  v.literal("REJ-05"),
+  v.literal("REJ-06"),
+  v.literal("REJ-07"),
+  v.literal("REJ-08"),
+  v.literal("REJ-09"),
+  v.literal("REJ-10"),
+  v.literal("REJ-11"),
+  v.literal("REJ-12"),
+);
+
+/** Prompt-version lifecycle (file 15 Stage 5-7). */
+export const PromptVersionStatus = v.union(
+  v.literal("draft"),
+  v.literal("testing"),
+  v.literal("active"),
+  v.literal("retired"),
+);
+
+// ============================================================================
+// Schema
+// ============================================================================
 
 export default defineSchema({
-
-  // -----------------------------------------------------------------
-  // sp_dr_projects — one row per design review engagement
-  // -----------------------------------------------------------------
-  sp_dr_projects: defineTable({
-    projectCode: v.string(),              // e.g. "RBR-CRC-48A"
-    projectName: v.string(),              // "57 Rathbeale Road — CRC Omni Unit 48A"
-    employerLegalEntity: v.optional(v.string()),   // confirmed Day-1
-    caLegalEntity: v.optional(v.string()),
-    buildingOwnerLegalEntity: v.optional(v.string()),
-    contractForm: v.string(),             // "PW-CF5"
-    deliveryModel: v.string(),            // "Employer-Designed"
-    rfiDirection: v.optional(RfiDirection), // locked Day-1
-    rfiDeadline: v.string(),              // ISO date — e.g. "2026-06-10"
-    sprintStart: v.string(),
-    sprintEnd: v.string(),
-    contractSumEstimate_cents: v.optional(v.number()),
-    createdAt: v.number(),
-    updatedAt: v.number(),
+  // --------------------------------------------------------------------------
+  // users — tenant principals. Phase 1 uses a stub (no Clerk wiring yet); the
+  // `clerk_user_id` field is the future link. Data-minimised: identity + role
+  // only, nothing not required to operate (docs/28 DoD).
+  // --------------------------------------------------------------------------
+  users: defineTable({
+    clerk_user_id: v.optional(v.string()),
+    email: v.string(),
+    name: v.optional(v.string()),
+    role: v.union(v.literal("customer"), v.literal("reviewer"), v.literal("admin")),
+    is_stub: v.boolean(),
+    created_at: v.number(),
   })
-    .index("by_projectCode", ["projectCode"]),
+    .index("by_clerk_user_id", ["clerk_user_id"])
+    .index("by_email", ["email"]),
 
-  // -----------------------------------------------------------------
-  // sp_dr_review_metadata — one row per skill run on a project
-  // mirrors review_metadata block from chartered-design-team skills
-  // -----------------------------------------------------------------
-  sp_dr_review_metadata: defineTable({
-    projectId: v.id("sp_dr_projects"),
-    skill: SkillSource,
-    reviewer: v.string(),                 // "Liam Dunne" or "AI-orchestrated"
-    runStarted: v.number(),               // epoch ms
-    runCompleted: v.optional(v.number()),
-    packVersion: v.string(),              // tender pack version reviewed
-    documentsReviewed: v.array(v.string()), // list of source doc identifiers
-    standardsCorpus: v.array(v.string()), // citations applicable to this run
-    sprintDay: v.number(),                // 1..10
-    notes: v.optional(v.string()),
+  // --------------------------------------------------------------------------
+  // projects — core project record. Holds the structured intake fields; the
+  // free-form / wizard answers live in `intake_answers`. (§05.4)
+  // The canonical 17 intake fields are specified in
+  // `docs/09-sector-role-onboarding-wizard-spec.docx`; the set below is the
+  // Phase-1 structured subset (see docs/29 deviations).
+  // --------------------------------------------------------------------------
+  projects: defineTable({
+    owner_user_id: v.id("users"),
+    name: v.string(),
+    address: v.optional(v.string()),
+    building_type: v.optional(v.string()),
+    sector: v.optional(v.string()),
+    stage: v.optional(Stage),
+    scan_state: ScanState,
+    project_value_band: v.optional(v.string()),
+    client_name: v.optional(v.string()),
+    lead_designer: v.optional(v.string()),
+    planning_reference: v.optional(v.string()),
+    planning_status: v.optional(v.string()),
+    bcar_applicable: v.optional(v.boolean()),
+    fsc_required: v.optional(v.boolean()),
+    dac_required: v.optional(v.boolean()),
+    protected_structure: v.optional(v.boolean()),
+    occupancy_type: v.optional(v.string()),
+    gross_floor_area_m2: v.optional(v.number()),
+    storeys: v.optional(v.number()),
+    corpus_version: v.optional(v.string()),
+    created_at: v.number(),
+    updated_at: v.number(),
   })
-    .index("by_project", ["projectId"])
-    .index("by_project_skill", ["projectId", "skill"]),
+    .index("by_owner", ["owner_user_id"])
+    .index("by_scan_state", ["scan_state"]),
 
-  // -----------------------------------------------------------------
-  // sp_dr_findings — the master discrepancy register
-  // -----------------------------------------------------------------
-  sp_dr_findings: defineTable({
-    projectId: v.id("sp_dr_projects"),
-    reviewMetadataId: v.optional(v.id("sp_dr_review_metadata")),
+  // --------------------------------------------------------------------------
+  // intake_answers — key/value pairs from the intake wizard. (§05.4)
+  // --------------------------------------------------------------------------
+  intake_answers: defineTable({
+    project_id: v.id("projects"),
+    key: v.string(),
+    value: v.string(),
+  })
+    .index("by_project", ["project_id"])
+    .index("by_project_key", ["project_id", "key"]),
 
-    // Identity
-    findingId: v.string(),                // "A-001" etc — unique within project
-    discipline: Discipline,
+  // --------------------------------------------------------------------------
+  // documents — uploaded files. Carries BOTH storage_id (Convex-native) AND
+  // r2_key (Cloudflare R2) per docs/27; exactly one is populated per row.
+  // --------------------------------------------------------------------------
+  documents: defineTable({
+    project_id: v.id("projects"),
+    filename: v.string(),
+    sha256: v.string(),
+    size_bytes: v.number(),
+    // Storage location — one of these is set (docs/27 hybrid pattern).
+    storage_id: v.optional(v.id("_storage")),
+    r2_key: v.optional(v.string()),
+    // Classification metadata (file 20 §3).
+    discipline: v.optional(v.string()),
+    doc_type: v.optional(v.string()),
+    drawing_number: v.optional(v.string()),
+    revision: v.optional(v.string()),
+    date: v.optional(v.string()),
+    author: v.optional(v.string()),
+    stage: v.optional(Stage),
+    classifier_confidence: v.optional(v.number()),
+    status: DocumentStatus,
+    created_at: v.number(),
+  })
+    .index("by_project", ["project_id"])
+    .index("by_sha256", ["sha256"])
+    .index("by_project_discipline", ["project_id", "discipline"])
+    .index("by_project_status", ["project_id", "status"]),
 
-    // Severity & category
-    severity: Severity,
-    category: FindingCategory,
+  // --------------------------------------------------------------------------
+  // modules — activated regulatory modules per project (§05.4).
+  // --------------------------------------------------------------------------
+  modules: defineTable({
+    project_id: v.id("projects"),
+    module_name: v.string(),
+    activated_at: v.number(),
+    activated_by: v.string(),
+  })
+    .index("by_project", ["project_id"])
+    .index("by_project_module", ["project_id", "module_name"]),
 
-    // Source location
-    document: v.string(),                 // "ITT Volume 2"
-    documentVersion: v.optional(v.string()),
-    section: v.string(),                  // "Section 4.3, Clause 4.3.7"
-
-    // Authority basis
-    regulatory_basis: v.string(),         // "SI 9/2014 Reg 5; TGD B Vol 2 (2024) §B1.2.3"
-
-    // Risk + action
-    operational_risk: v.string(),         // single-line impact if uncorrected
-    recommended_action: v.string(),       // drafted correction text, not commentary
-    evidence_quote: v.string(),           // verbatim quote from source
-
-    // Linkage
-    rfiId: v.optional(v.id("sp_dr_rfi_register")),
-    variationExposureId: v.optional(v.id("sp_dr_variation_exposure")),
-    preContractActionIds: v.array(v.id("sp_dr_pre_contract_actions")),
-
-    // Ownership
-    owner: OwnerParty,
-    ownerNamed: v.optional(v.string()),   // specific named individual
-
-    // Workflow
+  // --------------------------------------------------------------------------
+  // findings — the atomic unit (§05.1). `issue_id` is the stable business id
+  // ({disc}-{stage}-{seq}); the Convex `_id` is the storage id.
+  // --------------------------------------------------------------------------
+  findings: defineTable({
+    project_id: v.id("projects"),
+    issue_id: v.string(),
+    discipline_origin: v.string(),
+    interface_disciplines: v.array(v.string()),
+    stage: Stage,
+    project_area: v.optional(v.string()),
+    location: v.optional(v.string()),
+    source_document: v.string(),
+    source_reference: v.string(),
+    related_documents: v.array(v.string()),
+    requirement: v.string(),
+    finding: v.string(),
     status: FindingStatus,
-    statusReason: v.optional(v.string()),
-    raisedAt: v.number(),
-    updatedAt: v.number(),
-    closedAt: v.optional(v.number()),
-
-    // Stakeholder decision (Day 8–9)
-    stakeholderDecision: v.optional(v.object({
-      decidedBy: v.string(),
-      decidedAt: v.number(),
-      decision: v.union(v.literal("ACCEPT"), v.literal("REJECT"), v.literal("DEFER"), v.literal("AMEND")),
-      amendedAction: v.optional(v.string()),
-      rationale: v.optional(v.string()),
-    })),
-
-    // Sprint tracking
-    sprintDay: v.number(),                // day this finding was logged
-  })
-    .index("by_project", ["projectId"])
-    .index("by_project_findingId", ["projectId", "findingId"])
-    .index("by_project_severity", ["projectId", "severity"])
-    .index("by_project_status", ["projectId", "status"])
-    .index("by_project_discipline", ["projectId", "discipline"])
-    .index("by_owner", ["owner"]),
-
-  // -----------------------------------------------------------------
-  // sp_dr_rfi_register — RFI / internal change request log
-  // -----------------------------------------------------------------
-  sp_dr_rfi_register: defineTable({
-    projectId: v.id("sp_dr_projects"),
-    rfiId: v.string(),                    // "RFI-001"
-    direction: RfiDirection,
-    severity: Severity,                   // propagates from highest source finding
-    sourceFindingIds: v.array(v.id("sp_dr_findings")),
-
-    // RFI body
-    addressedTo: OwnerParty,              // typically CONTRACTING_AUTHORITY or EMPLOYER
-    documentRef: v.string(),
-    sectionRef: v.string(),
-    query: v.string(),                    // closed clarification or proposed change
-    proposedCorrection: v.string(),       // mandatory — every RFI states its fix
-    responseRequiredBy: v.string(),       // ISO date
-
-    // Lifecycle
-    status: RfiStatus,
-    submittedAt: v.optional(v.number()),
-    submittedVia: v.optional(v.string()), // "eTenders" / "Employer DocControl" / "Email"
-    submissionEvidence: v.optional(v.string()), // file storage ID or URL
-
-    // Response
-    caResponse: v.optional(v.string()),
-    caRespondedAt: v.optional(v.number()),
-    caRespondedBy: v.optional(v.string()),
-    responseAccepted: v.optional(v.boolean()),
-
-    raisedAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_project", ["projectId"])
-    .index("by_project_rfiId", ["projectId", "rfiId"])
-    .index("by_project_status", ["projectId", "status"])
-    .index("by_project_severity", ["projectId", "severity"]),
-
-  // -----------------------------------------------------------------
-  // sp_dr_pre_contract_actions — 14-item sequenced checklist
-  // -----------------------------------------------------------------
-  sp_dr_pre_contract_actions: defineTable({
-    projectId: v.id("sp_dr_projects"),
-    actionId: v.string(),                 // "PCA-01"
-    sequence: v.number(),                 // 1..14 — Employer → ER → Designers → Contractor
-    owner: OwnerParty,
-    ownerNamed: v.optional(v.string()),
-    action: v.string(),                   // what must be done
-    closes: v.array(v.string()),          // finding_ids this action closes
-    precondition: v.optional(v.string()), // what must happen before this can start
-    targetDate: v.string(),               // ISO date
-    status: v.union(
-      v.literal("PENDING"),
-      v.literal("IN_PROGRESS"),
-      v.literal("COMPLETE"),
-      v.literal("BLOCKED"),
-    ),
-    completedAt: v.optional(v.number()),
-    evidence: v.optional(v.string()),
-    notes: v.optional(v.string()),
-    raisedAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_project", ["projectId"])
-    .index("by_project_sequence", ["projectId", "sequence"])
-    .index("by_project_status", ["projectId", "status"]),
-
-  // -----------------------------------------------------------------
-  // sp_dr_variation_exposure — per-finding € impact, live model
-  // -----------------------------------------------------------------
-  sp_dr_variation_exposure: defineTable({
-    projectId: v.id("sp_dr_projects"),
-    findingId: v.id("sp_dr_findings"),
-
-    // Banded estimate (cents)
-    low_cents: v.number(),
-    central_cents: v.number(),
-    high_cents: v.number(),
-
-    // Basis for the estimate
-    basis: v.string(),                    // CWMF variation typology, CESMM4 ref, comparable rate, etc.
-    assumptions: v.array(v.string()),
-    confidence: v.union(
-      v.literal("HIGH"),
-      v.literal("MEDIUM"),
-      v.literal("LOW"),
-    ),
-
-    // QS attribution
-    estimatedBy: v.string(),
-    estimatedAt: v.number(),
-    reviewedBy: v.optional(v.string()),
-    reviewedAt: v.optional(v.number()),
-
-    // If finding closed before award, exposure crystallises or is avoided
-    crystallised: v.optional(v.boolean()),
-    crystallisedAmount_cents: v.optional(v.number()),
-  })
-    .index("by_project", ["projectId"])
-    .index("by_finding", ["findingId"]),
-
-  // -----------------------------------------------------------------
-  // sp_dr_summary_counts — denormalised severity rollup per project
-  // updated by mutation on every finding insert/update
-  // -----------------------------------------------------------------
-  sp_dr_summary_counts: defineTable({
-    projectId: v.id("sp_dr_projects"),
-    critical: v.number(),
-    high: v.number(),
-    medium: v.number(),
-    low: v.number(),
-    total: v.number(),
-    openCount: v.number(),
-    closedCount: v.number(),
-    deferredCount: v.number(),
-    variationExposureLow_cents: v.number(),
-    variationExposureCentral_cents: v.number(),
-    variationExposureHigh_cents: v.number(),
-    rfiCount: v.number(),
-    rfiSubmittedCount: v.number(),
-    preContractActionCount: v.number(),
-    preContractActionCompleteCount: v.number(),
-    lastRecalculatedAt: v.number(),
-  })
-    .index("by_project", ["projectId"]),
-
-  // -----------------------------------------------------------------
-  // sp_dr_stakeholder_log — audit trail for Day-8 review session decisions
-  // -----------------------------------------------------------------
-  sp_dr_stakeholder_log: defineTable({
-    projectId: v.id("sp_dr_projects"),
-    findingId: v.optional(v.id("sp_dr_findings")),
-    rfiId: v.optional(v.id("sp_dr_rfi_register")),
-    sessionDate: v.string(),
-    actor: v.string(),
-    role: OwnerParty,
-    action: v.string(),                   // e.g. "ACCEPTED", "REJECTED with rationale", "AMENDED text"
+    risk: Risk,
+    build_readiness_impact: BuildReadinessImpact,
+    question: v.optional(v.string()),
+    required_evidence: v.array(v.string()),
+    owner: v.string(),
+    secondary_owner: v.optional(v.string()),
+    close_out_stage: v.optional(v.string()),
+    // Populated only after Stage 6 adjudication.
+    council_decision: v.optional(CouncilDecision),
     rationale: v.optional(v.string()),
-    timestamp: v.number(),
+    // Provenance for the lessons-learnt join (files 13, 15).
+    model_used: v.optional(v.string()),
+    prompt_version: v.optional(v.string()),
+    corpus_version: v.optional(v.string()),
+    self_check_audit_entry_id: v.optional(v.id("audit_log")),
+    created_at: v.number(),
+    updated_at: v.number(),
   })
-    .index("by_project", ["projectId"])
-    .index("by_finding", ["findingId"]),
+    .index("by_project", ["project_id"])
+    .index("by_project_issue_id", ["project_id", "issue_id"])
+    .index("by_project_status", ["project_id", "status"])
+    .index("by_project_risk", ["project_id", "risk"])
+    .index("by_project_discipline", ["project_id", "discipline_origin"]),
 
+  // --------------------------------------------------------------------------
+  // finding_interfaces — many-to-many: which findings interface which
+  // disciplines (§05.4). Keyed by the finding's issue_id.
+  // --------------------------------------------------------------------------
+  finding_interfaces: defineTable({
+    project_id: v.id("projects"),
+    issue_id: v.string(),
+    interface_discipline: v.string(),
+  })
+    .index("by_project", ["project_id"])
+    .index("by_issue", ["project_id", "issue_id"])
+    .index("by_discipline", ["project_id", "interface_discipline"]),
+
+  // --------------------------------------------------------------------------
+  // challenges — peer-challenge records (Stage 5; §05.4).
+  // --------------------------------------------------------------------------
+  challenges: defineTable({
+    project_id: v.id("projects"),
+    issue_id: v.string(),
+    challenger_discipline: v.string(),
+    decision: v.string(),
+    revised_risk: v.optional(Risk),
+    rationale: v.string(),
+    model_used: v.optional(v.string()),
+    created_at: v.number(),
+  })
+    .index("by_project", ["project_id"])
+    .index("by_issue", ["project_id", "issue_id"]),
+
+  // --------------------------------------------------------------------------
+  // adjudications — adjudicator decisions (Stage 6; §05.4). Immutable once
+  // written; the pre-state lives in audit_log.
+  // --------------------------------------------------------------------------
+  adjudications: defineTable({
+    project_id: v.id("projects"),
+    issue_id: v.string(),
+    council_decision: CouncilDecision,
+    rationale: v.string(),
+    adjudicator_model: v.string(),
+    adjudicated_at: v.number(),
+  })
+    .index("by_project", ["project_id"])
+    .index("by_issue", ["project_id", "issue_id"]),
+
+  // --------------------------------------------------------------------------
+  // discipline_summaries — one per discipline per project (§05.2).
+  // --------------------------------------------------------------------------
+  discipline_summaries: defineTable({
+    project_id: v.id("projects"),
+    discipline: v.string(),
+    documents_reviewed: v.array(v.string()),
+    documents_missing: v.array(v.string()),
+    overall_status: DisciplineOverallStatus,
+    critical_findings_count: v.number(),
+    high_findings_count: v.number(),
+    medium_findings_count: v.number(),
+    key_risks: v.array(v.string()),
+    questions_for_other_disciplines: v.array(
+      v.object({
+        target_discipline: v.string(),
+        question: v.string(),
+        reason: v.string(),
+        risk: v.string(),
+      }),
+    ),
+    evidence_required_before_build: v.array(v.string()),
+    construction_hold_points: v.array(v.string()),
+    handover_evidence: v.array(v.string()),
+    created_at: v.number(),
+  })
+    .index("by_project", ["project_id"])
+    .index("by_project_discipline", ["project_id", "discipline"]),
+
+  // --------------------------------------------------------------------------
+  // reports — Build Readiness Report records (§05.3). Version-stamped; the
+  // matrix/array sections are populated via report_findings (issue_id refs),
+  // not duplicated content (§05.4 note).
+  // --------------------------------------------------------------------------
+  reports: defineTable({
+    project_id: v.id("projects"),
+    version: v.string(),
+    project_name: v.string(),
+    project_stage: v.optional(v.string()),
+    building_type: v.optional(v.string()),
+    review_date: v.string(),
+    regulatory_modules_activated: v.array(v.string()),
+    disciplines_reviewed: v.array(v.string()),
+    build_readiness_rating: BuildReadinessRating,
+    executive_decision: ExecutiveDecision,
+    council_summary: v.string(),
+    final_recommendation: v.string(),
+    reviewer_initials: v.optional(v.string()),
+    corpus_version: v.optional(v.string()),
+    created_at: v.number(),
+  })
+    .index("by_project", ["project_id"])
+    .index("by_project_version", ["project_id", "version"]),
+
+  // --------------------------------------------------------------------------
+  // report_findings — many-to-many: which findings appear in which report
+  // section (§05.4).
+  // --------------------------------------------------------------------------
+  report_findings: defineTable({
+    report_id: v.id("reports"),
+    issue_id: v.string(),
+    section: v.string(),
+  })
+    .index("by_report", ["report_id"])
+    .index("by_report_section", ["report_id", "section"]),
+
+  // --------------------------------------------------------------------------
+  // audit_log — every state transition. Non-negotiable customer trust artefact
+  // (§05.4, file 20 §2 "audit-log writes are mutations, never actions").
+  // The Convex `_id` is the entry_id.
+  // --------------------------------------------------------------------------
+  audit_log: defineTable({
+    project_id: v.optional(v.id("projects")),
+    actor: v.string(),
+    action: v.string(),
+    target_type: v.string(),
+    target_id: v.optional(v.string()),
+    payload_json: v.string(),
+    occurred_at: v.number(),
+  })
+    .index("by_project", ["project_id"])
+    .index("by_target", ["target_type", "target_id"])
+    .index("by_action", ["action"]),
+
+  // --------------------------------------------------------------------------
+  // jobs — the job queue (file 20 §2). Per-discipline isolation via depends_on;
+  // idempotency_key is a deterministic hash of job_type + payload.
+  // --------------------------------------------------------------------------
+  jobs: defineTable({
+    project_id: v.id("projects"),
+    job_type: JobType,
+    payload: v.string(),
+    status: JobStatus,
+    attempts: v.number(),
+    idempotency_key: v.string(),
+    depends_on: v.array(v.id("jobs")),
+    scheduled_for: v.optional(v.number()),
+    started_at: v.optional(v.number()),
+    completed_at: v.optional(v.number()),
+    error: v.optional(v.string()),
+    result_ref: v.optional(v.string()),
+    created_at: v.number(),
+  })
+    .index("by_project", ["project_id"])
+    .index("by_status", ["status"])
+    .index("by_idempotency_key", ["idempotency_key"])
+    .index("by_status_scheduled", ["status", "scheduled_for"]),
+
+  // --------------------------------------------------------------------------
+  // findings_feedback — customer rejection feedback (file 14). Carries the
+  // self-check audit-entry id as the key join back to agent reasoning.
+  // --------------------------------------------------------------------------
+  findings_feedback: defineTable({
+    project_id: v.id("projects"),
+    issue_id: v.string(),
+    discipline: v.string(),
+    original_status: FindingStatus,
+    original_risk: Risk,
+    design_team_response: DesignTeamResponse,
+    rejection_primary_reason: v.optional(RejectionReason),
+    rejection_secondary_reason: v.optional(RejectionReason),
+    design_team_comment: v.optional(v.string()),
+    responding_party: v.string(),
+    responding_party_charter: v.optional(v.string()),
+    responded_at: v.number(),
+    agent_audit_log_entry_id: v.optional(v.id("audit_log")),
+    model_used: v.optional(v.string()),
+    corpus_version: v.optional(v.string()),
+    prompt_version: v.optional(v.string()),
+    reviewer_action: v.optional(v.string()),
+  })
+    .index("by_project", ["project_id"])
+    .index("by_issue", ["project_id", "issue_id"])
+    .index("by_reason", ["rejection_primary_reason"]),
+
+  // --------------------------------------------------------------------------
+  // prompt_versions — version registry for the lessons-learnt loop (file 15).
+  // --------------------------------------------------------------------------
+  prompt_versions: defineTable({
+    agent_id: v.string(),
+    version: v.string(),
+    status: PromptVersionStatus,
+    notes: v.optional(v.string()),
+    created_at: v.number(),
+    activated_at: v.optional(v.number()),
+  })
+    .index("by_agent", ["agent_id"])
+    .index("by_agent_version", ["agent_id", "version"])
+    .index("by_status", ["status"]),
+
+  // --------------------------------------------------------------------------
+  // inference_cache — LLM call cache keyed by
+  // hash(model + prompt_version + document_sha256 + agent_id + corpus_version)
+  // (file 20 §2; idempotency). TTL 30 days via expires_at.
+  // --------------------------------------------------------------------------
+  inference_cache: defineTable({
+    cache_key: v.string(),
+    model: v.string(),
+    prompt_version: v.string(),
+    document_sha256: v.string(),
+    agent_id: v.string(),
+    corpus_version: v.string(),
+    result_text: v.string(),
+    tokens_in: v.number(),
+    tokens_out: v.number(),
+    created_at: v.number(),
+    expires_at: v.number(),
+  })
+    .index("by_cache_key", ["cache_key"])
+    .index("by_expires_at", ["expires_at"]),
 });
-
-// =================================================================
-// TYPES (for use in queries/mutations)
-// =================================================================
-
-export type SeverityT = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
-export type DisciplineT = "ARCHITECTURAL" | "STRUCTURAL" | "MECHANICAL" | "ELECTRICAL" | "QUANTITY_SURVEYING" | "CONTRACT_ADMIN";
-export type FindingStatusT = "OPEN" | "STAKEHOLDER_REVIEW" | "ACCEPTED" | "REJECTED" | "DEFERRED" | "CLOSED";
-export type RfiDirectionT = "PRE_ISSUE_INTERNAL" | "POST_ISSUE_BIDDER";
-
-// Severity → numeric weight (for sorting + summary rollups)
-export const SEVERITY_WEIGHT: Record<SeverityT, number> = {
-  CRITICAL: 4,
-  HIGH: 3,
-  MEDIUM: 2,
-  LOW: 1,
-};
-
-// Discipline → finding_id prefix
-export const DISCIPLINE_PREFIX: Record<DisciplineT, string> = {
-  ARCHITECTURAL: "A",
-  STRUCTURAL: "S",
-  MECHANICAL: "M",
-  ELECTRICAL: "E",
-  QUANTITY_SURVEYING: "Q",
-  CONTRACT_ADMIN: "C",
-};
-
-/**
- * Validate a finding_id matches its discipline.
- * Example: assertFindingIdMatchesDiscipline("A-001", "ARCHITECTURAL") → ok
- */
-export function assertFindingIdMatchesDiscipline(
-  findingId: string,
-  discipline: DisciplineT,
-): void {
-  const prefix = DISCIPLINE_PREFIX[discipline];
-  const expected = new RegExp(`^${prefix}-\\d{3}$`);
-  if (!expected.test(findingId)) {
-    throw new Error(
-      `finding_id "${findingId}" does not match discipline ${discipline} ` +
-      `(expected pattern ${prefix}-NNN)`,
-    );
-  }
-}
