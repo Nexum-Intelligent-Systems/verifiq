@@ -1,0 +1,4 @@
+node_modules/
+src/_legacy_poc/
+src/convex/_generated/
+*.md
