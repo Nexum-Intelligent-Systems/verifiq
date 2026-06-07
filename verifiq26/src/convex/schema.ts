@@ -543,4 +543,42 @@ export default defineSchema({
   })
     .index("by_cache_key", ["cache_key"])
     .index("by_expires_at", ["expires_at"]),
+
+  // --------------------------------------------------------------------------
+  // classifier_feedback — every reclassification correction (file 20 §4). The
+  // single most valuable labelled signal for the lessons-learnt loop (file 15).
+  // --------------------------------------------------------------------------
+  classifier_feedback: defineTable({
+    project_id: v.id("projects"),
+    document_id: v.id("documents"),
+    sha256: v.optional(v.string()),
+    from_discipline: v.optional(v.string()),
+    to_discipline: v.string(),
+    from_doc_type: v.optional(v.string()),
+    to_doc_type: v.optional(v.string()),
+    prior_confidence: v.optional(v.number()),
+    classifier_source: v.optional(v.string()),
+    corrected_by: v.string(),
+    corrected_at: v.number(),
+  })
+    .index("by_project", ["project_id"])
+    .index("by_document", ["document_id"]),
+
+  // --------------------------------------------------------------------------
+  // workflow_state — resumable orchestrator state per project (file 20 §2/§5).
+  // Persists which stages completed + each discipline's outcome so a scan
+  // resumes across restarts without re-running finished stages.
+  // --------------------------------------------------------------------------
+  workflow_state: defineTable({
+    project_id: v.id("projects"),
+    scan_state: ScanState,
+    completed_stages: v.array(v.string()),
+    discipline_status: v.array(
+      v.object({
+        discipline: v.string(),
+        status: v.union(v.literal("succeeded"), v.literal("failed")),
+      }),
+    ),
+    updated_at: v.number(),
+  }).index("by_project", ["project_id"]),
 });

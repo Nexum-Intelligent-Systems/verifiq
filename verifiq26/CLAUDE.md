@@ -81,10 +81,15 @@ The source of truth is `verifiq-prompts/` (and `docs/`). Key files:
   + tested, plus Convex glue for classification (`src/convex/classify.ts` — save /
   confirm / reclassify-with-audit / forced-confirm gate) and the inference cache
   (`src/convex/cache.ts`). See `docs/32-phase4-completion.md`.
-- **Phase 4 remaining (deploy-only, next):** scheduled `tick` driving `jobs.ts`,
-  an orchestrator-in-Convex `"use node"` action with a Convex `PersistencePort`
-  (needs a small `workflow_state` schema addition — flagged), and caching wired
-  into the agents. Then Phase 5+: upload (tus.io), UI, observability, CI/CD.
+- **Phase 4 Convex binding (done):** dedicated `workflow_state` +
+  `classifier_feedback` tables; `ConvexPersistence` (tested — runs the real
+  orchestrator end-to-end) over `src/convex/persist.ts`; reclassification writes
+  `classifier_feedback`; nightly `inference_cache` purge cron. See
+  `docs/33-phase4-convex-binding.md`.
+- **Phase 5 (next):** the upload + extraction pipeline (tus.io resumable upload,
+  PDF text/title-block extraction, file 20 §1), prompt bundling for server-side
+  agents, then the thin `"use node"` orchestrator runner + 60s queue tick. Then
+  UI, observability, CI/CD.
 
 Live-credential checks across phases remain "verify locally" (real
 Anthropic/OpenAI calls, R2 signed URL, `npx convex dev` deploy).
