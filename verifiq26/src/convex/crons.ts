@@ -11,15 +11,16 @@
  */
 
 import { cronJobs } from "convex/server";
-import { api } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
 // Purge expired inference_cache rows nightly (30-day TTL; file 20 §2).
+// purgeExpired is an internalMutation — the cron is a trusted caller.
 crons.daily(
   "purge expired inference cache",
   { hourUTC: 3, minuteUTC: 0 },
-  api.cache.purgeExpired,
+  internal.cache.purgeExpired,
   {},
 );
 

@@ -88,6 +88,32 @@ the thin runner remain.
 
 ---
 
+## Review hardening (post automated review)
+
+Addressed the automated security + correctness review:
+
+- **Security (High) — IDOR / compliance tampering.** All persistence functions
+  (`persist.ts`) and the inference-cache read/writes (`cache.ts`) are now
+  **`internalMutation`/`internalQuery`** — callable only from the trusted
+  orchestrator/cron, never from a browser client. This closes the
+  cross-tenant write-tampering (adjudications, workflow state, report) and
+  cache-poisoning vectors. Authenticated project-membership checks still belong
+  in the public action layer once Clerk auth lands.
+- **Correctness (P2) — peer interface dropped.** Added `interface_discipline`
+  (+ `required_action`) to the `challenges` table; `insert/listChallenges`
+  round-trip it so the adjudicator can fold it into `interface_disciplines`.
+- **Correctness (P2) — adjudicated interfaces lost.** `saveAdjudications` now
+  takes the adjudicated findings and patches each finding's
+  `interface_disciplines` (not just risk/decision), so the chair report's
+  interface-risk matrix isn't built from a stale list.
+- **Correctness (P1) — partial report.** `getReport` now rehydrates the full
+  §05.3 report — the section arrays from `report_findings` plus the locked
+  disclaimer — instead of the raw `reports` row.
+
+A new `tests/persist.test.ts` exercises these via `convex-test` in-process
+against the real schema (interface round-trip, adjudicated-interface
+persistence, report rehydration). **26/26 tests pass.**
+
 ## Estimated readiness
 
 **The persistence layer is production-shaped and the bridge is tested.** The

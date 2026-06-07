@@ -352,6 +352,10 @@ export default defineSchema({
     decision: v.string(),
     revised_risk: v.optional(Risk),
     rationale: v.string(),
+    // Cross-discipline interface the challenger flagged — the adjudicator folds
+    // this into the finding's interface_disciplines (file 07 §07.1).
+    interface_discipline: v.optional(v.string()),
+    required_action: v.optional(v.string()),
     model_used: v.optional(v.string()),
     created_at: v.number(),
   })

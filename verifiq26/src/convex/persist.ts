@@ -10,17 +10,25 @@
  * Audit writes are mutations (file 20 §2). Verify against a real deployment —
  * these are not exercised by the in-sandbox tests.
  *
+ * SECURITY: every function here is `internal*` — callable only from the trusted
+ * orchestrator runner action, never from a browser client. Public versions would
+ * be an IDOR: anyone with a `project_id` could tamper with adjudications,
+ * workflow state, or the report, or exfiltrate findings (the compliance register
+ * is a trust-critical artefact). Authenticated project-membership checks belong
+ * in the public action layer once Clerk auth lands.
+ *
  * Version: 0.7.0-phase4
  */
 
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { ScanState } from "./schema";
+import { LOCKED_DISCLAIMER } from "../constants.js";
 
 // ── workflow_state ────────────────────────────────────────────────────────────
 
-export const getWorkflowState = query({
+export const getWorkflowState = internalQuery({
   args: { project_id: v.id("projects") },
   handler: async (ctx, args) => {
     return ctx.db
@@ -30,7 +38,7 @@ export const getWorkflowState = query({
   },
 });
 
-export const upsertWorkflowState = mutation({
+export const upsertWorkflowState = internalMutation({
   args: {
     project_id: v.id("projects"),
     scan_state: ScanState,
@@ -136,7 +144,7 @@ function fromFindingRow(doc: Doc<"findings">): FindingInput {
   return rest;
 }
 
-export const insertFindings = mutation({
+export const insertFindings = internalMutation({
   args: { project_id: v.id("projects"), findings: v.array(v.any()) },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -146,7 +154,7 @@ export const insertFindings = mutation({
   },
 });
 
-export const listFindings = query({
+export const listFindings = internalQuery({
   args: { project_id: v.id("projects") },
   handler: async (ctx, args) => {
     const docs = await ctx.db
@@ -158,7 +166,7 @@ export const listFindings = query({
 });
 
 /** The adjudicated register: findings not deleted/merged. */
-export const listAdjudicated = query({
+export const listAdjudicated = internalQuery({
   args: { project_id: v.id("projects") },
   handler: async (ctx, args) => {
     const docs = await ctx.db
@@ -179,10 +187,12 @@ interface ChallengeInput {
   decision: string;
   reason?: string;
   revised_risk?: Doc<"challenges">["revised_risk"];
+  interface_discipline?: string;
+  required_action?: string;
   model_used?: string;
 }
 
-export const insertChallenges = mutation({
+export const insertChallenges = internalMutation({
   args: { project_id: v.id("projects"), challenges: v.array(v.any()) },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -194,6 +204,10 @@ export const insertChallenges = mutation({
         decision: c.decision,
         ...(c.revised_risk !== undefined ? { revised_risk: c.revised_risk } : {}),
         rationale: c.reason ?? "",
+        ...(c.interface_discipline !== undefined
+          ? { interface_discipline: c.interface_discipline }
+          : {}),
+        ...(c.required_action !== undefined ? { required_action: c.required_action } : {}),
         ...(c.model_used !== undefined ? { model_used: c.model_used } : {}),
         created_at: now,
       });
@@ -201,19 +215,25 @@ export const insertChallenges = mutation({
   },
 });
 
-export const listChallenges = query({
+export const listChallenges = internalQuery({
   args: { project_id: v.id("projects") },
   handler: async (ctx, args) => {
     const docs = await ctx.db
       .query("challenges")
       .withIndex("by_project", (q) => q.eq("project_id", args.project_id))
       .collect();
+    // Round-trips ChallengeRecord, including interface_discipline so the
+    // adjudicator can fold it into interface_disciplines (was dropped before).
     return docs.map((d) => ({
       issue_id: d.issue_id,
       challenger_discipline: d.challenger_discipline,
       decision: d.decision,
       reason: d.rationale,
       ...(d.revised_risk !== undefined ? { revised_risk: d.revised_risk } : {}),
+      ...(d.interface_discipline !== undefined
+        ? { interface_discipline: d.interface_discipline }
+        : {}),
+      ...(d.required_action !== undefined ? { required_action: d.required_action } : {}),
       model_used: d.model_used ?? "unknown",
     }));
   },
@@ -229,11 +249,23 @@ interface AdjudicationInput {
   adjudicator_model: string;
 }
 
-/** Record the adjudications and patch each finding with its decision/risk. */
-export const saveAdjudications = mutation({
-  args: { project_id: v.id("projects"), decisions: v.array(v.any()) },
+/**
+ * Record the adjudications and patch each finding with its final state. Takes
+ * the adjudicated findings too, so peer-added `interface_disciplines` (and any
+ * other adjudication-time changes) are persisted — otherwise the chair report
+ * reads a stale interface list (the in-memory port keeps the updated finding).
+ */
+export const saveAdjudications = internalMutation({
+  args: {
+    project_id: v.id("projects"),
+    adjudicated: v.array(v.any()),
+    decisions: v.array(v.any()),
+  },
   handler: async (ctx, args) => {
     const now = Date.now();
+    const finalById = new Map<string, FindingInput>();
+    for (const f of args.adjudicated as FindingInput[]) finalById.set(f.issue_id, f);
+
     for (const d of args.decisions as AdjudicationInput[]) {
       await ctx.db.insert("adjudications", {
         project_id: args.project_id,
@@ -250,10 +282,12 @@ export const saveAdjudications = mutation({
         )
         .unique();
       if (finding) {
+        const final = finalById.get(d.issue_id);
         await ctx.db.patch(finding._id, {
           council_decision: d.council_decision,
           rationale: d.rationale,
           risk: d.post.risk,
+          ...(final ? { interface_disciplines: final.interface_disciplines ?? [] } : {}),
           updated_at: now,
         });
       }
@@ -263,7 +297,7 @@ export const saveAdjudications = mutation({
 
 // ── report ────────────────────────────────────────────────────────────────────
 
-export const saveReport = mutation({
+export const saveReport = internalMutation({
   args: {
     project_id: v.id("projects"),
     report: v.any(),
@@ -313,20 +347,57 @@ const REPORT_SECTIONS = [
   "handover_evidence_requirements",
 ] as const;
 
-export const getReport = query({
+/**
+ * Rehydrate the full §05.3 BuildReadinessReport: the `reports` row plus the
+ * per-section issue_id arrays from `report_findings`, with the locked disclaimer
+ * re-attached. (The raw row alone omits the section arrays + disclaimer.)
+ */
+export const getReport = internalQuery({
   args: { project_id: v.id("projects") },
   handler: async (ctx, args) => {
     const reports = await ctx.db
       .query("reports")
       .withIndex("by_project", (q) => q.eq("project_id", args.project_id))
       .collect();
-    return reports.length ? reports[reports.length - 1] : null;
+    const row = reports.length ? reports[reports.length - 1] : null;
+    if (!row) return null;
+
+    const refs = await ctx.db
+      .query("report_findings")
+      .withIndex("by_report", (q) => q.eq("report_id", row._id))
+      .collect();
+    const bySection: Record<string, string[]> = {};
+    for (const ref of refs) (bySection[ref.section] ??= []).push(ref.issue_id);
+    const section = (name: string): string[] => bySection[name] ?? [];
+
+    return {
+      project_name: row.project_name,
+      project_stage: row.project_stage ?? "",
+      building_type: row.building_type ?? "",
+      review_date: row.review_date,
+      regulatory_modules_activated: row.regulatory_modules_activated,
+      disciplines_reviewed: row.disciplines_reviewed,
+      build_readiness_rating: row.build_readiness_rating,
+      executive_decision: row.executive_decision,
+      council_summary: row.council_summary,
+      critical_blockers: section("critical_blockers"),
+      high_risk_conditions: section("high_risk_conditions"),
+      discipline_action_matrix: section("discipline_action_matrix"),
+      interface_risk_matrix: section("interface_risk_matrix"),
+      statutory_approval_risks: section("statutory_approval_risks"),
+      planning_condition_risks: section("planning_condition_risks"),
+      tender_cost_risks: section("tender_cost_risks"),
+      construction_hold_points: section("construction_hold_points"),
+      handover_evidence_requirements: section("handover_evidence_requirements"),
+      final_recommendation: row.final_recommendation,
+      disclaimer: LOCKED_DISCLAIMER,
+    };
   },
 });
 
 // ── audit ─────────────────────────────────────────────────────────────────────
 
-export const appendOrchestratorAudit = mutation({
+export const appendOrchestratorAudit = internalMutation({
   args: { project_id: v.id("projects"), entry: v.any() },
   handler: async (ctx, args) => {
     const e = args.entry as { action?: string; stage?: string };

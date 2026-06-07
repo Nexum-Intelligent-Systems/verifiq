@@ -5,16 +5,23 @@
  * table keyed by the deterministic cache key. Entries have a 30-day TTL via
  * `expires_at` (matches inference-log retention); reads past expiry miss.
  *
- * Version: 0.6.0-phase4
+ * SECURITY: these are `internal*` — callable only from trusted server actions
+ * (the orchestrator / agent runner), never from a browser client. A public
+ * writer would let anyone forge `result_text` for a known cache key and have
+ * later scans consume the poisoned completion (CachingLLMClient serves hits
+ * without re-validation). The key is content-addressed (document_sha256), so
+ * cross-tenant reuse of identical inputs is intentional and safe.
+ *
+ * Version: 0.7.0-phase4
  */
 
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
 const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days.
 
 /** Look up a cached inference; returns null on miss or past TTL. */
-export const getCachedInference = query({
+export const getCachedInference = internalQuery({
   args: { cache_key: v.string(), now: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const now = args.now ?? Date.now();
@@ -28,7 +35,7 @@ export const getCachedInference = query({
 });
 
 /** Store an inference result (idempotent on cache_key). */
-export const putCachedInference = mutation({
+export const putCachedInference = internalMutation({
   args: {
     cache_key: v.string(),
     model: v.string(),
@@ -63,8 +70,8 @@ export const putCachedInference = mutation({
   },
 });
 
-/** Purge expired cache rows (called by a scheduled job). */
-export const purgeExpired = mutation({
+/** Purge expired cache rows (called by the scheduled cron). */
+export const purgeExpired = internalMutation({
   args: { now: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const now = args.now ?? Date.now();
