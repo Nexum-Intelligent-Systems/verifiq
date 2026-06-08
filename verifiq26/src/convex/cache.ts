@@ -5,7 +5,14 @@
  * file-20 cache key), TTL-gated get (30-day retention), and an expiry purge for
  * the scheduled cron. On a cache hit the agent skips the model call entirely.
  *
- * Version: 0.6.0-phase4
+ * SECURITY: these are `internal*` — callable only from trusted server actions
+ * (the orchestrator / agent runner), never from a browser client. A public
+ * writer would let anyone forge `result_text` for a known cache key and have
+ * later scans consume the poisoned completion (CachingLLMClient serves hits
+ * without re-validation). The key is content-addressed (document_sha256), so
+ * cross-tenant reuse of identical inputs is intentional and safe.
+ *
+ * Version: 0.7.0-phase4
  */
 
 import { internalMutation, internalQuery } from "./_generated/server";
