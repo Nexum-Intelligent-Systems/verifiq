@@ -35,6 +35,17 @@ describe("PdfTextExtractor", () => {
       /Empty PDF/,
     );
   });
+
+  it("rejects an oversized buffer before parsing", async () => {
+    const extractor = new PdfTextExtractor(fakeParse("x"), { maxBytes: 4 });
+    await expect(extractor.extract(new Uint8Array(8))).rejects.toThrow(/too large/);
+  });
+
+  it("aborts a parse that exceeds the timeout", async () => {
+    const slowParse: RawPdfParse = () => new Promise(() => {}); // never resolves
+    const extractor = new PdfTextExtractor(slowParse, { timeoutMs: 10 });
+    await expect(extractor.extract(new Uint8Array([1]))).rejects.toThrow(/timed out/);
+  });
 });
 
 describe("firstTokens", () => {

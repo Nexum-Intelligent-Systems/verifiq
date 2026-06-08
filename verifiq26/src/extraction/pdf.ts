@@ -15,6 +15,16 @@ import type { PdfExtraction, PdfExtractor, RawPdfParse } from "./types.js";
 
 /** Default content window handed to the classifier (Source 3). */
 const DEFAULT_CONTENT_TOKENS = 500;
+/** Resource bounds applied before/around parsing (defence-in-depth, file 20 §1). */
+const DEFAULT_MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+export interface PdfExtractorOptions {
+  /** Reject inputs larger than this before parsing (0 disables). */
+  maxBytes?: number;
+  /** Abort the parse if it exceeds this many ms (0 disables). */
+  timeoutMs?: number;
+}
 
 /** Bind `pdf-parse` lazily; throws an actionable error when it isn't installed. */
 export const defaultPdfParse: RawPdfParse = async (bytes) => {
@@ -32,12 +42,45 @@ export const defaultPdfParse: RawPdfParse = async (bytes) => {
 };
 
 export class PdfTextExtractor implements PdfExtractor {
-  constructor(private readonly parse: RawPdfParse = defaultPdfParse) {}
+  private readonly maxBytes: number;
+  private readonly timeoutMs: number;
+
+  constructor(
+    private readonly parse: RawPdfParse = defaultPdfParse,
+    options: PdfExtractorOptions = {},
+  ) {
+    this.maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
+    this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  }
 
   async extract(bytes: Uint8Array): Promise<PdfExtraction> {
     if (!bytes || bytes.length === 0) throw new Error("Empty PDF buffer");
-    const { text, pageCount } = await this.parse(bytes);
+    if (this.maxBytes > 0 && bytes.length > this.maxBytes) {
+      throw new Error(`PDF too large: ${bytes.length} bytes (max ${this.maxBytes})`);
+    }
+    const { text, pageCount } = await this.withTimeout(this.parse(bytes));
     return { text: normaliseWhitespace(text), pageCount };
+  }
+
+  /** Race the parse against the configured timeout (disabled when 0). */
+  private withTimeout<T>(work: Promise<T>): Promise<T> {
+    if (this.timeoutMs <= 0) return work;
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error(`PDF parse timed out after ${this.timeoutMs}ms`)),
+        this.timeoutMs,
+      );
+      work.then(
+        (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        (err) => {
+          clearTimeout(timer);
+          reject(err instanceof Error ? err : new Error(String(err)));
+        },
+      );
+    });
   }
 }
 

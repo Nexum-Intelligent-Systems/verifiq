@@ -9,6 +9,7 @@
  */
 
 export type { PdfExtraction, PdfExtractor, RawPdfParse } from "./types.js";
+export type { PdfExtractorOptions } from "./pdf.js";
 export {
   PdfTextExtractor,
   defaultPdfParse,
