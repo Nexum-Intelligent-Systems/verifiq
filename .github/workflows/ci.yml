@@ -44,6 +44,9 @@ jobs:
       - name: Generate Convex types
         run: npm run codegen:stub
 
+      - name: Bundle prompts (for the Convex runtime)
+        run: npm run bundle:prompts
+
       - name: Typecheck (tsc --noEmit, strict)
         run: npm run typecheck
 
