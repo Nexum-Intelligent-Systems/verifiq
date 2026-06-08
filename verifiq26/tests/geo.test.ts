@@ -35,6 +35,11 @@ describe("EPA radon provider", () => {
     expect(url).toContain("f=json");
   });
 
+  it("rejects a non-finite coordinate before building a query", () => {
+    expect(() => new EpaRadonProvider().buildUrl({ x: Number.NaN, y: 1 })).toThrow(/Invalid ITM/);
+    expect(() => new EpaRadonProvider().buildUrl({ x: 1, y: Infinity })).toThrow(/Invalid ITM/);
+  });
+
   it("resolves a High Radon Area → a TGD C finding", async () => {
     const provider = new EpaRadonProvider(fakeFetch({ features: [{ attributes: { HighRadonArea: "Yes" } }] }));
     const result = await provider.query(SITE);

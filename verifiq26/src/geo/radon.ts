@@ -31,6 +31,9 @@ export class EpaRadonProvider implements GeoLayerProvider {
 
   /** Build the ArcGIS point-intersect query URL for a coordinate. */
   buildUrl(coord: ItmCoordinate): string {
+    if (!Number.isFinite(coord.x) || !Number.isFinite(coord.y)) {
+      throw new Error(`Invalid ITM coordinate: ${coord.x},${coord.y}`);
+    }
     const params = new URLSearchParams({
       geometry: `${coord.x},${coord.y}`,
       geometryType: "esriGeometryPoint",
