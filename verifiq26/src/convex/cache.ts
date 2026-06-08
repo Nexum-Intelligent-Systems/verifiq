@@ -8,13 +8,13 @@
  * Version: 0.6.0-phase4
  */
 
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** Read a cached completion by key, or null if absent/expired. */
-export const getCached = query({
+export const getCached = internalQuery({
   args: { cache_key: v.string(), now: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const now = args.now ?? Date.now();
@@ -28,7 +28,7 @@ export const getCached = query({
 });
 
 /** Insert/refresh a cached completion (TTL 30 days). */
-export const putCached = mutation({
+export const putCached = internalMutation({
   args: {
     cache_key: v.string(),
     model: v.string(),
@@ -67,7 +67,7 @@ export const putCached = mutation({
 });
 
 /** Delete expired cache rows (scheduled cron). Returns the number purged. */
-export const purgeExpired = mutation({
+export const purgeExpired = internalMutation({
   args: { now: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const now = args.now ?? Date.now();
