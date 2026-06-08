@@ -21,7 +21,7 @@ import {
   type ItmCoordinate,
   defaultFetchJson,
 } from "./types.js";
-import { buildPointQueryUrl, firstFeatureAttributes } from "./arcgis.js";
+import { buildPointQueryUrl, queryPointLayer } from "./arcgis.js";
 
 const ENDPOINT =
   "https://gsi.geodata.gov.ie/server/rest/services/Geology/IE_GSI_Subsoils_Quaternary_Sediments/MapServer/0/query";
@@ -35,37 +35,27 @@ export class GsiGeologyProvider implements GeoLayerProvider {
     return buildPointQueryUrl(ENDPOINT, coord);
   }
 
-  async query(coord: ItmCoordinate): Promise<GeoLayerResult> {
-    let json: unknown;
-    try {
-      json = await this.fetchJson(this.buildUrl(coord));
-    } catch {
-      return {
+  query(coord: ItmCoordinate): Promise<GeoLayerResult> {
+    return queryPointLayer(
+      this.fetchJson,
+      {
         layer: this.layer,
-        status: "manual-request-required",
-        summary: "GSI ground layer not reachable — confirm ground conditions manually.",
+        endpoint: ENDPOINT,
         requestFrom: "Geological Survey Ireland (gsi.geodata.gov.ie)",
-      };
-    }
-
-    const attributes = firstFeatureAttributes(json);
-    if (!attributes) {
-      return {
-        layer: this.layer,
-        status: "resolved",
-        summary: "No adverse ground condition mapped at the site by GSI.",
-      };
-    }
-    const adverse = adverseGround(attributes);
-    return {
-      layer: this.layer,
-      status: "resolved",
-      flagged: Boolean(adverse),
-      summary: adverse
-        ? `GSI maps an adverse ground condition at the site (${adverse}) — a ground investigation applies.`
-        : "GSI maps no adverse ground condition at the site.",
-      attributes,
-    };
+        unreachableSummary: "GSI ground layer not reachable — confirm ground conditions manually.",
+        classify: (attributes) => {
+          if (!attributes) return { summary: "No adverse ground condition mapped at the site by GSI." };
+          const adverse = adverseGround(attributes);
+          return {
+            flagged: Boolean(adverse),
+            summary: adverse
+              ? `GSI maps an adverse ground condition at the site (${adverse}) — a ground investigation applies.`
+              : "GSI maps no adverse ground condition at the site.",
+          };
+        },
+      },
+      coord,
+    );
   }
 }
 

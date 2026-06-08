@@ -21,7 +21,7 @@ import {
   type ItmCoordinate,
   defaultFetchJson,
 } from "./types.js";
-import { buildPointQueryUrl, firstFeatureAttributes } from "./arcgis.js";
+import { buildPointQueryUrl, queryPointLayer } from "./arcgis.js";
 
 const ENDPOINT =
   "https://gis.floodinfo.ie/arcgis/rest/services/OPWHydro/CFRAM_Fluvial_Coastal_Flood_Extents/MapServer/0/query";
@@ -35,38 +35,30 @@ export class OpwFloodProvider implements GeoLayerProvider {
     return buildPointQueryUrl(ENDPOINT, coord);
   }
 
-  async query(coord: ItmCoordinate): Promise<GeoLayerResult> {
-    let json: unknown;
-    try {
-      json = await this.fetchJson(this.buildUrl(coord));
-    } catch {
-      return {
+  query(coord: ItmCoordinate): Promise<GeoLayerResult> {
+    return queryPointLayer(
+      this.fetchJson,
+      {
         layer: this.layer,
-        status: "manual-request-required",
-        summary: "OPW flood layer not reachable — confirm the flood zone manually.",
+        endpoint: ENDPOINT,
         requestFrom: "OPW Flood Maps (floodinfo.ie); bespoke models flood_data@opw.ie",
-      };
-    }
-
-    const attributes = firstFeatureAttributes(json);
-    if (!attributes) {
-      return {
-        layer: this.layer,
-        status: "resolved",
-        summary: "Site is not within a mapped OPW flood extent (Flood Zone C).",
-      };
-    }
-    const zone = floodZone(attributes);
-    const flagged = zone === "A" || zone === "B";
-    return {
-      layer: this.layer,
-      status: "resolved",
-      flagged,
-      summary: flagged
-        ? `Site is within a mapped flood extent (Flood Zone ${zone}) — a site-specific Flood Risk Assessment applies.`
-        : "Site is not within a mapped OPW flood extent.",
-      attributes,
-    };
+        unreachableSummary: "OPW flood layer not reachable — confirm the flood zone manually.",
+        classify: (attributes) => {
+          if (!attributes) {
+            return { summary: "Site is not within a mapped OPW flood extent (Flood Zone C)." };
+          }
+          const zone = floodZone(attributes);
+          const flagged = zone === "A" || zone === "B";
+          return {
+            flagged,
+            summary: flagged
+              ? `Site is within a mapped flood extent (Flood Zone ${zone}) — a site-specific Flood Risk Assessment applies.`
+              : "Site is not within a mapped OPW flood extent.",
+          };
+        },
+      },
+      coord,
+    );
   }
 }
 

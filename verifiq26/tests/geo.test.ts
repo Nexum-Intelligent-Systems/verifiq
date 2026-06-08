@@ -13,11 +13,17 @@ import {
   EpaRadonProvider,
   OpwFloodProvider,
   GsiGeologyProvider,
+  MyPlanZoningProvider,
+  NpwsEcologyProvider,
+  HeritageProvider,
   CustomerSuppliedGeocoder,
   geoFinding,
   isHighRadon,
   floodZone,
   adverseGround,
+  zoningObjective,
+  designatedSite,
+  recordedMonument,
   type FetchJson,
   type ItmCoordinate,
 } from "../src/geo/index.js";
@@ -145,6 +151,76 @@ describe("GSI geology provider", () => {
     expect(adverseGround({ HAZARD: "Landslide susceptibility — high" })).toMatch(/Landslide/);
     expect(adverseGround({ FEATURE: "Karst" })).toMatch(/Karst/);
     expect(adverseGround({ SUBSOIL: "Till" })).toBeNull();
+  });
+});
+
+describe("MyPlan zoning provider", () => {
+  it("surfaces a zoning objective → a consistency Clarification finding", async () => {
+    const provider = new MyPlanZoningProvider(
+      fakeFetch({ features: [{ attributes: { ZONE_DESC: "Residential (Existing)" } }] }),
+    );
+    const result = await provider.query(SITE);
+    expect(result.flagged).toBe(true);
+
+    const f = geoFinding(result)!;
+    expect(f.status).toBe("Clarification required");
+    expect(f.requirement).toMatch(/zoning objective/);
+    expect(result.summary).toMatch(/Residential/);
+  });
+
+  it("returns no finding when no zoning is mapped", async () => {
+    const provider = new MyPlanZoningProvider(fakeFetch({ features: [] }));
+    const result = await provider.query(SITE);
+    expect(geoFinding(result)).toBeNull();
+  });
+});
+
+describe("NPWS ecology provider", () => {
+  it("flags a designated area → a High-risk Appropriate Assessment finding", async () => {
+    const provider = new NpwsEcologyProvider(
+      fakeFetch({ features: [{ attributes: { SITE_NAME: "Malahide Estuary SAC" } }] }),
+    );
+    const result = await provider.query(SITE);
+    expect(result.flagged).toBe(true);
+
+    const f = geoFinding(result)!;
+    expect(f.risk).toBe("High");
+    expect(f.requirement).toMatch(/Appropriate Assessment/);
+    expect(designatedSite({ SITE_NAME: "Malahide Estuary SAC" })).toMatch(/SAC/);
+  });
+
+  it("returns no finding when no designation is mapped", async () => {
+    const provider = new NpwsEcologyProvider(fakeFetch({ features: [] }));
+    expect(geoFinding(await provider.query(SITE))).toBeNull();
+  });
+});
+
+describe("Heritage provider", () => {
+  it("flags a recorded monument → a High-risk statutory-notice finding", async () => {
+    const provider = new HeritageProvider(
+      fakeFetch({ features: [{ attributes: { CLASSDESC: "Ringfort - rath" } }] }),
+    );
+    const result = await provider.query(SITE);
+    expect(result.flagged).toBe(true);
+
+    const f = geoFinding(result)!;
+    expect(f.risk).toBe("High");
+    expect(f.requirement).toMatch(/National Monuments Acts/);
+    expect(recordedMonument({ CLASSDESC: "Ringfort - rath" })).toMatch(/Ringfort/);
+  });
+
+  it("degrades to a request-from finding when unreachable", async () => {
+    const provider = new HeritageProvider(async () => {
+      throw new Error("network");
+    });
+    const result = await provider.query(SITE);
+    expect(result.status).toBe("manual-request-required");
+    expect(result.requestFrom).toMatch(/National Monuments/);
+  });
+
+  it("zoningObjective ignores non-zoning fields", () => {
+    expect(zoningObjective({ OBJECTID: 1, ZONE_DESC: "Open Space" })).toBe("Open Space");
+    expect(zoningObjective({ OBJECTID: 1 })).toBeNull();
   });
 });
 

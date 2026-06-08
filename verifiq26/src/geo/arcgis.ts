@@ -11,7 +11,7 @@
  * Version: 0.8.0-phase5
  */
 
-import type { ItmCoordinate } from "./types.js";
+import type { FetchJson, GeoLayerResult, ItmCoordinate } from "./types.js";
 
 export const ITM_WKID = 2157;
 
@@ -43,4 +43,52 @@ export function firstFeatureAttributes(json: unknown): Record<string, unknown> |
   if (!Array.isArray(features) || features.length === 0) return null;
   const attributes = (features[0] as { attributes?: unknown }).attributes;
   return (attributes ?? {}) as Record<string, unknown>;
+}
+
+/**
+ * Per-layer query spec. `classify` is handed the intersecting feature's
+ * attributes (or null when nothing intersects) and returns the flag + summary;
+ * everything else (URL building with the finite guard, fetch, graceful
+ * degradation) is shared so each adapter is just an endpoint + a classifier.
+ */
+export interface PointLayerSpec {
+  layer: string;
+  endpoint: string;
+  /** Authority to request from when the layer is unreachable. */
+  requestFrom: string;
+  /** Summary used for the manual-request degradation. */
+  unreachableSummary: string;
+  classify(attributes: Record<string, unknown> | null): { flagged?: boolean; summary: string };
+}
+
+/**
+ * Run one point-intersect constraint query with the shared SSRF-safe pattern:
+ * hardcoded endpoint, finite-coordinate guard, injected fetcher, and graceful
+ * degradation to a tracked "request from authority" result on any fetch error.
+ */
+export async function queryPointLayer(
+  fetchJson: FetchJson,
+  spec: PointLayerSpec,
+  coord: ItmCoordinate,
+): Promise<GeoLayerResult> {
+  let json: unknown;
+  try {
+    json = await fetchJson(buildPointQueryUrl(spec.endpoint, coord));
+  } catch {
+    return {
+      layer: spec.layer,
+      status: "manual-request-required",
+      summary: spec.unreachableSummary,
+      requestFrom: spec.requestFrom,
+    };
+  }
+  const attributes = firstFeatureAttributes(json);
+  const { flagged, summary } = spec.classify(attributes);
+  return {
+    layer: spec.layer,
+    status: "resolved",
+    flagged,
+    summary,
+    attributes: attributes ?? undefined,
+  };
 }

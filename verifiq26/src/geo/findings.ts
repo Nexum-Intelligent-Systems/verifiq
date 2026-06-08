@@ -63,6 +63,42 @@ export function geoFinding(result: GeoLayerResult, seq = 1): Finding | null {
         ],
       });
     }
+    if (result.layer === "zoning") {
+      return build(result, seq, {
+        requirement:
+          "The proposed use must be consistent with the development-plan zoning objective (material-contravention risk).",
+        finding: result.summary,
+        status: "Clarification required",
+        risk: "Medium",
+        required_evidence: [
+          "Confirm the proposed use is consistent with the zoning objective, or that permission addresses any contravention",
+        ],
+      });
+    }
+    if (result.layer === "ecology") {
+      return build(result, seq, {
+        requirement:
+          "Habitats/Birds Directives (S.I. 477/2011): a project affecting a European site requires Appropriate Assessment screening.",
+        finding: result.summary,
+        status: "Not demonstrated",
+        risk: "High",
+        required_evidence: [
+          "Provide the Appropriate Assessment screening determination (and NIS if a Stage 2 assessment is required)",
+        ],
+      });
+    }
+    if (result.layer === "heritage") {
+      return build(result, seq, {
+        requirement:
+          "National Monuments Acts: works at/near a Recorded Monument require statutory notice before commencement.",
+        finding: result.summary,
+        status: "Not demonstrated",
+        risk: "High",
+        required_evidence: [
+          "Confirm statutory notice to the National Monuments Service and any archaeological mitigation",
+        ],
+      });
+    }
     return build(result, seq, {
       requirement: `A ${result.layer} constraint applies to the site.`,
       finding: result.summary,

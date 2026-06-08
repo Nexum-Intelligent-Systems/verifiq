@@ -20,7 +20,7 @@ import {
   type ItmCoordinate,
   defaultFetchJson,
 } from "./types.js";
-import { buildPointQueryUrl, firstFeatureAttributes } from "./arcgis.js";
+import { buildPointQueryUrl, queryPointLayer } from "./arcgis.js";
 
 const ENDPOINT =
   "https://gis.epa.ie/arcgis/rest/services/EPAMapServices/RadiologicalProtection/MapServer/1/query";
@@ -34,38 +34,27 @@ export class EpaRadonProvider implements GeoLayerProvider {
     return buildPointQueryUrl(ENDPOINT, coord);
   }
 
-  async query(coord: ItmCoordinate): Promise<GeoLayerResult> {
-    let json: unknown;
-    try {
-      json = await this.fetchJson(this.buildUrl(coord));
-    } catch {
-      // Graceful degradation — the layer is open but unreachable right now.
-      return {
+  query(coord: ItmCoordinate): Promise<GeoLayerResult> {
+    return queryPointLayer(
+      this.fetchJson,
+      {
         layer: this.layer,
-        status: "manual-request-required",
-        summary: "EPA radon layer not reachable — confirm the radon category manually.",
+        endpoint: ENDPOINT,
         requestFrom: "EPA Radon Map (epa.ie/environment-and-you/radon/radon-map)",
-      };
-    }
-
-    const attributes = firstFeatureAttributes(json);
-    if (!attributes) {
-      return {
-        layer: this.layer,
-        status: "resolved",
-        summary: "Site is not within a mapped EPA High Radon Area.",
-      };
-    }
-    const high = isHighRadon(attributes);
-    return {
-      layer: this.layer,
-      status: "resolved",
-      flagged: high,
-      summary: high
-        ? "Site is in an EPA High Radon Area — radon-resisting measures apply (TGD C)."
-        : "Site is not in an EPA High Radon Area.",
-      attributes,
-    };
+        unreachableSummary: "EPA radon layer not reachable — confirm the radon category manually.",
+        classify: (attributes) => {
+          if (!attributes) return { summary: "Site is not within a mapped EPA High Radon Area." };
+          const high = isHighRadon(attributes);
+          return {
+            flagged: high,
+            summary: high
+              ? "Site is in an EPA High Radon Area — radon-resisting measures apply (TGD C)."
+              : "Site is not in an EPA High Radon Area.",
+          };
+        },
+      },
+      coord,
+    );
   }
 }
 
