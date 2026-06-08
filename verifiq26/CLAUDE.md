@@ -86,10 +86,14 @@ The source of truth is `verifiq-prompts/` (and `docs/`). Key files:
   orchestrator end-to-end) over `src/convex/persist.ts`; reclassification writes
   `classifier_feedback`; nightly `inference_cache` purge cron. See
   `docs/33-phase4-convex-binding.md`.
-- **Phase 5 (next):** the upload + extraction pipeline (tus.io resumable upload,
-  PDF text/title-block extraction, file 20 §1), prompt bundling for server-side
-  agents, then the thin `"use node"` orchestrator runner + 60s queue tick. Then
-  UI, observability, CI/CD.
+- **Phase 5 (in progress):** prompt bundling (done), the free-API GIS layer
+  (`src/geo/` — radon/flood/geology/zoning/ecology/heritage over a shared
+  SSRF-safe ArcGIS query), the server-side review runner (`src/orchestrator/
+  runner.ts` pure dispatch + `createCouncil` + `"use node"` `src/convex/runner.ts`
+  tick + 1-min cron; `jobs.ts` hardened to `internal*`), and PDF text/title-block
+  extraction (`src/extraction/`, pdf-parse injectable). See `docs/38`. Deferred:
+  tus.io upload + title-block render, Resend emails, live-credential wiring,
+  Clerk auth on `classify.ts`/`mutations.ts`. Then UI, observability, CI/CD.
 
 Live-credential checks across phases remain "verify locally" (real
 Anthropic/OpenAI calls, R2 signed URL, `npx convex dev` deploy).
