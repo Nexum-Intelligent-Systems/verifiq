@@ -65,6 +65,19 @@
   .explore p { font-family: var(--font-sans); font-size: 0.875rem; line-height: 1.55; color: var(--ink-soft); margin: 0 0 6px; }
   .explore .go { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--brass); }
 
+  /* Who we read for — audience self-identification grid */
+  .aud-grid { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--ink); border: 1px solid var(--ink); }
+  @media (min-width: 640px) { .aud-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 980px) { .aud-grid { grid-template-columns: repeat(4, 1fr); } }
+  .aud { background: var(--bone); padding: 28px 24px; display: flex; flex-direction: column; }
+  .aud .role { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--brass); }
+  .aud h3 { font-family: var(--font-serif); font-weight: 500; font-size: 1.3rem; line-height: 1.15; margin: 12px 0 10px; }
+  .aud .roster { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.08em; line-height: 1.7; color: var(--graphite); margin: 0 0 12px; }
+  .aud p { font-family: var(--font-sans); font-size: 0.875rem; line-height: 1.55; color: var(--ink-soft); margin: 0; }
+  .aud .spacer { flex: 1; }
+  .aud-note { margin-top: 22px; font-family: var(--font-sans); font-size: 0.9375rem; line-height: 1.6; color: var(--ink-soft); max-width: 72ch; }
+  .aud-note a { color: var(--ink); border-bottom: 1px solid var(--brass); }
+
   .locked-block { padding: 56px 0; background: var(--paper); border-bottom: 1px solid var(--ink); text-align: center; }
   .locked-block .lb-text { font-family: var(--font-serif); font-style: italic; font-size: 1.05rem; line-height: 1.7; color: var(--ink); max-width: 60ch; margin: 14px auto 0; }
 
@@ -81,6 +94,7 @@
 <nav class="top-nav"><div class="wrap inner">
   <a href="index.html" class="wordmark">VerifIQ</a>
   <div class="nav-links">
+    <a href="#who">Who it's for</a>
     <a href="#products">Products</a>
     <a href="case-study-01.html">Case study</a>
     <a href="about.html">About</a>
@@ -124,7 +138,44 @@
   <div class="cell"><div class="num">EU</div><div class="lab t-meta">Data residency · GDPR</div></div>
 </div>
 
-<div class="dim-rule"><span class="dim-tick"></span><span class="dim-label">§ 01 · three products, one method</span><span class="dim-tick"></span></div>
+<div class="dim-rule"><span class="dim-tick"></span><span class="dim-label">§ 01 · who we read for</span><span class="dim-tick"></span></div>
+
+<section class="section reveal" id="who"><div class="wrap">
+  <div class="section-head">
+    <span class="t-eyebrow">— Who we read for</span>
+    <h2>If you issue construction documents in Ireland.</h2>
+    <p>The pack is read the same careful way — then framed for your seat at the table.</p>
+  </div>
+  <div class="aud-grid">
+    <div class="aud">
+      <span class="role">01 · Design teams</span>
+      <h3>The whole design table.</h3>
+      <p class="roster">Architects · Structural &amp; civil engineers · M&amp;E / services engineers · Fire engineers · Electrical designers</p>
+      <p>The full multi-discipline pack, read against the live Irish corpus before it goes out for tender.</p>
+    </div>
+    <div class="aud">
+      <span class="role">02 · Contractors</span>
+      <h3>Main contractors &amp; QS.</h3>
+      <p class="roster">Pre-construction · Commercial / QS · Estimating &amp; bid teams</p>
+      <p>The tender pack read for variation exposure, mapped to PW-CF clauses — priced before award, not fought after it.</p>
+    </div>
+    <div class="aud">
+      <span class="role">03 · Small practices</span>
+      <h3>Sole practitioners.</h3>
+      <p class="roster">Single-discipline consultants · Small &amp; emerging firms</p>
+      <p>A second read on your own scope, one discipline at a time, before drawings leave the office.</p>
+    </div>
+    <div class="aud">
+      <span class="role">04 · Employer-side</span>
+      <h3>Capital programmes.</h3>
+      <p class="roster">HSE Estates · OGP framework holders · Section 38/39 bodies · Local authorities</p>
+      <p>Single-tenant deployment, a full audit trail and a named reviewer on every pack across the programme.</p>
+    </div>
+  </div>
+  <p class="aud-note">Every discipline is <strong>read and surfaced</strong> on your register. During the pilot cohort, findings are chartered-signed within the reviewer's published scope; others are marked <em>"AI-surfaced · pending chartered review"</em> until the relevant specialist joins — you always know exactly what backs each finding. <a href="about.html">Read the reviewer scope ↗</a></p>
+</div></section>
+
+<div class="dim-rule"><span class="dim-tick"></span><span class="dim-label">§ 02 · three products, one method</span><span class="dim-tick"></span></div>
 
 <section class="section reveal" id="products"><div class="wrap">
   <div class="section-head">
