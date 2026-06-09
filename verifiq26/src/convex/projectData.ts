@@ -67,3 +67,18 @@ export const getProjectFindings = query({
       .collect();
   },
 });
+
+/** Recent projects (newest first) — the dashboard list. */
+export const listProjects = query({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db.query("projects").order("desc").take(50);
+    return rows.map((p) => ({
+      _id: p._id,
+      name: p.name,
+      scan_state: p.scan_state,
+      building_type: p.building_type,
+      created_at: p.created_at,
+    }));
+  },
+});
