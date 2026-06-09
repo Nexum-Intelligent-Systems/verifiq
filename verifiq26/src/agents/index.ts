@@ -14,6 +14,7 @@ export {
   FsPromptSource,
   RecordPromptSource,
   type PromptSource,
+    bundledPromptLoader,
 } from "./prompts.js";
 export { MVP_DISCIPLINES, STAGE_CODE, type DisciplineDef } from "./disciplines.js";
 export {
