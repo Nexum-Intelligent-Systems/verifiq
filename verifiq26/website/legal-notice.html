@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VerifIQ — Legal Notice · By Jurisdiction</title>
+<link rel="stylesheet" href="verifiq-system.css" />
+<link rel="stylesheet" href="verifiq-cad.css" />
+<style>
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 56px 32px 120px; }
+  .nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 56px; padding-bottom: 24px; border-bottom: 1px solid var(--ink); }
+  .wordmark { font-family: var(--font-serif); font-weight: 500; font-size: 1.5rem; letter-spacing: 0.08em; color: var(--ink); border-bottom: 0; }
+
+  .jurisdiction-tabs {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1px;
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    margin: 32px 0 0;
+  }
+  .jt-btn {
+    background: var(--bone);
+    border: 0;
+    cursor: pointer;
+    padding: 18px 12px 16px;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.6875rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+    text-align: center;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+  .jt-btn .jt-flag {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 1.5rem;
+    line-height: 1;
+    margin-bottom: 8px;
+    color: var(--brass);
+  }
+  .jt-btn:hover { background: var(--paper); }
+  .jt-btn.active { background: var(--ink); color: var(--bone); }
+  .jt-btn.active .jt-flag { color: var(--brass-light); }
+
+  .notice-pane {
+    display: none;
+    margin-top: 32px;
+    padding: 40px 36px;
+    border: 1px solid var(--ink);
+    background: var(--paper);
+    position: relative;
+  }
+  .notice-pane.active { display: block; }
+  .notice-pane::before,
+  .notice-pane::after,
+  .notice-pane > .nb-tr,
+  .notice-pane > .nb-bl {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+  }
+  .notice-pane::before { top: -1px; left: -1px;  border-top: 2px solid var(--brass); border-left: 2px solid var(--brass); }
+  .notice-pane::after  { bottom: -1px; right: -1px; border-bottom: 2px solid var(--brass); border-right: 2px solid var(--brass); }
+  .notice-pane > .nb-tr { top: -1px; right: -1px; border-top: 2px solid var(--brass); border-right: 2px solid var(--brass); }
+  .notice-pane > .nb-bl { bottom: -1px; left: -1px; border-bottom: 2px solid var(--brass); border-left: 2px solid var(--brass); }
+
+  .locked-clause {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    color: var(--ink);
+    margin: 0;
+    padding-left: 18px;
+    border-left: 2px solid var(--brass);
+  }
+  .locked-clause + .locked-clause { margin-top: 20px; }
+
+  .obligation {
+    margin-top: 32px;
+    padding: 20px 22px;
+    border: 1px solid var(--ink);
+    background: var(--bone);
+  }
+  .obligation .ob-label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--draft);
+    margin-bottom: 10px;
+  }
+  .obligation p {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    line-height: 1.65;
+    color: var(--ink-soft);
+  }
+
+  .global-bar {
+    margin-top: 64px;
+    padding: 32px 28px;
+    border-top: 1px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+    background: var(--vellum);
+    text-align: center;
+  }
+
+  .meta-row {
+    display: flex; flex-wrap: wrap; gap: 24px; justify-content: center;
+    margin-top: 28px;
+  }
+
+  @media (max-width: 720px) {
+    .jurisdiction-tabs { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  body { background: var(--bone); }
+</style>
+</head>
+<body class="paper-texture">
+<div class="wrap">
+
+  <!-- NAV -->
+  <nav class="nav">
+    <a href="index.html" class="wordmark">VerifIQ</a>
+    <span class="t-eyebrow">— Legal Notice · By Jurisdiction</span>
+    <a href="index.html" class="t-meta">↩ Atelier</a>
+  </nav>
+
+  <!-- HEADER -->
+  <header class="title-block">
+    <span class="tb-tr"></span>
+    <span class="tb-bl"></span>
+    <span class="t-eyebrow">Drawing 02 · Legal Reference</span>
+    <h1 class="t-display" style="margin: 12px 0 8px;">Legal Notices.</h1>
+    <p class="t-lede" style="max-width: 64ch;">
+      VerifIQ's role is locked at the same shape in every market — a software-based reading aid for registered design professionals. The exact statutory framing differs jurisdiction by jurisdiction. Select the jurisdiction you are operating in to read the applicable notice.
+    </p>
+    <div style="margin-top: 24px; display: flex; flex-wrap: wrap; gap: 20px;">
+      <span class="scale-chip">Rev · A · 2026-06</span>
+      <span class="scale-chip">Coordinating · Irish solicitor</span>
+      <span class="scale-chip">Six jurisdictions · locked</span>
+    </div>
+    <span class="title-block-stamp">VIQ · 02 · LEGAL</span>
+  </header>
+
+  <!-- INTRO -->
+  <section style="margin-top: 64px;">
+    <span class="t-eyebrow">— I. Position</span>
+    <h2 class="t-h2" style="margin-top: 12px;">The single principle that holds it together.</h2>
+    <p class="t-body" style="margin-top: 16px; max-width: 64ch;">
+      VerifIQ is a software-based reading aid. It surfaces, in the documents' own words, what a registered professional may wish to read closely. It does not certify, sign, opine, or substitute for professional judgement. The registered designer reads our output, exercises their own judgement, verifies locally, and signs. The professional indemnity remains theirs. We carry product-quality risk only.
+    </p>
+    <p class="t-body" style="margin-top: 16px; max-width: 64ch;">
+      That principle governs every customer-facing surface in every market. The text below extends it with the statutory carve-outs each market requires, and is to be quoted verbatim wherever the relevant jurisdiction applies.
+    </p>
+  </section>
+
+  <!-- TABS -->
+  <section style="margin-top: 56px;">
+    <span class="t-eyebrow">— II. By Jurisdiction</span>
+    <h2 class="t-h2" style="margin-top: 12px;">Select the applicable notice.</h2>
+
+    <div class="jurisdiction-tabs" role="tablist">
+      <button class="jt-btn active" data-tab="ie" role="tab"><span class="jt-flag">IE</span>Ireland</button>
+      <button class="jt-btn"        data-tab="uk" role="tab"><span class="jt-flag">UK</span>United Kingdom</button>
+      <button class="jt-btn"        data-tab="eu" role="tab"><span class="jt-flag">EU</span>European Union</button>
+      <button class="jt-btn"        data-tab="au" role="tab"><span class="jt-flag">AU</span>Australia</button>
+      <button class="jt-btn"        data-tab="ca" role="tab"><span class="jt-flag">CA</span>Canada</button>
+      <button class="jt-btn"        data-tab="us" role="tab"><span class="jt-flag">US</span>United States</button>
+    </div>
+
+    <!-- IRELAND -->
+    <div class="notice-pane active" id="pane-ie" role="tabpanel">
+      <span class="nb-tr"></span><span class="nb-bl"></span>
+      <span class="t-eyebrow">— Ireland · IE · Building Control Act 1990 · Architects Act 2007</span>
+      <h3 class="t-h1" style="margin: 12px 0 24px;">VerifIQ in Ireland</h3>
+
+      <p class="locked-clause">
+        VerifIQ is a software-based design-review aid. It is not a regulated service under the Building Control Act 1990 or the Architects Act 2007. It does not act as Design Certifier, Assigned Certifier, or any other person to whom statutory functions are assigned. It does not constitute the provision of architectural, engineering, surveying, or fire-safety services within the meaning of the relevant Acts.
+      </p>
+
+      <p class="locked-clause">
+        All output is indicative. The registered professional reads it, applies their own judgement, verifies locally against the source documents and applicable standards, and signs. VerifIQ's role ends at producing reading aids; the professional's role and statutory responsibility continue unchanged.
+      </p>
+
+      <div class="obligation">
+        <span class="ob-label">— Statutory carve-outs · Ireland</span>
+        <p>Building Control Act 1990 · Building Control (Amendment) Regulations 2014 (SI 9/2014) · Architects Act 2007 · Consumer Protection Act 2007 · Sale of Goods and Supply of Services Act 1980. Output may not be presented as discharging the role of any person to whom statutory functions are assigned under these Acts.</p>
+      </div>
+    </div>
+
+    <!-- UK -->
+    <div class="notice-pane" id="pane-uk" role="tabpanel">
+      <span class="nb-tr"></span><span class="nb-bl"></span>
+      <span class="t-eyebrow">— United Kingdom · UK · Building Safety Act 2022 · Architects Act 1997</span>
+      <h3 class="t-h1" style="margin: 12px 0 24px;">VerifIQ in the United Kingdom</h3>
+
+      <p class="locked-clause">
+        VerifIQ provides a software-based reading aid. It does not act as Principal Designer, Principal Contractor, Building Safety Coordinator, or any other duty-holder under the Building Safety Act 2022 or the Building Regulations 2010. It does not provide architectural services as defined in the Architects Act 1997. The registered professional retains all statutory and contractual responsibility for the design and its certification.
+      </p>
+
+      <p class="locked-clause">
+        The output is information, not a service taken on in respect of any building. The registered professional verifies all findings against the source documents and applicable Approved Documents before relying on them.
+      </p>
+
+      <div class="obligation">
+        <span class="ob-label">— Statutory carve-outs · United Kingdom</span>
+        <p>Building Safety Act 2022 · Building Regulations 2010 (with Approved Documents) · Architects Act 1997 · Defective Premises Act 1972 · Consumer Rights Act 2015 · Misrepresentation Act 1967. VerifIQ does not take on duty-holder status under the Building Safety Act 2022 for any building, including any higher-risk building as defined in that Act.</p>
+      </div>
+    </div>
+
+    <!-- EU -->
+    <div class="notice-pane" id="pane-eu" role="tabpanel">
+      <span class="nb-tr"></span><span class="nb-bl"></span>
+      <span class="t-eyebrow">— European Union · EU · AI Act 2024 · Product Liability Directive 2024</span>
+      <h3 class="t-h1" style="margin: 12px 0 24px;">VerifIQ in the European Union</h3>
+
+      <p class="locked-clause">
+        VerifIQ is provided as a general-purpose document-reading aid. It is not designed for, marketed for, or intended for use as a safety component of a product or system under Article 6 of the EU AI Act 2024. The output is informational and the registered professional alone determines whether and how to use any finding. Where a deployer in a high-risk context wishes to use VerifIQ output as an input to a safety-critical decision, they remain solely responsible for assessing the suitability and accuracy of the output in their specific context.
+      </p>
+
+      <div class="obligation">
+        <span class="ob-label">— Published artefacts · required by the EU AI Act</span>
+        <p>
+          VerifIQ publishes, and updates on each material change: (a) a technical documentation file pursuant to Article 11 of the AI Act, available to competent authorities on request; (b) an instruction-for-use document pursuant to Article 13; (c) a register of the systems used; (d) a transparency notice to deployers covering model classification, training-data provenance posture, and known limitations.
+        </p>
+      </div>
+
+      <div class="obligation" style="margin-top: 18px;">
+        <span class="ob-label">— Statutory framework · EU</span>
+        <p>EU AI Act 2024 · revised Product Liability Directive 2024 · GDPR · Digital Services Act · per-Member-State professional registration regimes (e.g., Architektengesetz in DE). Articles 11, 13, 14, 15, and 16 of the AI Act guide our provider obligations. We do not claim a high-risk classification, and we do not market for safety-critical deployment.</p>
+      </div>
+    </div>
+
+    <!-- AUSTRALIA -->
+    <div class="notice-pane" id="pane-au" role="tabpanel">
+      <span class="nb-tr"></span><span class="nb-bl"></span>
+      <span class="t-eyebrow">— Australia · AU · Design and Building Practitioners Act 2020 (NSW) · ACL</span>
+      <h3 class="t-h1" style="margin: 12px 0 24px;">VerifIQ in Australia</h3>
+
+      <p class="locked-clause">
+        VerifIQ is a software-based design-review aid. It does not perform any function reserved to a registered design practitioner under the Design and Building Practitioners Act 2020 (NSW) or any equivalent State legislation. The registered practitioner retains all statutory duties, including the statutory duty of care under section 37 of the DBP Act, and is solely responsible for verifying findings against source documents and applicable codes before relying on them.
+      </p>
+
+      <div class="obligation">
+        <span class="ob-label">— ACL compliance · Australia</span>
+        <p>
+          Consumer guarantees under the Australian Consumer Law (Schedule 2 to the Competition and Consumer Act 2010) cannot be excluded. VerifIQ states clearly what the service is and what it is not, defines limitation of liability in line with ACL exceptions, and makes the indicative nature of output prominent on every customer surface. Misleading or deceptive conduct prohibitions under section 18 ACL apply to all marketing claims.
+        </p>
+      </div>
+
+      <div class="obligation" style="margin-top: 18px;">
+        <span class="ob-label">— Statutory framework · Australia</span>
+        <p>Design and Building Practitioners Act 2020 (NSW) · Building Practitioners Acts (VIC, QLD) · National Construction Code · Australian Consumer Law · Privacy Act 1988 + Australian Privacy Principles. Personal data of Australian users is held in an Australian Convex region in accordance with APP 8.</p>
+      </div>
+    </div>
+
+    <!-- CANADA -->
+    <div class="notice-pane" id="pane-ca" role="tabpanel">
+      <span class="nb-tr"></span><span class="nb-bl"></span>
+      <span class="t-eyebrow">— Canada · CA · Ontario Architects Act · Professional Engineers Act</span>
+      <h3 class="t-h1" style="margin: 12px 0 24px;">VerifIQ in Canada</h3>
+
+      <p class="locked-clause">
+        VerifIQ provides software-based reading aids for design documents. It does not practice architecture or engineering as defined under the Ontario Architects Act, Professional Engineers Act, or equivalent legislation in any province. It does not act as a Qualified Person under Part 11 of the Ontario Building Code or under any provincial building regulation. The registered design professional retains sole responsibility for design decisions, code compliance, and certification.
+      </p>
+
+      <div class="obligation">
+        <span class="ob-label">— Quebec · Law 25 · Charter of the French Language</span>
+        <p>
+          Privacy notices are available in French in accordance with the Charter of the French Language. A Privacy Officer is designated and contactable by Quebec users at the address published in the privacy notice. Automated-processing disclosures comply with the Act respecting the protection of personal information in the private sector (Quebec Law 25).
+        </p>
+      </div>
+
+      <div class="obligation" style="margin-top: 18px;">
+        <span class="ob-label">— Statutory framework · Canada</span>
+        <p>Ontario Architects Act · Professional Engineers Act (per province) · Ontario Building Code Part 11 · PIPEDA (federal) · Quebec Law 25 · Consumer Protection Act 2002 (Ontario) and equivalents · Competition Act.</p>
+      </div>
+    </div>
+
+    <!-- US -->
+    <div class="notice-pane" id="pane-us" role="tabpanel">
+      <span class="nb-tr"></span><span class="nb-bl"></span>
+      <span class="t-eyebrow">— United States · US · State Practice Acts · FTC § 5 · HIPAA</span>
+      <h3 class="t-h1" style="margin: 12px 0 24px;">VerifIQ in the United States</h3>
+
+      <p class="locked-clause">
+        VerifIQ is a software-based document-reading aid. It does not practice architecture, engineering, surveying, or any other licensed profession in any U.S. state. It is not a substitute for the judgement of a licensed professional. The licensed professional verifies findings against source documents and applicable state and local codes before relying on them.
+      </p>
+
+      <p class="locked-clause">
+        VerifIQ does not warrant that any finding is correct, complete, or applicable. All output is informational and indicative.
+      </p>
+
+      <div class="obligation">
+        <span class="ob-label">— HIPAA · U.S. healthcare</span>
+        <p>
+          If any U.S. healthcare pack is ever uploaded, a Business Associate Agreement (BAA) is mandatory before any document content is processed. Until a BAA is executed with the relevant covered entity, VerifIQ marketing does not solicit U.S. healthcare packs, and the platform will refuse uploads from accounts flagged as U.S. healthcare without a BAA on file.
+        </p>
+      </div>
+
+      <div class="obligation" style="margin-top: 18px;">
+        <span class="ob-label">— Statutory framework · United States</span>
+        <p>State Architecture / Engineering Practice Acts (per state) · Federal Trade Commission Act § 5 · state UDAAP statutes · HIPAA (where healthcare PHI is involved) · CCPA / CPRA · Virginia VCDPA · Connecticut CTDPA · state AI laws (NYC Local Law 144, Colorado AI Act 2024) · International Building Code as amended by each state and municipality.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- GLOBAL BAR -->
+  <aside class="global-bar">
+    <span class="t-eyebrow" style="display: block; margin-bottom: 14px;">— Global · Above all jurisdictions</span>
+    <p class="locked-clause" style="border-left: 0; padding-left: 0; max-width: 60ch; margin: 0 auto;">
+      VerifIQ is a software-based reading aid. It surfaces, in the documents' own words, what a registered professional may wish to read closely. It does not certify, sign, opine, or substitute for professional judgement. The registered designer reads our output, exercises their own judgement, verifies locally, and signs. The professional indemnity remains theirs. We carry product-quality risk only.
+    </p>
+    <div class="meta-row">
+      <span class="t-meta">Last reviewed · 2026-06-01</span>
+      <span class="t-meta">Reviewed by · Coordinating Counsel Ireland</span>
+      <span class="t-meta">Next review · Quarterly</span>
+    </div>
+  </aside>
+
+  <!-- TRUST / OPERATIONAL META -->
+  <section style="margin-top: 64px;">
+    <span class="t-eyebrow">— III. Operational</span>
+    <h2 class="t-h2" style="margin-top: 12px;">How we hold the line in practice.</h2>
+    <div style="margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--ink); border: 1px solid var(--ink);">
+      <div style="background: var(--bone); padding: 24px;">
+        <span class="t-eyebrow">— Locked language</span>
+        <p class="t-body" style="margin-top: 10px;">The clauses above are locked. No marketing, copywriting, sales, or product decision changes them without solicitor review in the relevant jurisdiction. The exact wording is published verbatim on every customer-facing surface (web, PDF, XLSX, email).</p>
+      </div>
+      <div style="background: var(--bone); padding: 24px;">
+        <span class="t-eyebrow">— Reviewer panel</span>
+        <p class="t-body" style="margin-top: 10px;">Every pack is gated by a chartered Irish reviewer before release. In each new market we enter, a local chartered panel must be in place before a single paid scan is issued. The reviewer's initials are stamped to the audit log.</p>
+      </div>
+      <div style="background: var(--bone); padding: 24px;">
+        <span class="t-eyebrow">— Insurance</span>
+        <p class="t-body" style="margin-top: 10px;">Tech E&amp;O, cyber, and general liability scaled per market. Premium and binders confirmed before any market-specific revenue is taken. AI-Act-relevant endorsement reviewed before EU entry.</p>
+      </div>
+      <div style="background: var(--bone); padding: 24px;">
+        <span class="t-eyebrow">— Data residency</span>
+        <p class="t-body" style="margin-top: 10px;">EU customers in EU-West (Dublin). Australian customers in AU-Sydney. Canadian customers in CA-Central. U.S. customers in US-East-1. Documents purged at 14 days; hashes 90 days; inference logs 30 days. No customer document trains any model.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CAVEAT -->
+  <section style="margin-top: 64px; padding: 24px 28px; border: 1px solid var(--sanguine); background: var(--paper);">
+    <span class="t-eyebrow" style="color: var(--sanguine);">— Caveat · Important</span>
+    <p class="t-body" style="margin: 12px 0 0;">
+      This page is a customer-facing summary of VerifIQ's legal posture. It is not legal advice and does not create a solicitor–client relationship. Every clause is reviewed by a qualified solicitor in the relevant jurisdiction before publication; readers should consult their own counsel before relying on any clause for their own activity.
+    </p>
+  </section>
+
+  <!-- FOOTER -->
+  <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--ink); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <span class="t-meta">VerifIQ · Legal Notice · v0.1</span>
+    <span class="t-meta">Coordinating counsel · Dublin</span>
+    <span class="t-meta">MMXXVI · review quarterly</span>
+  </footer>
+
+</div>
+
+<script>
+  // Tab switcher
+  document.querySelectorAll('.jt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.jt-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.notice-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('pane-' + tab).classList.add('active');
+      // Persist selection for return visits
+      try { localStorage.setItem('viq_jurisdiction', tab); } catch (e) {}
+    });
+  });
+  // Restore last selection
+  try {
+    const saved = localStorage.getItem('viq_jurisdiction');
+    if (saved && document.querySelector(`.jt-btn[data-tab="${saved}"]`)) {
+      document.querySelector(`.jt-btn[data-tab="${saved}"]`).click();
+    }
+  } catch (e) {}
+</script>
+</body>
+</html>

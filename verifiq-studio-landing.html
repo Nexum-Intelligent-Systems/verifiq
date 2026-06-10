@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VerifIQ Studio — Just your discipline. Cheaper. Faster.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'ui-monospace', 'monospace'] },
+        colors: {
+          background: '#030303', surface: '#0A0A0A', surface2: '#121212',
+          border: '#222222', primary: '#FFFFFF', secondary: '#A1A1AA',
+          studio: '#10B981', studio2: '#34D399',
+        },
+        animation: {
+          'fade-in-up': 'fadeInUp 1s ease-out forwards',
+          'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        },
+        keyframes: {
+          fadeInUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } }
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body { -webkit-font-smoothing: antialiased; font-family: 'Inter', sans-serif; }
+  ::selection { background-color: rgba(16, 185, 129, 0.4); color: #ffffff; }
+  .noise-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 50; opacity: 0.035; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+
+  .editor { background: #0d1117; color: #c9d1d9; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; line-height: 1.7; }
+  .editor .line { display: flex; white-space: pre; min-height: 1.7em; }
+  .editor .line.active { background: rgba(255,255,255,0.025); }
+  .editor .num { width: 3rem; padding-right: 1rem; color: #484f58; text-align: right; user-select: none; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .editor .kw { color: #ff7b72; }
+  .editor .cls { color: #34d399; }
+  .editor .fn { color: #34d399; }
+  .editor .vr { color: #79c0ff; }
+  .editor .str { color: #a5d6ff; }
+  .editor .prop { color: #79c0ff; }
+  .editor .cm { color: #8b949e; font-style: italic; }
+  .caret { display: inline-block; width: 0.55ch; height: 1.05em; background: #c9d1d9; margin-left: 1px; vertical-align: -2px; animation: caretBlink 1s step-end infinite; }
+  @keyframes caretBlink { 50% { opacity: 0; } }
+</style>
+</head>
+<body class="bg-[#030303] text-white">
+
+<div class="relative flex flex-col min-h-screen bg-[#030303] text-white overflow-x-hidden">
+
+  <div class="noise-bg" style="background-image: url(&quot;data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E&quot;)"></div>
+  <div class="absolute top-0 left-[-10%] w-[40vw] h-[40vw] rounded-full bg-emerald-900/25 blur-[120px] pointer-events-none mix-blend-screen"></div>
+  <div class="absolute top-[20%] right-[-10%] w-[30vw] h-[30vw] rounded-full bg-teal-900/15 blur-[100px] pointer-events-none mix-blend-screen"></div>
+
+  <header class="fixed top-0 w-full z-40 border-b border-white/[0.04] bg-[#030303]/80 backdrop-blur-xl">
+    <div class="max-w-7xl mx-auto px-6 h-16 sm:h-20 flex justify-between items-center">
+      <a href="#" class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.4)]">
+          <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg>
+        </div>
+        <span class="text-xl font-semibold tracking-tight text-white">VerifIQ<span class="ml-1.5 text-[10px] uppercase tracking-[0.2em] text-emerald-400 font-mono align-middle">· Studio</span></span>
+      </a>
+      <nav class="hidden md:flex gap-8 items-center">
+        <a class="text-sm font-medium text-gray-400 hover:text-white" href="#disciplines">Disciplines</a>
+        <a class="text-sm font-medium text-gray-400 hover:text-white" href="#how">How it works</a>
+        <a class="text-sm font-medium text-gray-400 hover:text-white" href="#compare">vs Full pack</a>
+        <a class="text-sm font-medium text-gray-400 hover:text-white" href="verifiq-website-mockup.html">VerifIQ.ie ↗</a>
+      </nav>
+      <a href="#disciplines" class="inline-flex h-9 items-center justify-center rounded-full bg-emerald-500 px-5 font-semibold text-black text-sm hover:bg-emerald-400 transition-colors">
+        Free first check
+      </a>
+    </div>
+  </header>
+
+  <main class="flex-1 w-full pt-28 sm:pt-36">
+
+    <section class="relative w-full px-6 flex flex-col items-center text-center max-w-[1400px] mx-auto opacity-0 animate-fade-in-up" style="animation-delay: 0.1s">
+      <div class="mb-8 inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 backdrop-blur-md text-xs font-medium text-emerald-300">
+        <span class="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        VerifIQ Studio — single-discipline checks for sole practitioners
+      </div>
+      <h1 class="text-[clamp(48px,9.5vw,128px)] font-bold tracking-tighter leading-[1.02] mb-8 text-white">
+        Just your discipline.<br class="hidden sm:block">
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 animate-pulse-slow">Cheaper. Faster.</span>
+      </h1>
+      <p class="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto mb-10 font-light">
+        Don't pay for a full multi-discipline scan you don't need. Pick the discipline you actually work in. Upload your pack. Get a check. Move on. From €60.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+        <a href="#disciplines" class="inline-flex items-center justify-center h-12 px-8 rounded-full bg-emerald-500 text-black font-semibold text-sm hover:bg-emerald-400 w-full sm:w-auto shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+          Free first check
+        </a>
+        <a href="#how" class="inline-flex items-center justify-center h-12 px-8 rounded-full bg-[#121212] border border-[#222222] text-white font-medium text-sm hover:bg-[#222222] w-full sm:w-auto">
+          See disciplines
+        </a>
+      </div>
+      <p class="mt-6 text-xs font-mono uppercase tracking-[0.3em] text-gray-500">
+        ~90 min turnaround · No card · Indicative output, you verify
+      </p>
+    </section>
+
+    <!-- HONEST PITCH BLOCK -->
+    <section class="relative w-full px-6 mt-20 sm:mt-28 max-w-3xl mx-auto">
+      <div class="relative rounded-2xl border border-emerald-500/15 bg-gradient-to-br from-emerald-950/40 via-[#0a0a0a] to-teal-950/30 p-8 sm:p-12 overflow-hidden">
+        <div class="absolute -top-20 right-1/4 w-64 h-64 rounded-full bg-emerald-500/[0.08] blur-3xl"></div>
+        <div class="relative">
+          <span class="text-[10px] font-mono uppercase tracking-[0.4em] text-emerald-400">// Honest pitch. No fluff.</span>
+          <div class="mt-6 space-y-4 text-base sm:text-lg text-gray-300 leading-relaxed">
+            <p>The bigger checking tools and independent peer reviews run <span class="text-red-400 font-semibold">€5-15k per pack</span>. If you're a sole practitioner doing two or three projects a year, that math doesn't work.</p>
+            <p>VerifIQ Studio is <span class="text-emerald-400 font-semibold">€60-€300 for a single-discipline check</span>. Catches the document-quality stuff your trainees would have caught — if you had any. Outdated standard references, schedule mismatches, fire-rating conflicts with TGD-B, cut-paste from a previous project.</p>
+            <p class="text-gray-400">It's not a chartered review. It's not a BCAR Ancillary Cert. It's not professional advice.</p>
+            <p class="text-white font-medium">It's a sanity check before you issue. €60-€300 to maybe catch something annoying before your client does.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DISCIPLINES GRID -->
+    <section id="disciplines" class="w-full px-6 py-24 sm:py-32 max-w-6xl mx-auto relative z-10">
+      <div class="text-center mb-16">
+        <span class="text-[10px] uppercase tracking-[0.4em] text-emerald-400 font-semibold">// Five disciplines · one price tier</span>
+        <h2 class="mt-4 text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white">Pick the discipline you work in.</h2>
+        <p class="mt-5 text-gray-300 text-base md:text-lg max-w-2xl mx-auto">Each tier reads only the relevant files in your pack. Smaller scope = lower cost = lower price.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <div class="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#0E0E0E] p-7 hover:border-emerald-500/40 transition-all">
+          <div class="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-emerald-500/[0.06] blur-3xl"></div>
+          <div class="relative z-10">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M3 7l9-4 9 4M5 21V9l7-3 7 3v12M9 21V12h6v9"/></svg>
+              </div>
+              <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-500">Studio · Arch</span>
+            </div>
+            <h3 class="text-xl font-semibold text-white mb-2">Architecture</h3>
+            <p class="text-gray-400 text-sm leading-relaxed mb-4">Drawings, spec, schedules. TGD A, K, M, BS 8300-2, NDA.</p>
+            <div class="text-3xl font-bold text-emerald-400 mb-4">€75<span class="text-sm text-gray-400 font-normal">/check</span></div>
+            <ul class="space-y-2 text-xs text-gray-400">
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Drawing register hygiene</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Spec NBS-drift check</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Schedule consistency</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Standards currency</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#0E0E0E] p-7 hover:border-emerald-500/40 transition-all">
+          <div class="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-emerald-500/[0.06] blur-3xl"></div>
+          <div class="relative z-10">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 16v-2m6-6h2M4 12h2m12.36-6.36l1.41-1.41M4.22 19.78l1.41-1.41M19.78 19.78l-1.41-1.41M4.22 4.22l1.41 1.41M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
+              </div>
+              <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-500">Studio · C&amp;S</span>
+            </div>
+            <h3 class="text-xl font-semibold text-white mb-2">Civil &amp; Structural</h3>
+            <p class="text-gray-400 text-sm leading-relaxed mb-4">Drawings, calcs, spec. Eurocodes + Irish NAs, IS EN 13670/1090/206.</p>
+            <div class="text-3xl font-bold text-emerald-400 mb-4">€75<span class="text-sm text-gray-400 font-normal">/check</span></div>
+            <ul class="space-y-2 text-xs text-gray-400">
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Eurocode citation check</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Concrete/steel exec class</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Foundation assumptions</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>SW attenuation calc</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#0E0E0E] p-7 hover:border-emerald-500/40 transition-all">
+          <div class="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-emerald-500/[0.06] blur-3xl"></div>
+          <div class="relative z-10">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z"/></svg>
+              </div>
+              <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-500">Studio · M&amp;E</span>
+            </div>
+            <h3 class="text-xl font-semibold text-white mb-2">Mechanical &amp; Electrical</h3>
+            <p class="text-gray-400 text-sm leading-relaxed mb-4">Combined M&amp;E bundle. HVAC, plumbing, BMS, fire detection, electrical.</p>
+            <div class="text-3xl font-bold text-emerald-400 mb-4">€100<span class="text-sm text-gray-400 font-normal">/check</span></div>
+            <ul class="space-y-2 text-xs text-gray-400">
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>HVAC + heat pump spec</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>F-Gas EU 2024/573</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Legionella HTM 04-01 / L8</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>I.S. 10101:2020 + I.S. 3218:2024</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#0E0E0E] p-7 hover:border-emerald-500/40 transition-all">
+          <div class="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-emerald-500/[0.06] blur-3xl"></div>
+          <div class="relative z-10">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z"/></svg>
+              </div>
+              <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-500">Studio · Fire</span>
+            </div>
+            <h3 class="text-xl font-semibold text-white mb-2">Fire</h3>
+            <p class="text-gray-400 text-sm leading-relaxed mb-4">FSC conditions, fire compliance only. TGD-B 2024, IS 3218:2024.</p>
+            <div class="text-3xl font-bold text-emerald-400 mb-4">€60<span class="text-sm text-gray-400 font-normal">/check</span></div>
+            <ul class="space-y-2 text-xs text-gray-400">
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>FSC condition propagation</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Compartmentation check</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Fire-stopping details</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Smaller pack · faster check</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#0E0E0E] p-7 hover:border-emerald-500/40 transition-all">
+          <div class="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-emerald-500/[0.06] blur-3xl"></div>
+          <div class="relative z-10">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
+              </div>
+              <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-500">Studio · Elec</span>
+            </div>
+            <h3 class="text-xl font-semibold text-white mb-2">Electrical</h3>
+            <p class="text-gray-400 text-sm leading-relaxed mb-4">Drawings, spec, BoQ. I.S. 10101:2020+A1:2024, IS 3217:2023, IS 3218:2024.</p>
+            <div class="text-3xl font-bold text-emerald-400 mb-4">€75<span class="text-sm text-gray-400 font-normal">/check</span></div>
+            <ul class="space-y-2 text-xs text-gray-400">
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>I.S. 10101 vs BS 7671 audit</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Fire alarm zoning</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Emergency lighting</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Disabled refuge alarm</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="group relative overflow-hidden rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-br from-[#0E0E0E] to-emerald-950/20 p-7 hover:border-emerald-500/50 transition-all">
+          <div class="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-emerald-500/[0.12] blur-3xl"></div>
+          <div class="relative z-10">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-300">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-emerald-400">Studio · Pro</span>
+            </div>
+            <h3 class="text-xl font-semibold text-white mb-2">All five disciplines</h3>
+            <p class="text-gray-400 text-sm leading-relaxed mb-4">Full multi-discipline + cross-discipline check. Lead designers, small full-service practices.</p>
+            <div class="text-3xl font-bold text-emerald-300 mb-4">€400<span class="text-sm text-gray-400 font-normal">/check</span></div>
+            <ul class="space-y-2 text-xs text-gray-400">
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Everything in all five tiers</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Cross-discipline coordination</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>FSC condition propagation</li>
+              <li class="flex gap-2"><span class="text-emerald-400">·</span>Single consolidated register</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- LIVE STUDIO DEMO -->
+    <section id="how" class="relative w-full px-4 sm:px-6 py-24 sm:py-28 border-t border-white/5">
+      <div class="max-w-[1400px] mx-auto">
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-8 px-2">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-[10px] font-mono uppercase tracking-[0.3em] text-emerald-300 mb-4">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Studio · Arch · Live
+            </div>
+            <h2 class="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white">90 minutes. Done.</h2>
+          </div>
+          <p class="text-gray-400 text-sm sm:text-base max-w-md leading-relaxed">A small arch-only pack runs in 60-90 minutes. Code calls the Studio API; findings come back single-discipline-focused. No noise from disciplines you don't care about.</p>
+        </div>
+
+        <div class="relative rounded-xl sm:rounded-2xl overflow-hidden ring-1 ring-emerald-500/10 shadow-[0_30px_120px_-20px_rgba(16,185,129,0.25)]">
+          <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[60%] h-64 bg-emerald-500/30 blur-[120px] -z-10 pointer-events-none"></div>
+
+          <div class="h-11 bg-[#161b22] border-b border-white/5 flex items-stretch pl-4 pr-4 gap-3">
+            <div class="flex items-center gap-1.5">
+              <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+              <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+              <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+            </div>
+            <div class="flex items-stretch ml-3 gap-px">
+              <div class="flex items-center gap-2 px-3 bg-[#0d1117] border-r border-l border-t border-white/10 -mb-px rounded-t text-xs text-gray-200 font-mono">
+                <svg class="w-3 h-3 text-emerald-400" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" opacity=".4"/><path d="M14 2v6h6"/></svg>
+                <span>Small_Project_Arch.pdf</span>
+              </div>
+            </div>
+            <div class="ml-auto flex items-center gap-3 text-[10px] font-mono uppercase tracking-[0.25em] text-gray-500">
+              <span class="hidden sm:inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Checking</span>
+              <span class="hidden md:inline">42 pages</span>
+              <span class="text-emerald-300">€75</span>
+            </div>
+          </div>
+
+          <div class="editor min-h-[420px]">
+            <div class="pl-4 pr-4 py-4">
+              <div id="code-typer"></div>
+            </div>
+          </div>
+
+          <div class="h-7 bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 px-3 flex items-center text-[10px] text-white/95 font-mono uppercase tracking-[0.2em] gap-3 select-none">
+            <span>main</span>
+            <span class="hidden sm:inline">UTF-8</span>
+            <span>TypeScript</span>
+            <span class="ml-auto">Ln <span id="lnval">1</span></span>
+            <span>Col <span id="colval">1</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMPARE -->
+    <section id="compare" class="w-full px-6 py-24 sm:py-32 max-w-6xl mx-auto relative z-10">
+      <div class="mb-12">
+        <span class="text-[10px] uppercase tracking-[0.4em] text-emerald-400 font-semibold">// Studio vs Full Pack</span>
+        <h2 class="mt-4 text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white">When Studio is enough.</h2>
+        <p class="mt-5 text-gray-300 text-base md:text-lg max-w-2xl">When you need more. Side by side.</p>
+      </div>
+
+      <div class="rounded-2xl border border-white/10 bg-[#0A0A0A] overflow-hidden">
+        <div class="grid grid-cols-4 gap-4 px-6 py-4 border-b border-white/10 bg-[#121212] text-[11px] font-mono uppercase tracking-[0.15em] text-gray-400">
+          <div>What you're doing</div>
+          <div class="text-center text-emerald-400">Studio €60-€300</div>
+          <div class="text-center text-emerald-400">Studio Pro €400</div>
+          <div class="text-center text-indigo-400">Full VerifIQ €800+</div>
+        </div>
+        <div class="divide-y divide-white/5 text-sm">
+          <div class="grid grid-cols-4 gap-4 px-6 py-4 items-center">
+            <div class="text-gray-300 font-medium">Single-discipline sanity check</div>
+            <div class="text-center text-emerald-400 font-semibold">✓ Perfect fit</div>
+            <div class="text-center text-gray-500">Overkill</div>
+            <div class="text-center text-gray-500">Overkill</div>
+          </div>
+          <div class="grid grid-cols-4 gap-4 px-6 py-4 items-center">
+            <div class="text-gray-300 font-medium">Multi-discipline coordination</div>
+            <div class="text-center text-gray-500">Not included</div>
+            <div class="text-center text-emerald-400 font-semibold">✓ Included</div>
+            <div class="text-center text-emerald-400 font-semibold">✓ Included</div>
+          </div>
+          <div class="grid grid-cols-4 gap-4 px-6 py-4 items-center">
+            <div class="text-gray-300 font-medium">Cross-discipline FSC propagation</div>
+            <div class="text-center text-gray-500">Limited</div>
+            <div class="text-center text-emerald-400 font-semibold">✓ Included</div>
+            <div class="text-center text-emerald-400 font-semibold">✓ Included</div>
+          </div>
+          <div class="grid grid-cols-4 gap-4 px-6 py-4 items-center">
+            <div class="text-gray-300 font-medium">Programme-level reporting</div>
+            <div class="text-center text-gray-500">No</div>
+            <div class="text-center text-gray-500">No</div>
+            <div class="text-center text-emerald-400 font-semibold">✓ Available</div>
+          </div>
+          <div class="grid grid-cols-4 gap-4 px-6 py-4 items-center">
+            <div class="text-gray-300 font-medium">SSO + audit trail</div>
+            <div class="text-center text-gray-500">No</div>
+            <div class="text-center text-gray-500">No</div>
+            <div class="text-center text-emerald-400 font-semibold">✓ Enterprise</div>
+          </div>
+          <div class="grid grid-cols-4 gap-4 px-6 py-4 items-center">
+            <div class="text-gray-300 font-medium">Suits sole practitioner</div>
+            <div class="text-center text-emerald-400 font-semibold">✓ Built for it</div>
+            <div class="text-center text-emerald-400 font-semibold">✓ Yes</div>
+            <div class="text-center text-gray-500">Overkill</div>
+          </div>
+          <div class="grid grid-cols-4 gap-4 px-6 py-4 items-center">
+            <div class="text-gray-300 font-medium">Suits 5-20 person practice</div>
+            <div class="text-center text-gray-500">Possible</div>
+            <div class="text-center text-emerald-400 font-semibold">✓ Good fit</div>
+            <div class="text-center text-emerald-400 font-semibold">✓ Best fit</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TESTIMONIAL-STYLE QUOTES -->
+    <section class="w-full px-6 py-24 sm:py-32 border-t border-white/5 relative z-10">
+      <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-16">
+          <span class="text-[10px] uppercase tracking-[0.4em] text-emerald-400 font-semibold">// Why we built it</span>
+          <h2 class="mt-4 text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white">Solo practitioners deserve tools that fit their budget.</h2>
+        </div>
+
+        <div class="space-y-6">
+          <div class="rounded-2xl border-l-4 border-emerald-500 bg-[#0E0E0E] border border-white/10 p-8">
+            <div class="text-lg sm:text-xl text-gray-300 italic leading-relaxed">"The bigger tools assume you have a partner, three trainees and a QA process. Sole practitioners are running on a notebook between site visits. We need something that costs €60, takes 90 minutes, and tells me what I might have missed."</div>
+            <div class="mt-4 text-xs text-gray-500 font-mono uppercase tracking-[0.2em]">— composite feedback from sole-practitioner RIAI architects, May 2026</div>
+          </div>
+
+          <div class="rounded-2xl border-l-4 border-emerald-500 bg-[#0E0E0E] border border-white/10 p-8">
+            <div class="text-lg sm:text-xl text-gray-300 italic leading-relaxed">"Independent peer review at €1,500/day is great when the client is paying. Self-funded QA on a €40k project? Cannot afford 30% of fee disappearing into peer review. But I'd happily pay €100 for a checker that catches the schedule mistakes."</div>
+            <div class="mt-4 text-xs text-gray-500 font-mono uppercase tracking-[0.2em]">— composite feedback from small-practice chartered engineers, May 2026</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="w-full px-6 py-24 relative z-10">
+      <div class="max-w-3xl mx-auto text-center">
+        <h2 class="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight text-white mb-6">Try the first one free.</h2>
+        <p class="text-lg text-gray-400 mb-10">Sign up. Pick your discipline. Upload a pack. Get a check. No card. No commitment.</p>
+        <a href="#" class="inline-flex items-center justify-center h-14 px-10 rounded-full bg-emerald-500 text-black font-bold text-base hover:bg-emerald-400 shadow-[0_0_40px_rgba(16,185,129,0.4)]">
+          Run a free check
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="border-t border-white/5 py-12 w-full mt-auto relative z-10 bg-[#030303]">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+      <div class="flex items-center gap-3 opacity-70">
+        <div class="w-6 h-6 rounded border border-emerald-500/30 flex items-center justify-center">
+          <svg class="w-3 h-3 text-emerald-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg>
+        </div>
+        <span class="text-sm font-medium text-white tracking-tight">VerifIQ Studio © 2026 · Built for Irish sole practitioners</span>
+      </div>
+      <nav class="flex flex-wrap justify-center gap-6">
+        <a class="text-sm text-gray-400 hover:text-white" href="verifiq-website-mockup.html">VerifIQ →</a>
+        <a class="text-sm text-gray-400 hover:text-white" href="verifiq-hunt-landing.html">Hunt →</a>
+        <a class="text-sm text-gray-400 hover:text-white" href="#">Terms</a>
+        <a class="text-sm text-gray-400 hover:text-white" href="#">studio@verifiq.ie</a>
+      </nav>
+    </div>
+    <div class="max-w-7xl mx-auto px-6 mt-8 pt-6 border-t border-white/[0.04] text-[11px] text-gray-500 leading-relaxed">
+      <strong class="text-gray-400">Important.</strong> VerifIQ Studio is a software checking tool. Outputs are indicative — possible issues for you to verify locally, not professional advice. The user is responsible for verifying every finding and for any design, contractual or regulatory decision. VerifIQ Studio is not a substitute for the work of an Assigned Certifier, Design Certifier, Chartered Architect, Chartered Engineer or any other designated professional.
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  const CODE_LINES = [
+    { t: "import { Studio } from '@verifiq/studio'", h: "<span class=\"kw\">import</span> { <span class=\"cls\">Studio</span> } <span class=\"kw\">from</span> <span class=\"str\">'@verifiq/studio'</span>" },
+    { t: "", h: "&nbsp;" },
+    { t: "const pack = await Studio.load(", h: "<span class=\"kw\">const</span> <span class=\"vr\">pack</span> = <span class=\"kw\">await</span> <span class=\"cls\">Studio</span>.<span class=\"fn\">load</span>(" },
+    { t: "  'Small_Project_Arch.pdf'", h: "  <span class=\"str\">'Small_Project_Arch.pdf'</span>" },
+    { t: ")", h: ")" },
+    { t: "", h: "&nbsp;" },
+    { t: "const findings = await Studio.check(pack, {", h: "<span class=\"kw\">const</span> <span class=\"vr\">findings</span> = <span class=\"kw\">await</span> <span class=\"cls\">Studio</span>.<span class=\"fn\">check</span>(<span class=\"vr\">pack</span>, {" },
+    { t: "  discipline: 'arch',", h: "  <span class=\"prop\">discipline</span>: <span class=\"str\">'arch'</span>," },
+    { t: "  corpus: 'irish',", h: "  <span class=\"prop\">corpus</span>: <span class=\"str\">'irish'</span>," },
+    { t: "})", h: "})" },
+    { t: "", h: "&nbsp;" },
+    { t: "// -> 14 possible issues for verification", h: "<span class=\"cm\">// -> 14 possible issues for verification</span>" },
+    { t: "// -> Door schedule mismatch (DR-30)", h: "<span class=\"cm\">// -> Door schedule mismatch (DR-30)</span>" },
+    { t: "// -> TGD-B fire rating gap (K10)", h: "<span class=\"cm\">// -> TGD-B fire rating gap (K10)</span>" },
+    { t: "// -> Cost: €75 · Time: 87 minutes", h: "<span class=\"cm\">// -> Cost: €75 · Time: 87 minutes</span>" },
+  ];
+
+  function escapeHtml(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+  function build(lines, state) {
+    let html = "";
+    for (let k = 0; k < lines.length; k++) {
+      let content;
+      if (k < state.i) content = lines[k].h || "&nbsp;";
+      else if (k === state.i) {
+        const typed = lines[k].t.slice(0, state.j);
+        content = (typed.length ? escapeHtml(typed) : "") + '<span class="caret"></span>';
+      } else content = "&nbsp;";
+      const active = k === state.i && state.j < lines[k].t.length ? " active" : "";
+      html += '<div class="line' + active + '"><span class="num">' + (k + 1) + '</span>' + content + '</div>';
+    }
+    return html;
+  }
+
+  function startTyper(targetEl, lines, opts, onTick) {
+    let state = { i: 0, j: 0 };
+    const charDelay = opts.charDelay || 22, lineDelay = opts.lineDelay || 90, rand = opts.rand || 18, restart = opts.restart || 7000;
+    function render() { targetEl.innerHTML = build(lines, state); if (onTick) onTick(state); }
+    function tick() {
+      if (state.i >= lines.length) {
+        setTimeout(() => { state = { i: 0, j: 0 }; render(); setTimeout(tick, 600); }, restart);
+        return;
+      }
+      const cur = lines[state.i];
+      if (state.j < cur.t.length) {
+        state.j += 1; render();
+        const ch = cur.t.charAt(state.j - 1);
+        const d = ch === " " ? charDelay * 0.6 : charDelay + Math.random() * rand;
+        setTimeout(tick, d);
+      } else { state.i += 1; state.j = 0; render(); setTimeout(tick, lineDelay); }
+    }
+    setTimeout(() => { render(); tick(); }, opts.initial || 0);
+  }
+
+  const codeEl = document.getElementById('code-typer');
+  const lnEl = document.getElementById('lnval');
+  const colEl = document.getElementById('colval');
+  startTyper(codeEl, CODE_LINES, { charDelay: 18, lineDelay: 90, rand: 22, restart: 7000, initial: 200 }, (state) => {
+    const ln = Math.min(state.i + 1, CODE_LINES.length);
+    const col = (state.i < CODE_LINES.length ? state.j : CODE_LINES[CODE_LINES.length - 1].t.length) + 1;
+    if (lnEl) lnEl.textContent = ln;
+    if (colEl) colEl.textContent = col;
+  });
+</script>
+
+</body>
+</html>

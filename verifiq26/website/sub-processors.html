@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VerifIQ — Sub-processors</title>
+<meta name="description" content="The third-party sub-processors VerifIQ uses to deliver the service. Published transparently per GDPR Article 28." />
+<link rel="stylesheet" href="verifiq-system.css" />
+<link rel="stylesheet" href="verifiq-cad.css" />
+<style>
+  body { background: var(--bone); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+  .top-nav { position: sticky; top: 0; z-index: 50; background: rgba(245,241,235,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--ink); }
+  .top-nav .inner { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .wordmark { font-family: var(--font-serif); font-weight: 600; font-size: 1.4rem; letter-spacing: 0.06em; color: var(--ink); border-bottom: 0; }
+  .header { padding: 64px 0 40px; border-bottom: 1px solid var(--ink); }
+  .header h1 { font-family: var(--font-serif); font-weight: 600; font-size: clamp(2rem,4vw,3.5rem); line-height: 1.1; margin: 14px 0 8px; }
+  .header .lede { font-family: var(--font-serif); font-style: italic; font-size: 1.125rem; color: var(--ink-soft); max-width: 60ch; }
+  .sp-table { width: 100%; border-collapse: collapse; margin-top: 40px; background: var(--bone); }
+  .sp-table th, .sp-table td { padding: 16px 18px; text-align: left; border: 1px solid var(--ink); font-family: var(--font-sans); font-size: 0.875rem; vertical-align: top; }
+  .sp-table th { background: var(--ink); color: var(--bone); font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600; }
+  .sp-table .name { font-family: var(--font-serif); font-weight: 500; font-size: 1.0625rem; }
+  .sp-table .purpose { font-family: var(--font-sans); color: var(--ink-soft); }
+  .sp-table .meta { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.06em; color: var(--graphite); }
+  .meta-block { margin-top: 48px; padding: 32px 28px; background: var(--paper); border: 1px solid var(--ink); }
+  .meta-block h3 { font-family: var(--font-serif); font-weight: 500; font-size: 1.25rem; margin: 0 0 12px; }
+  .meta-block p { font-family: var(--font-sans); font-size: 0.9375rem; line-height: 1.65; color: var(--ink-soft); margin: 0 0 10px; }
+  .locked-block { margin: 80px 0 0; padding: 48px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); background: var(--paper); text-align: center; }
+  .locked-block .lb-text { font-family: var(--font-serif); font-style: italic; font-size: 1rem; line-height: 1.7; color: var(--ink); max-width: 58ch; margin: 14px auto; padding: 0 20px; }
+  footer { padding: 36px 0 40px; background: var(--ink); color: var(--bone); margin-top: 0; }
+  footer .foot-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--vellum); }
+  footer a { color: var(--vellum); border-bottom: 1px solid var(--graphite); }
+</style>
+</head>
+<body class="paper-texture">
+<nav class="top-nav"><div class="wrap inner"><a href="index.html" class="wordmark">VerifIQ</a><span style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.22em;text-transform:uppercase;color:var(--draft);">— Sub-processors · transparent</span><a href="legal-notice.html" style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.22em;text-transform:uppercase;color:var(--ink);border-bottom:1px solid var(--ink);">Legal · per jurisdiction ↗</a></div></nav>
+
+<header class="header"><div class="wrap"><span class="t-eyebrow">— Drawing 11 · Data Processing Chain</span><h1>Sub-processors.</h1><p class="lede">VerifIQ is built on third-party services. The list below names every sub-processor that handles personal data or pack content, the purpose, the data type, and where it resides. Updated on every material change.</p></div></header>
+
+<section style="padding:48px 0;"><div class="wrap">
+  <table class="sp-table">
+    <thead><tr><th>Sub-processor</th><th>Purpose</th><th>Data type</th><th>Region</th><th>DPA</th></tr></thead>
+    <tbody>
+      <tr><td><div class="name">Anthropic</div><div class="meta">anthropic.com</div></td><td class="purpose">AI inference — primary model (Claude Sonnet, Haiku). Reads documents to surface candidate findings.</td><td class="purpose">Pack content (during inference) · prompt + response logs</td><td class="meta">EU (Ireland)</td><td class="meta"><a href="https://www.anthropic.com/legal/dpa">DPA ↗</a></td></tr>
+      <tr><td><div class="name">OpenAI</div><div class="meta">openai.com</div></td><td class="purpose">AI inference — fallback model (GPT-4 class). Used only when primary provider is unavailable.</td><td class="purpose">Pack content (during inference) · prompt + response logs</td><td class="meta">EU</td><td class="meta"><a href="https://openai.com/policies/eu-data-processing-addendum">DPA ↗</a></td></tr>
+      <tr><td><div class="name">Convex</div><div class="meta">convex.dev</div></td><td class="purpose">Application database + file storage. Holds pack manifests, findings, audit logs, reviewer state.</td><td class="purpose">Customer data · pack content · findings · audit log</td><td class="meta">EU-West (Dublin)</td><td class="meta"><a href="https://www.convex.dev/legal/dpa">DPA ↗</a></td></tr>
+      <tr><td><div class="name">Vercel</div><div class="meta">vercel.com</div></td><td class="purpose">Frontend hosting + edge functions. Serves verifiq.ie and runs auth-edge logic.</td><td class="purpose">User identity (during session) · HTTP request metadata</td><td class="meta">EU edge</td><td class="meta"><a href="https://vercel.com/legal/dpa">DPA ↗</a></td></tr>
+      <tr><td><div class="name">Clerk</div><div class="meta">clerk.com</div></td><td class="purpose">Authentication + multi-tenant user management.</td><td class="purpose">User identity · session tokens</td><td class="meta">EU (Frankfurt)</td><td class="meta"><a href="https://clerk.com/legal/dpa">DPA ↗</a></td></tr>
+      <tr><td><div class="name">Stripe</div><div class="meta">stripe.com</div></td><td class="purpose">Payments processing + Stripe Tax (VAT). Recurring + one-off billing.</td><td class="purpose">Billing identity · payment instrument metadata · VAT info</td><td class="meta">EU (Ireland)</td><td class="meta"><a href="https://stripe.com/legal/dpa">DPA ↗</a></td></tr>
+      <tr><td><div class="name">Resend</div><div class="meta">resend.com</div></td><td class="purpose">Transactional email — welcome, scan complete, paid release, audit log link.</td><td class="purpose">User email address · email content</td><td class="meta">EU</td><td class="meta"><a href="https://resend.com/legal/dpa">DPA ↗</a></td></tr>
+      <tr><td><div class="name">Plausible Analytics</div><div class="meta">plausible.io</div></td><td class="purpose">Website analytics — cookie-free, no personal data, EU-hosted.</td><td class="purpose">Aggregated traffic metadata (no personal data)</td><td class="meta">EU (Frankfurt)</td><td class="meta"><a href="https://plausible.io/dpa">DPA ↗</a></td></tr>
+    </tbody>
+  </table>
+
+  <div class="meta-block">
+    <h3>What we do — and what we do not do — with customer data.</h3>
+    <p><strong>We do:</strong> process customer documents through Anthropic and OpenAI APIs solely to produce the source-quoted findings register that is the contracted deliverable. We hold the pack in encrypted Convex storage for the duration of the engagement, plus a maximum of 14 days post-release.</p>
+    <p><strong>We do not:</strong> train any AI model on customer documents. We do not sell or share customer data with third parties not listed above. Hashes of files are retained for 90 days for abuse prevention; this is the only customer-data retention beyond 14 days.</p>
+    <p><strong>We will tell you:</strong> if we materially change this sub-processor list, you will be notified by email at least 30 days before the change takes effect. You may terminate your engagement on the change date with pro-rated refund if you object.</p>
+  </div>
+</div></section>
+
+<section class="locked-block"><div class="wrap"><span class="t-eyebrow">— Notice · Locked Disclaimer</span><p class="lb-text">VerifIQ is a software-based reading aid. It surfaces, in the documents' own words, what a registered professional may wish to read closely. It does not certify, sign, opine, or substitute for professional judgement. The registered designer reads our output, exercises their own judgement, verifies locally, and signs. The professional indemnity remains theirs. We carry product-quality risk only.</p></div></section>
+
+<footer><div class="wrap"><div class="foot-row"><span>© MMXXVI · VerifIQ · GovIQ Ltd · Dublin</span><span><a href="legal-notice.html">Legal · per jurisdiction ↗</a></span><span>Last updated · 2026-06-01</span></div></div></footer>
+</body>
+</html>

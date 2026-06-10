@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VerifIQ — Free Scan · Flavour Reveal</title>
+<link rel="stylesheet" href="verifiq-system.css" />
+<link rel="stylesheet" href="verifiq-cad.css" />
+<style>
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 56px 32px 120px; }
+  .nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 56px; padding-bottom: 24px; border-bottom: 1px solid var(--ink); }
+  .wordmark { font-family: var(--font-serif); font-weight: 500; font-size: 1.5rem; letter-spacing: 0.08em; color: var(--ink); border-bottom: 0; }
+  .counters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--ink); margin-top: 32px; border: 1px solid var(--ink); }
+  .counter-tile { background: var(--bone); padding: 28px 24px 22px; }
+  .counter-tile .num { font-family: var(--font-serif); font-weight: 500; font-size: 3rem; line-height: 1; margin-top: 12px; }
+  .counter-tile .sev-bar { height: 3px; margin-top: 14px; background: currentColor; }
+  .counter-tile.crit .num { color: var(--sanguine); }
+  .counter-tile.high .num { color: var(--amber); }
+  .counter-tile.med  .num { color: var(--olive); }
+  .counter-tile.low  .num { color: var(--moss); }
+  .counter-tile.crit { color: var(--sanguine); }
+  .counter-tile.high { color: var(--amber); }
+  .counter-tile.med  { color: var(--olive); }
+  .counter-tile.low  { color: var(--moss); }
+  .hist { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  .hist-row { display: grid; grid-template-columns: 200px 1fr 50px; align-items: center; gap: 16px; }
+  .hist-bar { height: 14px; background: var(--vellum); position: relative; border: 1px solid var(--ink); }
+  .hist-bar > span { display: block; height: 100%; background: var(--draft); }
+  .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 32px; margin-top: 40px; }
+  .findings-list { display: flex; flex-direction: column; gap: 18px; margin-top: 24px; }
+  .finding-card { background: var(--paper); border: 1px solid var(--ink); padding: 24px; }
+  .finding-card.redacted { opacity: 0.92; }
+  .finding-card.redacted h4 { color: var(--graphite); }
+  .finding-meta { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 12px; }
+  .pricing { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--ink); margin-top: 32px; border: 1px solid var(--ink); }
+  .price-card { background: var(--bone); padding: 36px 32px; position: relative; }
+  .price-card.featured { background: var(--ink); color: var(--bone); }
+  .price-card.featured .t-eyebrow { color: var(--brass-light); }
+  .price-card.featured h3, .price-card.featured .t-h2 { color: var(--bone); }
+  .price-card.featured p { color: var(--vellum); }
+  .price-card .price { font-family: var(--font-serif); font-weight: 500; font-size: 3rem; line-height: 1; margin: 16px 0 4px; }
+  .price-card ul { list-style: none; padding: 0; margin: 24px 0 32px; }
+  .price-card li { font-family: var(--font-sans); font-size: 0.875rem; padding: 8px 0; border-bottom: 1px solid rgba(26,26,31,0.08); display: flex; align-items: center; gap: 10px; }
+  .price-card.featured li { border-bottom: 1px solid rgba(245,241,235,0.10); }
+  .price-card li::before { content: '·'; font-family: var(--font-serif); font-weight: 700; color: var(--brass); font-size: 1.25rem; }
+  .concierge-link { text-align: center; margin-top: 36px; }
+  .lock-overlay { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--ink); color: var(--bone); font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.2em; text-transform: uppercase; }
+  body { background: var(--bone); }
+</style>
+</head>
+<body class="paper-texture">
+<div class="wrap">
+
+  <nav class="nav">
+    <a href="index.html" class="wordmark">VerifIQ</a>
+    <span class="t-eyebrow">— Scan · Free Read · Adult Day Service · Stage 2C</span>
+    <a href="index.html" class="t-meta">↩ Atelier</a>
+  </nav>
+
+  <!-- HEADER -->
+  <header class="title-block">
+    <span class="tb-tr"></span>
+    <span class="tb-bl"></span>
+    <span class="t-eyebrow">Read · Complete · Skim pass</span>
+    <h1 class="t-display" style="margin: 12px 0 8px;">Your free read is in.</h1>
+    <p class="t-lede" style="max-width: 64ch;">We've read the pack against the live Irish corpus. Below is what the atelier surfaced in the first pass — counts, categories, and one worked finding so you can see the method.</p>
+    <div style="margin-top: 24px; display: flex; flex-wrap: wrap; gap: 20px;">
+      <span class="scale-chip">Pack · 04-26 · HSE</span>
+      <span class="scale-chip">187 files · Architecture (free)</span>
+      <span class="scale-chip">Read · 18 min · MMXXVI</span>
+    </div>
+    <span class="title-block-stamp">FREE · SKIM</span>
+  </header>
+
+  <!-- COUNTERS -->
+  <section style="margin-top: 56px;">
+    <span class="t-eyebrow">— I. The Tally</span>
+    <h2 class="t-h2" style="margin-top: 12px;">120 findings, sorted by severity.</h2>
+    <div class="counters">
+      <div class="counter-tile crit">
+        <span class="t-eyebrow" style="color: var(--sanguine);">Critical</span>
+        <div class="num tab-num">12</div>
+        <div class="sev-bar"></div>
+        <p class="t-meta" style="margin-top: 12px;">Read closely · before award</p>
+      </div>
+      <div class="counter-tile high">
+        <span class="t-eyebrow" style="color: var(--amber);">High</span>
+        <div class="num tab-num">38</div>
+        <div class="sev-bar"></div>
+        <p class="t-meta" style="margin-top: 12px;">RFI candidates · drafted</p>
+      </div>
+      <div class="counter-tile med">
+        <span class="t-eyebrow" style="color: var(--olive);">Medium</span>
+        <div class="num tab-num">48</div>
+        <div class="sev-bar"></div>
+        <p class="t-meta" style="margin-top: 12px;">Coordination · doc hygiene</p>
+      </div>
+      <div class="counter-tile low">
+        <span class="t-eyebrow" style="color: var(--moss);">Low</span>
+        <div class="num tab-num">22</div>
+        <div class="sev-bar"></div>
+        <p class="t-meta" style="margin-top: 12px;">Tidy-ups · cosmetic</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTOGRAM -->
+  <section style="margin-top: 56px;">
+    <span class="t-eyebrow">— II. By Category</span>
+    <h2 class="t-h2" style="margin-top: 12px;">Where the issues cluster.</h2>
+    <div class="hist" style="margin-top: 24px;">
+      <div class="hist-row"><span class="t-meta">BCAR doc hygiene</span><div class="hist-bar"><span style="width: 100%;"></span></div><span class="t-data" style="text-align: right;">28</span></div>
+      <div class="hist-row"><span class="t-meta">Contract form (PW-CF)</span><div class="hist-bar"><span style="width: 71%;"></span></div><span class="t-data" style="text-align: right;">20</span></div>
+      <div class="hist-row"><span class="t-meta">Standards prefix / typo</span><div class="hist-bar"><span style="width: 64%;"></span></div><span class="t-data" style="text-align: right;">18</span></div>
+      <div class="hist-row"><span class="t-meta">Spec / schedule mismatch</span><div class="hist-bar"><span style="width: 50%;"></span></div><span class="t-data" style="text-align: right;">14</span></div>
+      <div class="hist-row"><span class="t-meta">Address / title block</span><div class="hist-bar"><span style="width: 32%;"></span></div><span class="t-data" style="text-align: right;">9</span></div>
+      <div class="hist-row"><span class="t-meta">Cause &amp; effect missing</span><div class="hist-bar"><span style="width: 25%;"></span></div><span class="t-data" style="text-align: right;">7</span></div>
+      <div class="hist-row"><span class="t-meta">Other</span><div class="hist-bar"><span style="width: 86%;"></span></div><span class="t-data" style="text-align: right;">24</span></div>
+    </div>
+  </section>
+
+  <!-- WORKED EXAMPLE -->
+  <section style="margin-top: 72px;">
+    <span class="t-eyebrow">— III. One Finding, in Full</span>
+    <h2 class="t-h2" style="margin-top: 12px;">Our method, on a single example.</h2>
+
+    <div class="rev-cloud" style="margin-top: 28px;">
+      <span class="rev-tag">Rev · A · Critical</span>
+      <div class="finding-meta">
+        <span class="sev sev-critical">Critical</span>
+        <span class="t-eyebrow" style="color: var(--sanguine);">Finding · C-03</span>
+        <span class="t-meta">Discipline · Architecture / Contract</span>
+        <span class="t-meta">Reviewer · A. Ní Cheallaigh, RIAI</span>
+      </div>
+      <h3 class="t-h2" style="margin: 0 0 14px;">Date for Substantial Completion is left blank.</h3>
+      <p class="t-body" style="margin: 0 0 18px; max-width: 70ch;">
+        The Date for Substantial Completion is a required entry in the Form of Tender Schedule, Part 1, Section 4.2. Without a specified date, the Liquidated Damages mechanism set out in Clause 9.5 of PW-CF5 cannot be enforced. This is a material defect in the tender pack — bidders cannot price contract programme risk and the Employer cannot enforce damages for delay.
+      </p>
+      <div class="source-quote">
+        "Date for Substantial Completion: ____________"
+        <span class="src-ref">Form of Tender · Schedule Part 1 · §4.2 · Page 12</span>
+      </div>
+      <div style="margin-top: 22px;">
+        <span class="t-eyebrow">Recommended action</span>
+        <p class="t-body" style="margin: 8px 0 0; max-width: 70ch;">Insert Date for Substantial Completion before tender release. Confirm with the Employer's Representative and re-issue the Form of Tender Schedule Part 1 as Revision B.</p>
+      </div>
+    </div>
+
+    <!-- Redacted previews -->
+    <h3 class="t-h3" style="margin: 56px 0 18px;">Three more critical findings — held behind the paywall.</h3>
+    <div class="findings-list">
+      <div class="finding-card redacted">
+        <div class="finding-meta">
+          <span class="sev sev-critical">Critical</span>
+          <span class="t-eyebrow" style="color: var(--graphite);">Finding · C-01</span>
+          <span class="lock-overlay">🔒 Locked</span>
+        </div>
+        <h4 class="t-h3" style="margin: 0 0 10px;">Employer / Contracting Authority / Building Owner identity ambiguity.</h4>
+        <div class="source-quote redacted">
+          "The Building Owner is identified as…"
+          <span class="src-ref">Form of Tender · Schedule Part 1 · §1.1</span>
+        </div>
+      </div>
+      <div class="finding-card redacted">
+        <div class="finding-meta">
+          <span class="sev sev-critical">Critical</span>
+          <span class="t-eyebrow" style="color: var(--graphite);">Finding · C-02</span>
+          <span class="lock-overlay">🔒 Locked</span>
+        </div>
+        <h4 class="t-h3" style="margin: 0 0 10px;">BCAR document written for Design &amp; Build, but the contract is PW-CF5 Employer-Designed.</h4>
+        <div class="source-quote redacted">
+          "The Builder shall complete the design…"
+          <span class="src-ref">BCAR Doc · §3.2 · Cover</span>
+        </div>
+      </div>
+      <div class="finding-card redacted">
+        <div class="finding-meta">
+          <span class="sev sev-critical">Critical</span>
+          <span class="t-eyebrow" style="color: var(--graphite);">Finding · C-04</span>
+          <span class="lock-overlay">🔒 Locked</span>
+        </div>
+        <h4 class="t-h3" style="margin: 0 0 10px;">Hoist brand named differently across M&amp;E spec, Room Data Sheet, and schedule.</h4>
+        <div class="source-quote redacted">
+          "Hoist supplier: CARBITAN model…"
+          <span class="src-ref">M&E Spec · §11.4</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="t-lede" style="margin-top: 28px; max-width: 64ch; color: var(--graphite);">
+      The remaining 116 findings, the source quotes, the RFI register, and the chartered reviewer's sign-off are held behind the paywall.
+    </p>
+  </section>
+
+  <!-- PRICING -->
+  <section style="margin-top: 80px;">
+    <span class="t-eyebrow">— IV. Two Paths Forward</span>
+    <h2 class="t-h1" style="margin-top: 12px;">How would you like to proceed?</h2>
+
+    <div class="pricing">
+      <!-- Per-pack -->
+      <div class="price-card">
+        <span class="t-eyebrow">Single Pack · Tier III</span>
+        <div class="price tab-num">€890</div>
+        <span class="t-meta">One-off · this pack only</span>
+        <ul>
+          <li>Full register · 120 findings</li>
+          <li>Source quote on every finding</li>
+          <li>RFI register · CA-routed</li>
+          <li>Cross-discipline coordination pass</li>
+          <li>Chartered reviewer sign-off</li>
+          <li>Audit log · exportable</li>
+          <li>Released · within 38 hours</li>
+        </ul>
+        <a href="#" class="btn-sheet-tag" style="margin-top: 12px;">
+          <span class="sheet-code">A-201</span>
+          <span class="sheet-label">Proceed with this pack <span class="sheet-arrow"></span></span>
+        </a>
+      </div>
+
+      <!-- Annual seat -->
+      <div class="price-card featured">
+        <span class="t-eyebrow">Annual Seat · Tier III</span>
+        <div class="price tab-num" style="color: var(--brass-light);">€11,400</div>
+        <span class="t-meta" style="color: var(--vellum);">Per year · unlimited packs at tier</span>
+        <ul>
+          <li>Unlimited Tier I–III packs</li>
+          <li>Up to 5 seats in your practice</li>
+          <li>Concierge replies in 48 hours</li>
+          <li>Priority reviewer queue</li>
+          <li>Custom corpus uplift on request</li>
+          <li>Audit log retention · 7 years</li>
+          <li>SLA · 48-hour worst-case release</li>
+        </ul>
+        <a href="#" class="btn-sheet-tag" style="margin-top: 12px; background: var(--brass); border-color: var(--brass); color: var(--ink);">
+          <span class="sheet-code" style="background: var(--ink); border-right-color: var(--ink); color: var(--bone);">SEAT</span>
+          <span class="sheet-label">Take a seat for the practice <span class="sheet-arrow"></span></span>
+        </a>
+      </div>
+    </div>
+
+    <div class="concierge-link">
+      <a href="onboarding-wizard.html" class="btn-leader">
+        <span class="leader-num">+</span>
+        <span class="leader-line"></span>
+        <span class="leader-label">Tier IV / V or bespoke — talk to the concierge</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- LOCKED DISCLAIMER -->
+  <aside style="margin-top: 80px; padding: 40px 32px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); background: var(--paper);">
+    <div style="max-width: 56rem; margin: 0 auto; text-align: center;">
+      <span class="t-eyebrow" style="display: block; margin-bottom: 16px;">— Notice · Locked Disclaimer</span>
+      <p class="t-lede" style="color: var(--ink); font-size: 1.0625rem; line-height: 1.7; max-width: 60ch; margin: 0 auto;">
+        VerifIQ is a software-based reading aid. It surfaces, in the documents' own words, what a registered professional may wish to read closely. It does not certify, sign, opine, or substitute for professional judgement. The registered designer reads our output, exercises their own judgement, verifies locally, and signs. The professional indemnity remains theirs. We carry product-quality risk only.
+      </p>
+      <div style="margin-top: 28px; display: flex; flex-wrap: wrap; gap: 24px; justify-content: center;">
+        <span class="t-meta">Free read held for 14 days · then hashed-deleted</span>
+        <span class="t-meta">EU data residency · Dublin region</span>
+        <span class="t-meta">No customer document trains any model</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- FOOTER -->
+  <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--ink); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <span class="t-meta">VerifIQ · Free Scan Result · Pack 04-26</span>
+    <a href="legal-notice.html" class="t-meta" style="color: var(--draft); border-bottom: 1px solid var(--draft);">Legal · per jurisdiction ↗</a>
+    <span class="t-meta">MMXXVI · Dublin</span>
+  </footer>
+
+</div>
+</body>
+</html>

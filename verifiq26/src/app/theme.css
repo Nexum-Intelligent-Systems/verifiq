@@ -1,0 +1,129 @@
+/* =====================================================================
+   VerifIQ Theme Layer — dual theme (bone-paper light · dark)
+   Ported from website/verifiq-system.css v0.3 into semantic tokens.
+   Raw brand palette → semantic roles → per-theme assignment.
+   Switch by setting [data-theme="light"|"dark"] on <html>.
+   ===================================================================== */
+
+:root {
+  /* ---- RAW BRAND PALETTE (theme-independent constants) ---- */
+  --c-ink:        #1A1A1F;
+  --c-ink-soft:   #2A2A30;
+  --c-graphite:   #6B6B72;
+  --c-graphite-2: #9A9AA0;
+
+  --c-bone:       #F5F1EB;
+  --c-bone-warm:  #EFE9DB;
+  --c-vellum:     #E8E2D5;
+  --c-paper:      #FAF7F1;
+
+  --c-black:      #0E0E12;
+  --c-charcoal:   #16161C;
+  --c-slate:      #1F1F26;
+  --c-hairline:   #2C2C34;
+
+  --c-draft:       #2D4A5F;
+  --c-draft-light: #4A6F86;
+  --c-brass:       #B8945A;
+  --c-brass-light: #D4B485;
+
+  --c-sanguine:   #B23E2E;
+  --c-amber:      #C28A2A;
+  --c-olive:      #6B7340;
+  --c-moss:       #4A6F50;
+  /* dark-tuned severity (raised luminance for contrast on dark surfaces) */
+  --c-sanguine-l: #D9614F;
+  --c-amber-l:    #DDA84A;
+  --c-olive-l:    #97A05E;
+  --c-moss-l:     #6FA177;
+
+  /* ---- TYPOGRAPHY (theme-independent) ---- */
+  --font-serif: 'IBM Plex Serif', 'Times New Roman', Georgia, serif;
+  --font-sans:  'IBM Plex Sans', -apple-system, system-ui, sans-serif;
+  --font-mono:  'IBM Plex Mono', 'JetBrains Mono', Consolas, monospace;
+
+  /* ---- GEOMETRY (theme-independent) ---- */
+  --baseline: 8px;
+  --gutter:   24px;
+  --r-sm: 0;
+  --r-md: 2px;
+  --r-lg: 4px;
+}
+
+/* ---- LIGHT THEME (bone paper) — default ---- */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg:           var(--c-bone);
+  --surface:      var(--c-paper);
+  --surface-warm: var(--c-bone-warm);
+  --elevated:     var(--c-vellum);
+
+  --text:         var(--c-ink);
+  --text-soft:    var(--c-ink-soft);
+  --text-muted:   var(--c-graphite);
+
+  --hairline:     rgba(26, 26, 31, 0.14);
+  --hairline-strong: var(--c-ink);
+
+  --accent:       var(--c-draft);     /* blueprint blue */
+  --accent-hover: var(--c-sanguine);
+  --gold:         var(--c-brass);
+  --on-accent:    var(--c-bone);
+  --on-ink:       var(--c-bone);
+
+  --sev-critical: var(--c-sanguine);
+  --sev-high:     var(--c-amber);
+  --sev-medium:   var(--c-olive);
+  --sev-low:      var(--c-moss);
+
+  --shadow-1: 0 1px 0 0 rgba(26,26,31,0.06);
+  --shadow-2: 0 4px 16px -8px rgba(26,26,31,0.12);
+}
+
+/* ---- DARK THEME ---- */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg:           var(--c-black);
+  --surface:      var(--c-charcoal);
+  --surface-warm: var(--c-charcoal);
+  --elevated:     var(--c-slate);
+
+  --text:         var(--c-bone);
+  --text-soft:    var(--c-vellum);
+  --text-muted:   var(--c-graphite-2);
+
+  --hairline:     var(--c-hairline);
+  --hairline-strong: var(--c-graphite-2);
+
+  --accent:       var(--c-draft-light); /* lighter blueprint for dark contrast */
+  --accent-hover: var(--c-sanguine-l);
+  --gold:         var(--c-brass-light);
+  --on-accent:    var(--c-black);
+  --on-ink:       var(--c-bone);
+
+  --sev-critical: var(--c-sanguine-l);
+  --sev-high:     var(--c-amber-l);
+  --sev-medium:   var(--c-olive-l);
+  --sev-low:      var(--c-moss-l);
+
+  --shadow-1: 0 1px 0 0 rgba(0,0,0,0.5);
+  --shadow-2: 0 6px 24px -10px rgba(0,0,0,0.7);
+}
+
+/* Honour OS preference when the user has not chosen explicitly.
+   The no-flash script in layout.tsx sets data-theme; this is the
+   fallback for no-JS / pre-hydration. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: var(--c-black); --surface: var(--c-charcoal); --surface-warm: var(--c-charcoal); --elevated: var(--c-slate);
+    --text: var(--c-bone); --text-soft: var(--c-vellum); --text-muted: var(--c-graphite-2);
+    --hairline: var(--c-hairline); --hairline-strong: var(--c-graphite-2);
+    --accent: var(--c-draft-light); --accent-hover: var(--c-sanguine-l); --gold: var(--c-brass-light);
+    --on-accent: var(--c-black);
+    --sev-critical: var(--c-sanguine-l); --sev-high: var(--c-amber-l); --sev-medium: var(--c-olive-l); --sev-low: var(--c-moss-l);
+  }
+}

@@ -1,0 +1,395 @@
+/* =====================================================================
+   VerifIQ CAD Components v0.1
+   Buttons + UI elements drawn from architectural / engineering convention
+   Requires: verifiq-system.css
+   ===================================================================== */
+
+/* ---------- SHEET-TAG BUTTON (Primary CTA) -----------------------------
+   Looks like a drawing sheet reference: code on left, chevron arrow right.
+   ----------------------------------------------------------------------- */
+.btn-sheet-tag {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border: 1px solid var(--ink);
+  background: var(--bone);
+  color: var(--ink);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+.btn-sheet-tag .sheet-code {
+  padding: 14px 18px;
+  border-right: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--bone);
+}
+.btn-sheet-tag .sheet-label {
+  padding: 14px 22px 14px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+}
+.btn-sheet-tag .sheet-arrow {
+  width: 18px;
+  height: 1px;
+  background: currentColor;
+  position: relative;
+  transition: width 0.25s ease;
+}
+.btn-sheet-tag .sheet-arrow::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -3px;
+  width: 7px; height: 7px;
+  border-top: 1px solid currentColor;
+  border-right: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+.btn-sheet-tag:hover { border-color: var(--sanguine); color: var(--sanguine); }
+.btn-sheet-tag:hover .sheet-code { background: var(--sanguine); border-right-color: var(--sanguine); }
+.btn-sheet-tag:hover .sheet-arrow { width: 26px; }
+
+/* ---------- LEADER CALLOUT (Secondary action) -----------------------------
+   Numbered circle + leader line + label. Reads as a drawing callout.
+   ----------------------------------------------------------------------- */
+.btn-leader {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+  color: var(--ink);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.btn-leader .leader-num {
+  width: 28px; height: 28px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  background: var(--bone);
+  transition: all 0.2s ease;
+}
+.btn-leader .leader-line {
+  width: 16px; height: 1px;
+  background: var(--ink);
+  margin: 0 -1px;
+  transition: width 0.25s ease;
+}
+.btn-leader .leader-label {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--ink);
+  letter-spacing: 0.02em;
+}
+.btn-leader:hover { color: var(--draft); }
+.btn-leader:hover .leader-num { border-color: var(--draft); color: var(--draft); }
+.btn-leader:hover .leader-line { background: var(--draft); width: 24px; }
+.btn-leader:hover .leader-label { border-bottom-color: var(--draft); }
+
+/* ---------- DIMENSION BUTTON ----------------------------------------------
+   Top border with dimension ticks at each end + label centred underneath.
+   Reads as "measured, specified, signed."
+   ----------------------------------------------------------------------- */
+.btn-dimension {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 28px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-decoration: none;
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s ease;
+}
+.btn-dimension::before,
+.btn-dimension::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 1px; height: 10px;
+  background: var(--brass);
+}
+.btn-dimension::before { left: 0; }
+.btn-dimension::after  { right: 0; }
+.btn-dimension > .dim-line {
+  position: absolute;
+  top: 5px; left: 0; right: 0;
+  height: 1px;
+  background: var(--brass);
+}
+.btn-dimension:hover { color: var(--sanguine); }
+.btn-dimension:hover::before,
+.btn-dimension:hover::after { background: var(--sanguine); }
+.btn-dimension:hover > .dim-line { background: var(--sanguine); }
+
+/* ---------- DETAIL BUBBLE (Status badge) ------------------------------
+   Letter or number in a hairline circle with a short connector tick.
+   Used for finding-category counts and detail references.
+   ----------------------------------------------------------------------- */
+.bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.bubble .bubble-mark {
+  width: 32px; height: 32px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 0.875rem;
+  background: var(--paper);
+  position: relative;
+}
+.bubble .bubble-mark::after {
+  content: '';
+  position: absolute;
+  left: -8px; top: 50%;
+  width: 7px; height: 1px;
+  background: var(--ink);
+}
+.bubble.bubble-critical .bubble-mark { border-color: var(--sanguine); color: var(--sanguine); }
+.bubble.bubble-critical .bubble-mark::after { background: var(--sanguine); }
+.bubble.bubble-high .bubble-mark { border-color: var(--amber); color: var(--amber); }
+.bubble.bubble-high .bubble-mark::after { background: var(--amber); }
+.bubble.bubble-medium .bubble-mark { border-color: var(--olive); color: var(--olive); }
+.bubble.bubble-medium .bubble-mark::after { background: var(--olive); }
+.bubble.bubble-low .bubble-mark { border-color: var(--moss); color: var(--moss); }
+.bubble.bubble-low .bubble-mark::after { background: var(--moss); }
+
+/* ---------- REVISION CLOUD (Alert / critical wrapper) ----------------
+   Wavy SVG border. Used to wrap any CRITICAL element. Borrowed from Revit.
+   ----------------------------------------------------------------------- */
+.rev-cloud {
+  position: relative;
+  padding: 22px 24px;
+  background: var(--paper);
+}
+.rev-cloud::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'><defs><pattern id='c' x='0' y='0' width='14' height='14' patternUnits='userSpaceOnUse'><path d='M0 7 Q 3.5 0, 7 7 T 14 7' fill='none' stroke='%23B23E2E' stroke-width='1'/></pattern></defs><rect width='100%25' height='100%25' fill='none' stroke='url(%23c)' stroke-width='8' /></svg>");
+  background-size: 14px 14px;
+  background-position: 0 0;
+}
+.rev-cloud .rev-tag {
+  position: absolute;
+  top: -10px; left: 18px;
+  background: var(--sanguine);
+  color: var(--bone);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  padding: 4px 8px;
+  text-transform: uppercase;
+}
+
+/* ---------- PHANTOM LINE BORDER (Pending / disabled) ------------------
+   Long-dash border. Reads as "drawn but not yet built / awaiting upload".
+   ----------------------------------------------------------------------- */
+.phantom {
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(var(--bone), var(--bone)),
+    repeating-linear-gradient(90deg, var(--graphite) 0 16px, transparent 16px 22px),
+    repeating-linear-gradient(0deg,  var(--graphite) 0 16px, transparent 16px 22px),
+    repeating-linear-gradient(90deg, var(--graphite) 0 16px, transparent 16px 22px),
+    repeating-linear-gradient(0deg,  var(--graphite) 0 16px, transparent 16px 22px);
+  background-origin: padding-box, border-box, border-box, border-box, border-box;
+  background-clip: padding-box, border-box, border-box, border-box, border-box;
+  background-size: auto, 100% 1px, 1px 100%, 100% 1px, 1px 100%;
+  background-position: 0 0, 0 0, 0 0, 0 100%, 100% 0;
+  background-repeat: no-repeat;
+  color: var(--graphite);
+  padding: 18px 22px;
+  opacity: 0.75;
+}
+
+/* ---------- HATCH-FILL HOVER -----------------------------------------
+   Diagonal hatch lines emerge on hover — material poché.
+   ----------------------------------------------------------------------- */
+.hatch-hover {
+  position: relative;
+  background: var(--paper);
+  transition: background 0.3s ease;
+}
+.hatch-hover::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(45deg, var(--brass) 0 1px, transparent 1px 6px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.hatch-hover:hover::after { opacity: 0.18; }
+
+/* ---------- TITLE BLOCK FRAME -----------------------------------------
+   Four corner ticks bracketing a panel.
+   ----------------------------------------------------------------------- */
+.title-block {
+  position: relative;
+  padding: 36px 32px;
+  background: var(--bone);
+  border: 1px solid var(--ink);
+}
+.title-block::before,
+.title-block::after,
+.title-block > .tb-tr,
+.title-block > .tb-bl {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  border-color: var(--brass);
+}
+.title-block::before { top: -1px; left: -1px;  border-top: 2px solid var(--brass); border-left: 2px solid var(--brass); }
+.title-block::after  { bottom: -1px; right: -1px; border-bottom: 2px solid var(--brass); border-right: 2px solid var(--brass); }
+.title-block > .tb-tr { top: -1px; right: -1px; border-top: 2px solid var(--brass); border-right: 2px solid var(--brass); }
+.title-block > .tb-bl { bottom: -1px; left: -1px;  border-bottom: 2px solid var(--brass); border-left: 2px solid var(--brass); }
+.title-block-stamp {
+  position: absolute;
+  bottom: -1px; right: -1px;
+  background: var(--ink);
+  color: var(--bone);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  padding: 6px 10px;
+  text-transform: uppercase;
+}
+
+/* ---------- NORTH ARROW WIDGET ----------------------------------------
+   Small directional indicator. Use for next / back navigation.
+   ----------------------------------------------------------------------- */
+.north-arrow {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.north-arrow .arrow-svg {
+  width: 26px; height: 26px;
+}
+
+/* ---------- SCALE CHIP ---------------------------------------------------
+   "1:5 · BCAR-ready" small metadata strip under headings.
+   ----------------------------------------------------------------------- */
+.scale-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  border-left: 2px solid var(--brass);
+  padding-left: 10px;
+}
+
+/* ---------- SEVERITY PILL --------------------------------------------
+   Source-quote style severity tag. Used in findings registers.
+   ----------------------------------------------------------------------- */
+.sev {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  padding: 4px 10px 4px 8px;
+  border: 1px solid currentColor;
+}
+.sev::before {
+  content: ''; width: 6px; height: 6px;
+  background: currentColor;
+  border-radius: 50%;
+}
+.sev.sev-critical { color: var(--sanguine); }
+.sev.sev-high     { color: var(--amber); }
+.sev.sev-medium   { color: var(--olive); }
+.sev.sev-low      { color: var(--moss); }
+
+/* ---------- SOURCE QUOTE BLOCK ---------------------------------------
+   Verbatim quote presented as a drawing note — hairline border + corner
+   tick + page reference in mono.
+   ----------------------------------------------------------------------- */
+.source-quote {
+  position: relative;
+  padding: 18px 22px 16px 28px;
+  border-left: 2px solid var(--brass);
+  background: var(--paper);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.source-quote .src-ref {
+  display: block;
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 0.625rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--graphite);
+}
+.source-quote.redacted {
+  filter: blur(0);
+  color: var(--graphite);
+}
+.source-quote.redacted::after {
+  content: '… [unlock to view full quote]';
+  display: block;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--sanguine);
+}

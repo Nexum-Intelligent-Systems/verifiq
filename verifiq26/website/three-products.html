@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VerifIQ — Three products · Verify · Hunt · Studio</title>
+<meta name="description" content="VerifIQ's three products side by side. Verify for design teams, Hunt for contractors, Studio for sole practitioners. One method behind each." />
+<link rel="stylesheet" href="verifiq-system.css" />
+<link rel="stylesheet" href="verifiq-cad.css" />
+<style>
+  body { background: var(--bone); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+  .wrap-narrow { max-width: 880px; margin: 0 auto; padding: 0 32px; }
+  .top-nav { position: sticky; top: 0; z-index: 50; background: rgba(245,241,235,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--ink); }
+  .top-nav .inner { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .wordmark { font-family: var(--font-serif); font-weight: 600; font-size: 1.4rem; letter-spacing: 0.06em; color: var(--ink); border-bottom: 0; }
+
+  .hero-3 { padding: 64px 0 56px; border-bottom: 1px solid var(--ink); }
+  .hero-3 h1 { font-family: var(--font-serif); font-weight: 600; font-size: clamp(2.5rem,5vw,4.5rem); line-height: 1.05; margin: 16px 0 12px; color: var(--ink); }
+  .hero-3 .lede { font-family: var(--font-serif); font-style: italic; font-size: 1.25rem; color: var(--ink-soft); max-width: 60ch; }
+
+  .section { padding: 72px 0; border-bottom: 1px solid var(--ink); }
+  .section.tint { background: var(--vellum); }
+  .section-head { margin-bottom: 40px; }
+  .section-head h2 { font-family: var(--font-serif); font-weight: 500; font-size: clamp(1.5rem,2.5vw,2.25rem); margin: 0 0 12px; }
+  .section-head p { font-family: var(--font-serif); font-style: italic; color: var(--ink-soft); margin: 0; max-width: 60ch; }
+
+  .product-cards { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--ink); border: 1px solid var(--ink); margin-top: 32px; }
+  @media (min-width: 920px) { .product-cards { grid-template-columns: repeat(3, 1fr); } }
+  .product-card { background: var(--bone); padding: 36px 28px; display: flex; flex-direction: column; min-height: 520px; }
+  .product-card .pip { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.3em; text-transform: uppercase; padding: 3px 8px; border: 1px solid currentColor; display: inline-block; }
+  .product-card.verify .pip { color: var(--brass); }
+  .product-card.hunt .pip { color: var(--amber); }
+  .product-card.studio .pip { color: var(--moss); }
+  .product-card h3 { font-family: var(--font-serif); font-weight: 500; font-size: 2rem; margin: 18px 0 6px; color: var(--ink); }
+  .product-card .who { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--graphite); margin-bottom: 18px; }
+  .product-card .what { font-family: var(--font-sans); font-size: 0.9375rem; line-height: 1.65; color: var(--ink-soft); margin: 0 0 22px; }
+  .product-card .pull { font-family: var(--font-serif); font-style: italic; font-size: 1.0625rem; line-height: 1.4; color: var(--ink); border-left: 2px solid currentColor; padding-left: 14px; margin: 0 0 22px; }
+  .product-card.verify .pull { color: var(--brass); }
+  .product-card.hunt .pull { color: var(--amber); }
+  .product-card.studio .pull { color: var(--moss); }
+  .product-card .pull-inner { color: var(--ink); font-style: italic; }
+  .product-card .price-strap { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.15em; color: var(--graphite); margin: auto 0 18px; padding-top: 18px; border-top: 1px solid rgba(26,26,31,0.1); }
+  .product-card .cta { margin-top: 0; }
+
+  .comparison { width: 100%; border-collapse: collapse; margin-top: 32px; background: var(--bone); }
+  .comparison th, .comparison td { padding: 14px 16px; text-align: left; border: 1px solid var(--ink); font-family: var(--font-sans); font-size: 0.875rem; vertical-align: top; }
+  .comparison th { background: var(--ink); color: var(--bone); font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600; }
+  .comparison td.row-label { background: var(--paper); font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--draft); font-weight: 500; }
+  .comparison .check-v { color: var(--brass); font-weight: 700; }
+  .comparison .check-h { color: var(--amber); font-weight: 700; }
+  .comparison .check-s { color: var(--moss); font-weight: 700; }
+  .comparison .x { color: var(--graphite); }
+
+  .decision-tree { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 32px; }
+  .decision-row { background: var(--bone); border: 1px solid var(--ink); padding: 20px 24px; display: grid; grid-template-columns: 1fr 2fr; gap: 24px; align-items: center; }
+  .decision-row .q { font-family: var(--font-serif); font-style: italic; font-size: 1.0625rem; color: var(--ink); }
+  .decision-row .a { font-family: var(--font-sans); font-size: 0.9375rem; color: var(--ink-soft); line-height: 1.55; }
+  .decision-row .a strong { color: var(--ink); }
+  .decision-row .a .verify-pill { background: var(--brass); color: var(--ink); padding: 2px 8px; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.15em; }
+  .decision-row .a .hunt-pill { background: var(--amber); color: var(--ink); padding: 2px 8px; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.15em; }
+  .decision-row .a .studio-pill { background: var(--moss); color: var(--bone); padding: 2px 8px; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.15em; }
+
+  .locked-block { padding: 48px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); background: var(--paper); text-align: center; }
+  .locked-block .lb-text { font-family: var(--font-serif); font-style: italic; font-size: 1rem; line-height: 1.7; color: var(--ink); max-width: 58ch; margin: 14px auto; padding: 0 20px; }
+
+  footer { padding: 36px 0 40px; background: var(--ink); color: var(--bone); }
+  footer .foot-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--vellum); }
+  footer a { color: var(--vellum); border-bottom: 1px solid var(--graphite); }
+</style>
+</head>
+<body class="paper-texture">
+
+<nav class="top-nav">
+  <div class="wrap inner">
+    <a href="index.html" class="wordmark">VerifIQ</a>
+    <span style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.22em;text-transform:uppercase;color:var(--draft);">— Three products · side by side</span>
+    <a href="onboarding-wizard.html" style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.22em;text-transform:uppercase;color:var(--ink);border-bottom:1px solid var(--ink);">Request the brief ↗</a>
+  </div>
+</nav>
+
+<header class="hero-3">
+  <div class="wrap">
+    <span class="t-eyebrow">— Drawing 40 · Portfolio</span>
+    <h1>Three products. One method.</h1>
+    <p class="lede">VerifIQ ships in three forms — one for the design team, one for contractors, one for the sole practitioner. Same source-quoted method behind each. The point of entry is what changes.</p>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>The three products.</h2>
+      <p>Pick the one that matches the role you're playing on this pack. You can move between them — a practice principal might use Verify on team packs and Studio on personal commissions.</p>
+    </div>
+
+    <div class="product-cards">
+      <div class="product-card verify">
+        <span class="pip">I · Verify</span>
+        <h3>Verify.</h3>
+        <div class="who">For the design team</div>
+        <p class="what">A full pre-tender read across all the disciplines on your project. The atelier's flagship. Multi-discipline coordination cross-pass. Reviewer-signed audit log. Ships up to 600 documents per pack at Tier III.</p>
+        <p class="pull"><span class="pull-inner">"The drawing is the contract. The contract is read closely."</span></p>
+        <p class="price-strap">From €290 per pack · annual seat from €2,800</p>
+        <a href="index.html" class="btn-leader">
+          <span class="leader-num">→</span>
+          <span class="leader-line"></span>
+          <span class="leader-label">Go to Verify</span>
+        </a>
+      </div>
+
+      <div class="product-card hunt">
+        <span class="pip">II · Hunt</span>
+        <h3>Hunt.</h3>
+        <div class="who">For contractors</div>
+        <p class="what">Pre-pricing read of a tender pack. Surface variation exposure, draft tactical RFIs, calculate the exposure band — before the bid team prices it. The discrepancy you'd have found on Friday at six, surfaced Tuesday at ten.</p>
+        <p class="pull"><span class="pull-inner">"Price programme risk from a position of knowledge, not dispute."</span></p>
+        <p class="price-strap">From €290 per pack · annual seat from €5,800</p>
+        <a href="hunt.html" class="btn-leader">
+          <span class="leader-num">→</span>
+          <span class="leader-line"></span>
+          <span class="leader-label">Go to Hunt</span>
+        </a>
+      </div>
+
+      <div class="product-card studio">
+        <span class="pip">III · Studio</span>
+        <h3>Studio.</h3>
+        <div class="who">For the sole practitioner</div>
+        <p class="what">Single discipline, one pack, a lighter touch. For the architect, engineer or surveyor working alone — or as the named lead on one discipline within a wider team. Up to 50 documents. Released within 24 hours.</p>
+        <p class="pull"><span class="pull-inner">"One discipline. One pack. The deliberate quiet."</span></p>
+        <p class="price-strap">€290 per pack · annual seat €2,800</p>
+        <a href="studio.html" class="btn-leader">
+          <span class="leader-num">→</span>
+          <span class="leader-line"></span>
+          <span class="leader-label">Go to Studio</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section tint">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Feature comparison.</h2>
+      <p>What's in each product. Same review discipline; different scope and depth.</p>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table class="comparison">
+        <thead>
+          <tr><th>Feature</th><th>Verify · design team</th><th>Hunt · contractor</th><th>Studio · sole pract.</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="row-label">Disciplines per pack</td><td>All 7</td><td>All 7</td><td>1 (you nominate)</td></tr>
+          <tr><td class="row-label">Document cap (Tier III)</td><td>600</td><td>600</td><td>50</td></tr>
+          <tr><td class="row-label">Multi-discipline coordination pass</td><td><span class="check-v">✓</span></td><td><span class="check-h">✓</span></td><td><span class="x">—</span></td></tr>
+          <tr><td class="row-label">Source-quoted findings</td><td><span class="check-v">✓</span></td><td><span class="check-h">✓</span></td><td><span class="check-s">✓</span></td></tr>
+          <tr><td class="row-label">Reviewer-signed audit log</td><td><span class="check-v">✓</span></td><td><span class="check-h">✓</span></td><td><span class="check-s">✓</span></td></tr>
+          <tr><td class="row-label">RFI register (CA-routed)</td><td><span class="check-v">✓</span></td><td><span class="check-h">✓ tactical</span></td><td>RFI language only</td></tr>
+          <tr><td class="row-label">Variation exposure band</td><td><span class="x">—</span></td><td><span class="check-h">✓</span></td><td><span class="x">—</span></td></tr>
+          <tr><td class="row-label">XLSX export</td><td><span class="check-v">✓</span></td><td><span class="check-h">✓</span></td><td><span class="check-s">✓</span></td></tr>
+          <tr><td class="row-label">Tier I pricing</td><td>€290</td><td>€290</td><td>€290</td></tr>
+          <tr><td class="row-label">Tier II pricing</td><td>€590</td><td>€590</td><td>— (one tier only)</td></tr>
+          <tr><td class="row-label">Tier III pricing</td><td>€890</td><td>€890</td><td>—</td></tr>
+          <tr><td class="row-label">Annual seat (Tier III)</td><td>€11,400</td><td>€11,400</td><td>—</td></tr>
+          <tr><td class="row-label">Annual seat (single user)</td><td>—</td><td>—</td><td>€2,800</td></tr>
+          <tr><td class="row-label">Named users on annual</td><td>5</td><td>5 (bid team)</td><td>1</td></tr>
+          <tr><td class="row-label">Release SLA (Tier I)</td><td>24 hr</td><td>24 hr</td><td>24 hr</td></tr>
+          <tr><td class="row-label">Release SLA (Tier III)</td><td>48 hr</td><td>48 hr</td><td>n/a</td></tr>
+          <tr><td class="row-label">Concierge priority</td><td>Tier III+</td><td>Tier III+</td><td>Annual seat only</td></tr>
+          <tr><td class="row-label">Free taster eligibility</td><td><span class="check-v">✓</span></td><td><span class="check-h">✓</span></td><td><span class="check-s">✓</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>If you're not sure which.</h2>
+      <p>A short decision tree. The wizard works the rest out from your replies — see <a href="onboarding-wizard.html">Request the brief</a>.</p>
+    </div>
+    <div class="decision-tree">
+      <div class="decision-row"><div class="q">"I'm on the design team — multi-discipline, pre-tender."</div><div class="a">Use <span class="verify-pill">VERIFY</span> — the multi-discipline cross-pass is the point.</div></div>
+      <div class="decision-row"><div class="q">"I'm a contractor pricing a tender."</div><div class="a">Use <span class="hunt-pill">HUNT</span> — exposure band and tactical RFI list, not a coordination tool.</div></div>
+      <div class="decision-row"><div class="q">"I'm a sole practitioner signing one discipline."</div><div class="a">Use <span class="studio-pill">STUDIO</span> — lighter touch, one discipline, right-sized.</div></div>
+      <div class="decision-row"><div class="q">"I'm reviewing one discipline of a big team's pack."</div><div class="a">Use <span class="studio-pill">STUDIO</span> — nominate your discipline; we only read that.</div></div>
+      <div class="decision-row"><div class="q">"I'm a QS doing pre-issue BoQ coordination on a multi-discipline pack."</div><div class="a">Use <span class="verify-pill">VERIFY</span> — the multi-discipline cross-pass surfaces BoQ vs spec mismatches.</div></div>
+      <div class="decision-row"><div class="q">"I'm an Assigned Certifier checking doc-set hygiene."</div><div class="a">Use <span class="verify-pill">VERIFY</span> for multi-discipline AC prep; use <span class="studio-pill">STUDIO</span> for single-discipline. <strong>Note:</strong> VerifIQ does not replace AC function.</div></div>
+      <div class="decision-row"><div class="q">"Tender programme is huge — over 600 docs."</div><div class="a">Use <span class="verify-pill">VERIFY</span> Tier IV (Programme) or Tier V (Mega). Concierge route.</div></div>
+      <div class="decision-row"><div class="q">"I just want to see what one of these looks like."</div><div class="a">Free taster on any product — one discipline, 20 docs, counts plus one worked finding.</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section tint">
+  <div class="wrap-narrow" style="text-align:center;">
+    <span class="t-eyebrow">— Common to all three</span>
+    <h2 style="font-family:var(--font-serif);font-weight:500;font-size:clamp(1.5rem,2.5vw,2rem);margin:14px 0 24px;">One method, three points of entry.</h2>
+    <p style="font-family:var(--font-sans);font-size:1rem;line-height:1.7;color:var(--ink-soft);max-width:64ch;margin:0 auto;">Every VerifIQ product reads against the same Irish corpus (I.S. · TGD · BCAR · CWMF · PW-CF · sector-specific). Every product source-quotes every finding. Every product is reviewer-gated by a chartered Irish reviewer before release. Every product carries the same locked legal posture. Every product is in EU data residency. The product name changes; the method does not.</p>
+    <div style="margin-top:32px;display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
+      <a href="onboarding-wizard.html" class="btn-sheet-tag">
+        <span class="sheet-code">A-001</span>
+        <span class="sheet-label">Request the brief <span class="sheet-arrow"></span></span>
+      </a>
+      <a href="pricing.html" class="btn-leader">
+        <span class="leader-num">$</span>
+        <span class="leader-line"></span>
+        <span class="leader-label">Full pricing</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="locked-block">
+  <div class="wrap-narrow">
+    <span class="t-eyebrow">— Notice · Locked Disclaimer</span>
+    <p class="lb-text">VerifIQ is a software-based reading aid. It surfaces, in the documents' own words, what a registered professional may wish to read closely. It does not certify, sign, opine, or substitute for professional judgement. The registered designer reads our output, exercises their own judgement, verifies locally, and signs. The professional indemnity remains theirs. We carry product-quality risk only.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-row" style="margin-bottom:24px;">
+      <a href="index.html" class="wordmark" style="color: var(--brass); border-bottom: 0;">VerifIQ</a>
+      <div style="display:flex;gap:20px;font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.22em;text-transform:uppercase;">
+        <a href="index.html">Verify</a>
+        <a href="hunt.html">Hunt</a>
+        <a href="studio.html">Studio</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="onboarding-wizard.html">Onboard</a>
+      </div>
+    </div>
+    <hr style="border:0;border-top:1px solid var(--graphite);margin:20px 0;">
+    <div class="foot-row">
+      <span>© MMXXVI · VerifIQ · GovIQ Ltd · Dublin</span>
+      <span><a href="legal-notice.html">Legal · per jurisdiction ↗</a></span>
+      <span>Quietly · before the brief</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

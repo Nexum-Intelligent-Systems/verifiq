@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VerifIQ — Pricing · Five tiers · Ireland</title>
+<meta name="description" content="VerifIQ pricing: five tiers from Small to Mega. Per-pack or annual seat. Free taster per quarter. Early-pilot 30% window for the first ten practices." />
+<link rel="stylesheet" href="verifiq-system.css" />
+<link rel="stylesheet" href="verifiq-cad.css" />
+<style>
+  body { background: var(--bone); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+  .wrap-narrow { max-width: 880px; margin: 0 auto; padding: 0 32px; }
+  .top-nav { position: sticky; top: 0; z-index: 50; background: rgba(245,241,235,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--ink); }
+  .top-nav .inner { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .wordmark { font-family: var(--font-serif); font-weight: 600; font-size: 1.4rem; letter-spacing: 0.06em; color: var(--ink); border-bottom: 0; }
+  .nav-meta { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--draft); }
+  .nav-cta { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink); border-bottom: 1px solid var(--ink); padding-bottom: 2px; }
+
+  .hero-p { padding: 80px 0 56px; border-bottom: 1px solid var(--ink); }
+  .hero-p h1 { font-family: var(--font-serif); font-weight: 600; font-size: clamp(2.5rem,5vw,4.5rem); line-height: 1.05; margin: 16px 0 12px; color: var(--ink); }
+  .hero-p .lede { font-family: var(--font-serif); font-style: italic; font-size: 1.25rem; color: var(--ink-soft); max-width: 60ch; }
+
+  .pilot-strip { background: var(--ink); color: var(--bone); padding: 18px 0; }
+  .pilot-strip .inner { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.22em; text-transform: uppercase; }
+  .pilot-strip .meter { color: var(--brass-light); }
+
+  .tiers { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--ink); border: 1px solid var(--ink); margin-top: 56px; }
+  @media (min-width: 720px) { .tiers { grid-template-columns: repeat(5, 1fr); } }
+  .tier-card { background: var(--bone); padding: 32px 22px; display: flex; flex-direction: column; transition: background .25s ease; min-height: 540px; }
+  .tier-card.featured { background: var(--paper); }
+  .tier-card .tier-roman { font-family: var(--font-serif); font-size: 2rem; color: var(--brass); line-height: 1; margin-bottom: 6px; }
+  .tier-card .tier-name { font-family: var(--font-sans); font-weight: 700; font-size: 1.125rem; color: var(--ink); margin-bottom: 4px; }
+  .tier-card .tier-scope { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--graphite); margin-bottom: 22px; }
+  .tier-card .tier-price { font-family: var(--font-serif); font-weight: 500; font-size: 2.25rem; color: var(--ink); line-height: 1; }
+  .tier-card .tier-price-sub { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--graphite); margin-top: 4px; }
+  .tier-card .tier-seat { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(26,26,31,0.1); }
+  .tier-card .tier-seat .lab { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.18em; color: var(--draft); text-transform: uppercase; }
+  .tier-card .tier-seat .amt { font-family: var(--font-serif); font-weight: 500; font-size: 1.25rem; color: var(--ink); margin-top: 4px; }
+  .tier-card ul { list-style: none; padding: 0; margin: 22px 0 0; flex: 1; }
+  .tier-card li { font-family: var(--font-sans); font-size: 0.8125rem; padding: 6px 0; color: var(--ink-soft); display: flex; align-items: baseline; gap: 8px; line-height: 1.4; }
+  .tier-card li::before { content: '·'; color: var(--brass); font-weight: 700; font-size: 1.125rem; line-height: 0.6; }
+  .tier-card .tier-cta { margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(26,26,31,0.1); }
+
+  .free-block { margin-top: 36px; border: 1px solid var(--ink); background: var(--paper); padding: 36px 32px; display: grid; grid-template-columns: 1fr; gap: 22px; }
+  @media (min-width: 720px) { .free-block { grid-template-columns: 1fr 2fr; } }
+  .free-block .free-h { font-family: var(--font-serif); font-style: italic; font-size: 1.75rem; color: var(--ink); }
+  .free-block .free-body p { font-family: var(--font-sans); font-size: 0.9375rem; line-height: 1.65; color: var(--ink-soft); margin: 0 0 14px; }
+
+  .section { padding: 80px 0; border-bottom: 1px solid var(--ink); }
+  .section.tint { background: var(--vellum); }
+  .section-head { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 40px; }
+  @media (min-width: 920px) { .section-head { grid-template-columns: 1fr 2fr; gap: 64px; } }
+  .section-head .num { font-family: var(--font-serif); font-weight: 500; font-size: 3rem; color: var(--brass); line-height: 1; }
+  .section-head h2 { font-family: var(--font-serif); font-weight: 500; font-size: clamp(1.5rem,2.5vw,2.25rem); margin: 0 0 10px; color: var(--ink); }
+  .section-head p { font-family: var(--font-serif); font-style: italic; color: var(--ink-soft); margin: 0; max-width: 60ch; }
+
+  .comparison { width: 100%; border-collapse: collapse; background: var(--bone); margin-top: 32px; }
+  .comparison th, .comparison td { padding: 14px 16px; text-align: left; border: 1px solid var(--ink); font-family: var(--font-sans); font-size: 0.875rem; vertical-align: top; }
+  .comparison th { background: var(--ink); color: var(--bone); font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600; }
+  .comparison td.row-label { background: var(--paper); font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--draft); }
+  .comparison .check { color: var(--moss); font-weight: 700; }
+  .comparison .x { color: var(--graphite); }
+
+  .faq-list { margin-top: 32px; border-top: 1px solid var(--ink); }
+  .faq-item { border-bottom: 1px solid var(--ink); padding: 22px 0; }
+  .faq-item summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 16px; }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item .num { font-family: var(--font-serif); color: var(--brass); font-size: 1.125rem; min-width: 32px; }
+  .faq-item .q { font-family: var(--font-sans); font-weight: 500; font-size: 1rem; color: var(--ink); flex: 1; line-height: 1.4; }
+  .faq-item .toggle { font-family: var(--font-mono); color: var(--brass); font-size: 1.25rem; transition: transform .2s ease; }
+  .faq-item[open] .toggle { transform: rotate(45deg); }
+  .faq-item .answer { font-family: var(--font-sans); font-size: 0.9375rem; line-height: 1.65; color: var(--ink-soft); margin: 12px 0 0 48px; max-width: 64ch; }
+
+  .locked-block { margin: 0; padding: 48px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); background: var(--paper); text-align: center; }
+  .locked-block .lb-text { font-family: var(--font-serif); font-style: italic; font-size: 1rem; line-height: 1.7; color: var(--ink); max-width: 58ch; margin: 14px auto 20px; padding: 0 20px; }
+
+  footer { padding: 40px 0 48px; background: var(--ink); color: var(--bone); }
+  footer a { color: var(--vellum); border-bottom: 1px solid var(--graphite); }
+  footer a:hover { color: var(--brass-light); border-bottom-color: var(--brass-light); }
+  .foot-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; }
+  .foot-marks { display: flex; gap: 20px; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.22em; text-transform: uppercase; }
+  .foot-tag { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--vellum); }
+</style>
+</head>
+<body class="paper-texture">
+
+<nav class="top-nav">
+  <div class="wrap inner">
+    <a href="index.html" class="wordmark">VerifIQ</a>
+    <span class="nav-meta">— Pricing · Ireland · MMXXVI</span>
+    <a href="onboarding-wizard.html" class="nav-cta">Request the brief ↗</a>
+  </div>
+</nav>
+
+<div class="pilot-strip">
+  <div class="wrap inner">
+    <span>Early-pilot — 30% off the first ten practices</span>
+    <span class="meter">10 of 10 pilot seats remaining</span>
+    <span>Closing when filled · MMXXVI</span>
+  </div>
+</div>
+
+<header class="hero-p">
+  <div class="wrap">
+    <span class="t-eyebrow">— Drawing 10 · Pricing</span>
+    <h1>Five tiers. One read.</h1>
+    <p class="lede">Predictable per pack, or an annual seat for the practice. Free taster — one discipline, one pack per quarter, no card needed.</p>
+  </div>
+</header>
+
+<section class="section" id="tiers">
+  <div class="wrap">
+
+    <div class="tiers">
+      <div class="tier-card">
+        <div class="tier-roman">I</div>
+        <div class="tier-name">Small</div>
+        <div class="tier-scope">&lt; 50 docs · 1 discipline</div>
+        <div class="tier-price tab-num">€290</div>
+        <div class="tier-price-sub">+ VAT · per pack</div>
+        <div class="tier-seat"><span class="lab">Annual seat</span><div class="amt tab-num">€2,800/yr</div></div>
+        <ul>
+          <li>Full register · all findings</li>
+          <li>Source quote on every finding</li>
+          <li>RFI-ready language</li>
+          <li>Reviewer-signed audit log</li>
+          <li>Released · within 24 hours</li>
+        </ul>
+        <div class="tier-cta">
+          <a href="onboarding-wizard.html" class="btn-leader"><span class="leader-num">I</span><span class="leader-line"></span><span class="leader-label">Begin Tier I</span></a>
+        </div>
+      </div>
+
+      <div class="tier-card">
+        <div class="tier-roman">II</div>
+        <div class="tier-name">Mid</div>
+        <div class="tier-scope">50–150 · 1–3 disc.</div>
+        <div class="tier-price tab-num">€590</div>
+        <div class="tier-price-sub">+ VAT · per pack</div>
+        <div class="tier-seat"><span class="lab">Annual seat</span><div class="amt tab-num">€5,800/yr</div></div>
+        <ul>
+          <li>Everything in Tier I</li>
+          <li>Up to 3 disciplines</li>
+          <li>Coordination cross-pass</li>
+          <li>XLSX export of register</li>
+          <li>Released · within 36 hours</li>
+        </ul>
+        <div class="tier-cta">
+          <a href="onboarding-wizard.html" class="btn-leader"><span class="leader-num">II</span><span class="leader-line"></span><span class="leader-label">Begin Tier II</span></a>
+        </div>
+      </div>
+
+      <div class="tier-card featured">
+        <div class="tier-roman">III</div>
+        <div class="tier-name">Large</div>
+        <div class="tier-scope">150–600 · full design team</div>
+        <div class="tier-price tab-num">€890</div>
+        <div class="tier-price-sub">+ VAT · per pack</div>
+        <div class="tier-seat"><span class="lab">Annual seat</span><div class="amt tab-num">€11,400/yr</div></div>
+        <ul>
+          <li>Everything in Tier II</li>
+          <li>All disciplines · multi-discipline read</li>
+          <li>Full cross-pass coordination</li>
+          <li>RFI register · CA-routed</li>
+          <li>Released · within 48 hours</li>
+        </ul>
+        <div class="tier-cta">
+          <a href="onboarding-wizard.html" class="btn-sheet-tag"><span class="sheet-code">III</span><span class="sheet-label">Begin Tier III <span class="sheet-arrow"></span></span></a>
+        </div>
+      </div>
+
+      <div class="tier-card">
+        <div class="tier-roman">IV</div>
+        <div class="tier-name">Programme</div>
+        <div class="tier-scope">600–1,500 · multi-pack</div>
+        <div class="tier-price tab-num">€1,950</div>
+        <div class="tier-price-sub">+ VAT · per pack</div>
+        <div class="tier-seat"><span class="lab">Annual seat</span><div class="amt tab-num">€19,800/yr</div></div>
+        <ul>
+          <li>Everything in Tier III</li>
+          <li>Programme-wide coordination</li>
+          <li>Custom corpus uplift</li>
+          <li>Concierge priority queue</li>
+          <li>Released · within 72 hours</li>
+        </ul>
+        <div class="tier-cta">
+          <a href="onboarding-wizard.html" class="btn-leader"><span class="leader-num">IV</span><span class="leader-line"></span><span class="leader-label">Begin Tier IV</span></a>
+        </div>
+      </div>
+
+      <div class="tier-card">
+        <div class="tier-roman">V</div>
+        <div class="tier-name">Mega</div>
+        <div class="tier-scope">&gt; 1,500 · by arr.</div>
+        <div class="tier-price tab-num">from €2,500</div>
+        <div class="tier-price-sub">concierge · by arr.</div>
+        <div class="tier-seat"><span class="lab">Annual seat</span><div class="amt tab-num">from €36,000</div></div>
+        <ul>
+          <li>Everything in Tier IV</li>
+          <li>Dedicated reviewer panel</li>
+          <li>Programme governance support</li>
+          <li>Outcome-priced option available</li>
+          <li>SLA · by arrangement</li>
+        </ul>
+        <div class="tier-cta">
+          <a href="onboarding-wizard.html" class="btn-leader"><span class="leader-num">V</span><span class="leader-line"></span><span class="leader-label">Talk to concierge</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="free-block">
+      <div>
+        <span class="t-eyebrow">— Free Taster</span>
+        <div class="free-h" style="margin-top: 10px;">No card. One per quarter.</div>
+      </div>
+      <div class="free-body">
+        <p>One discipline of your choosing, up to 20 documents per pack, counts and severities only, plus one fully-worked finding so you can see the method. Reviewer-gated like every other pack. The full register, source quotes, RFI register, and reviewer-signed audit log are held behind the paywall.</p>
+        <p style="margin-top: 18px;">
+          <a href="scan-result-free.html" class="btn-sheet-tag"><span class="sheet-code">FREE</span><span class="sheet-label">Run a free taster <span class="sheet-arrow"></span></span></a>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section tint">
+  <div class="wrap">
+    <div class="section-head">
+      <div><div class="num">II.</div><span class="t-eyebrow" style="display:block;margin-top:8px;">— What's in each tier</span></div>
+      <div><h2>Side by side.</h2><p>Every paid tier carries the same source-quote method and reviewer sign-off. What scales is the document cap, the discipline count, and the depth of coordination.</p></div>
+    </div>
+    <div style="overflow-x: auto;">
+    <table class="comparison">
+      <thead>
+        <tr><th>Feature</th><th>Free</th><th>I · Small</th><th>II · Mid</th><th>III · Large</th><th>IV · Prog.</th><th>V · Mega</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="row-label">Document cap</td><td>20</td><td>50</td><td>150</td><td>600</td><td>1,500</td><td>by arr.</td></tr>
+        <tr><td class="row-label">Disciplines</td><td>1</td><td>1</td><td>1–3</td><td>all 7</td><td>multi-pack</td><td>multi-pack</td></tr>
+        <tr><td class="row-label">Findings shown</td><td>counts + 1</td><td>all</td><td>all</td><td>all</td><td>all</td><td>all</td></tr>
+        <tr><td class="row-label">Source quote</td><td>1 finding</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+        <tr><td class="row-label">Reviewer-signed audit log</td><td><span class="x">—</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+        <tr><td class="row-label">XLSX export</td><td><span class="x">—</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+        <tr><td class="row-label">Cross-discipline coordination</td><td><span class="x">—</span></td><td><span class="x">—</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+        <tr><td class="row-label">RFI register</td><td><span class="x">—</span></td><td>RFI language</td><td><span class="check">✓</span></td><td>CA-routed</td><td>CA-routed</td><td>CA-routed</td></tr>
+        <tr><td class="row-label">Document retention</td><td>14 days</td><td>14 days</td><td>14 days</td><td>14 days</td><td>30 days</td><td>by arr.</td></tr>
+        <tr><td class="row-label">Audit log retention</td><td>—</td><td>2 years</td><td>2 years</td><td>7 years</td><td>7 years</td><td>by arr.</td></tr>
+        <tr><td class="row-label">Release SLA</td><td>22 min</td><td>24 hr</td><td>36 hr</td><td>48 hr</td><td>72 hr</td><td>by arr.</td></tr>
+        <tr><td class="row-label">Concierge priority</td><td><span class="x">—</span></td><td><span class="x">—</span></td><td><span class="x">—</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td>dedicated</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div><div class="num">III.</div><span class="t-eyebrow" style="display:block;margin-top:8px;">— Annual seat economics</span></div>
+      <div><h2>Per-pack, or annual seat.</h2><p>An annual seat at Tier III pays for itself at 13 paid packs. Engaged practices typically run 6–12 packs of the relevant size per year, so the seat is the cheaper path once a practice is committed.</p></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:24px;margin-top:24px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:var(--ink);border:1px solid var(--ink);">
+        <div style="background:var(--bone);padding:24px;">
+          <span class="t-eyebrow">— Per-pack</span>
+          <p style="font-family:var(--font-sans);font-size:.9375rem;line-height:1.6;color:var(--ink-soft);margin:12px 0 0;">Pay per scan. No commitment. Right for the first 1–3 packs while you decide.</p>
+        </div>
+        <div style="background:var(--bone);padding:24px;">
+          <span class="t-eyebrow">— Annual seat</span>
+          <p style="font-family:var(--font-sans);font-size:.9375rem;line-height:1.6;color:var(--ink-soft);margin:12px 0 0;">Unlimited packs at chosen tier for one practice (up to 5 named users). Concierge included.</p>
+        </div>
+        <div style="background:var(--bone);padding:24px;">
+          <span class="t-eyebrow">— Multi-seat (Tier IV/V)</span>
+          <p style="font-family:var(--font-sans);font-size:.9375rem;line-height:1.6;color:var(--ink-soft);margin:12px 0 0;">For practices with multiple offices or large teams. Custom — by arrangement with the concierge.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section tint">
+  <div class="wrap-narrow">
+    <div class="section-head">
+      <div><div class="num">IV.</div><span class="t-eyebrow" style="display:block;margin-top:8px;">— Concierge · FAQ</span></div>
+      <div><h2>Common questions.</h2><p>Replied to in person within 48 hours if these don't cover it.</p></div>
+    </div>
+    <div class="faq-list">
+      <details class="faq-item" open><summary><span class="num">I.</span><span class="q">Is VAT included?</span><span class="toggle">+</span></summary><p class="answer">Prices shown are B2B and exclude VAT. Irish VAT at 23% applies to customers in Ireland. For EU customers, reverse-charge VAT rules apply where you provide a valid VAT number. Stripe Tax computes and shows the final amount at checkout.</p></details>
+      <details class="faq-item"><summary><span class="num">II.</span><span class="q">What is the early-pilot 30% window?</span><span class="toggle">+</span></summary><p class="answer">The first ten Irish practices to sign get 30% off any tier, applied to first-year invoices. Once the ten seats are filled, the window closes and standard pricing resumes for all new customers. The discount is intended to acknowledge the pilot risk you take by being early, not as ongoing list pricing.</p></details>
+      <details class="faq-item"><summary><span class="num">III.</span><span class="q">What if my pack falls between tier boundaries?</span><span class="toggle">+</span></summary><p class="answer">We size you to the tier whose document cap covers your pack. A pack of 145 documents fits in Tier II; a pack of 165 sits in Tier III. The corpora and review depth are identical; what changes is the document cap and the discipline count.</p></details>
+      <details class="faq-item"><summary><span class="num">IV.</span><span class="q">What is the refund or re-run policy?</span><span class="toggle">+</span></summary><p class="answer">If you raise a material complaint about a finding within 14 days of release, we re-run the affected discipline at no charge. Refunds are issued only where the platform failed to complete the scan — not as a finding-quality dispute mechanism. The principle: re-run beats refund.</p></details>
+      <details class="faq-item"><summary><span class="num">V.</span><span class="q">Can I cancel an annual seat?</span><span class="toggle">+</span></summary><p class="answer">Annual seats are non-refundable mid-term, but transferable within your practice. You can also pause for up to 60 days per year with concierge approval. Renewal is annual and explicit — we do not auto-renew without confirmation.</p></details>
+      <details class="faq-item"><summary><span class="num">VI.</span><span class="q">How does Tier V outcome-pricing work?</span><span class="toggle">+</span></summary><p class="answer">For programme and mega tiers, we can structure pricing as "scan is included, you pay per accepted critical finding entered into your RFI register." This aligns price with value delivered. Outcome pricing requires a defined acceptance protocol — agreed with the concierge before engagement.</p></details>
+      <details class="faq-item"><summary><span class="num">VII.</span><span class="q">What about international pricing?</span><span class="toggle">+</span></summary><p class="answer">Ireland is the launch market. UK pricing comes online in 2027. EU, Australia, Canada, and US pricing are sequenced behind that, each with its own reviewer panel and corpus. See <a href="legal-notice.html">Legal · per jurisdiction</a> for the regional posture.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="locked-block">
+  <div class="wrap-narrow">
+    <span class="t-eyebrow">— Notice · Locked Disclaimer</span>
+    <p class="lb-text">VerifIQ is a software-based reading aid. It surfaces, in the documents' own words, what a registered professional may wish to read closely. It does not certify, sign, opine, or substitute for professional judgement. The registered designer reads our output, exercises their own judgement, verifies locally, and signs. The professional indemnity remains theirs. We carry product-quality risk only.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-row" style="margin-bottom: 28px;">
+      <a href="index.html" class="wordmark" style="color: var(--brass); border-bottom: 0;">VerifIQ</a>
+      <div class="foot-marks">
+        <a href="index.html">Atelier</a>
+        <a href="hunt.html">Hunt</a>
+        <a href="studio.html">Studio</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="onboarding-wizard.html">Onboard</a>
+        <a href="dashboard-live.html">Console</a>
+      </div>
+    </div>
+    <hr style="border: 0; border-top: 1px solid var(--graphite); margin: 20px 0;" />
+    <div class="foot-row">
+      <span class="foot-tag">© MMXXVI · VerifIQ · A GovIQ Ltd product · Dublin</span>
+      <span class="foot-tag"><a href="legal-notice.html">Legal · per jurisdiction ↗</a></span>
+      <span class="foot-tag">Quietly · before the brief</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

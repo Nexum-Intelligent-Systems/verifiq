@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VerifIQ — Studio · For the sole practitioner</title>
+<meta name="description" content="Studio is VerifIQ for the sole practitioner. Single discipline. One pack. A lighter touch — source-quoted findings on the document set you actually have to sign." />
+<link rel="stylesheet" href="verifiq-system.css" />
+<link rel="stylesheet" href="verifiq-cad.css" />
+<style>
+  body { background: var(--bone); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+  .wrap-narrow { max-width: 760px; margin: 0 auto; padding: 0 32px; }
+  .top-nav { position: sticky; top: 0; z-index: 50; background: rgba(245,241,235,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--ink); }
+  .top-nav .inner { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .wordmark { font-family: var(--font-serif); font-weight: 600; font-size: 1.4rem; letter-spacing: 0.06em; color: var(--ink); border-bottom: 0; }
+  .product-pip { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--moss); padding: 3px 8px; border: 1px solid var(--moss); margin-left: 12px; vertical-align: middle; }
+
+  .hero-s { position: relative; padding: 96px 0 120px; border-bottom: 1px solid var(--ink); overflow: hidden; }
+  .hero-s::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: url('https://images.unsplash.com/photo-1503328427499-d92d1ac3d174?q=80&w=2400&auto=format&fit=crop');
+    background-size: cover; background-position: center;
+    opacity: 0.08; filter: grayscale(1);
+    pointer-events: none;
+  }
+  .hero-s .inner { position: relative; max-width: 760px; }
+  .hero-s h1 { font-family: var(--font-serif); font-weight: 600; font-size: clamp(2.75rem,6vw,5rem); line-height: 1; letter-spacing: -0.01em; margin: 18px 0; color: var(--ink); }
+  .hero-s h1 em { font-style: italic; font-weight: 500; color: var(--moss); }
+  .hero-s .lede { font-family: var(--font-serif); font-style: italic; font-size: 1.25rem; line-height: 1.55; color: var(--ink-soft); max-width: 32em; }
+  .hero-s .ctas { display: flex; gap: 20px; align-items: center; margin-top: 32px; flex-wrap: wrap; }
+
+  .section { padding: 72px 0; border-bottom: 1px solid var(--ink); }
+  .section.tint { background: var(--vellum); }
+  .section-head { margin-bottom: 32px; }
+  .section-head .num { font-family: var(--font-serif); font-weight: 500; font-size: 2.5rem; color: var(--moss); line-height: 1; }
+  .section-head h2 { font-family: var(--font-serif); font-weight: 500; font-size: clamp(1.5rem,2.5vw,2rem); margin: 12px 0 10px; }
+  .section-head p { font-family: var(--font-serif); font-style: italic; color: var(--ink-soft); margin: 0; max-width: 56ch; }
+
+  .panel-pair { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--ink); border: 1px solid var(--ink); }
+  @media (min-width: 720px) { .panel-pair { grid-template-columns: 1fr 1fr; } }
+  .panel { background: var(--bone); padding: 32px 28px; }
+  .panel h3 { font-family: var(--font-serif); font-weight: 500; font-size: 1.375rem; margin: 0 0 12px; }
+  .panel p { font-family: var(--font-sans); font-size: 0.9375rem; line-height: 1.65; color: var(--graphite); margin: 0; }
+
+  .who-list { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 10px; }
+  .who-list li { display: flex; align-items: baseline; gap: 10px; font-family: var(--font-sans); font-size: 0.9375rem; line-height: 1.6; color: var(--ink-soft); }
+  .who-list .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--moss); flex-shrink: 0; margin-top: 7px; }
+
+  .price-block { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--ink); border: 1px solid var(--ink); margin-top: 32px; }
+  @media (min-width: 720px) { .price-block { grid-template-columns: 1fr 1fr; } }
+  .price-cell { background: var(--bone); padding: 36px 28px; display: flex; flex-direction: column; align-items: flex-start; }
+  .price-cell.featured { background: var(--paper); }
+  .price-cell .eye { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.22em; color: var(--moss); text-transform: uppercase; }
+  .price-cell h3 { font-family: var(--font-serif); font-weight: 500; font-size: 1.5rem; margin: 10px 0 4px; }
+  .price-cell .sub { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.18em; color: var(--graphite); text-transform: uppercase; }
+  .price-cell .price { font-family: var(--font-serif); font-weight: 500; font-size: 2.5rem; line-height: 1; margin: 20px 0 6px; color: var(--ink); }
+  .price-cell ul { list-style: none; padding: 0; margin: 20px 0; }
+  .price-cell li { font-family: var(--font-sans); font-size: 0.875rem; padding: 5px 0; color: var(--ink-soft); display: flex; align-items: baseline; gap: 10px; line-height: 1.55; }
+  .price-cell li::before { content: '·'; color: var(--moss); font-weight: 700; font-size: 1.25rem; }
+
+  .testimonial { background: var(--paper); border-left: 3px solid var(--moss); padding: 28px 32px; margin: 32px 0; }
+  .testimonial p { font-family: var(--font-serif); font-style: italic; font-size: 1.25rem; line-height: 1.5; color: var(--ink); margin: 0 0 14px; }
+  .testimonial .cite { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.18em; color: var(--graphite); text-transform: uppercase; }
+
+  .locked-block { padding: 48px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); background: var(--paper); text-align: center; }
+  .locked-block .lb-text { font-family: var(--font-serif); font-style: italic; font-size: 1rem; line-height: 1.7; color: var(--ink); max-width: 58ch; margin: 14px auto; padding: 0 20px; }
+
+  footer { padding: 36px 0 40px; background: var(--ink); color: var(--bone); }
+  footer .foot-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--vellum); max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+  footer a { color: var(--vellum); border-bottom: 1px solid var(--graphite); }
+</style>
+</head>
+<body class="paper-texture">
+
+<nav class="top-nav">
+  <div class="wrap inner">
+    <a href="index.html" class="wordmark">VerifIQ<span class="product-pip">Studio</span></a>
+    <span style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.22em;text-transform:uppercase;color:var(--moss);">— For the sole practitioner</span>
+    <a href="onboarding-wizard.html" style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.22em;text-transform:uppercase;color:var(--ink);border-bottom:1px solid var(--ink);">Request the brief ↗</a>
+  </div>
+</nav>
+
+<header class="hero-s">
+  <div class="wrap inner">
+    <span class="t-eyebrow" style="color:var(--moss);">— Drawing 30 · Studio · Sole practitioner</span>
+    <h1>One discipline. One pack. <em>A lighter touch.</em></h1>
+    <p class="lede">Studio is VerifIQ for the architect, engineer, or surveyor working alone — or as the named lead on a single discipline within a wider team. Source-quoted findings on the document set you actually have to sign.</p>
+    <div class="ctas">
+      <a href="onboarding-wizard.html" class="btn-sheet-tag">
+        <span class="sheet-code" style="background:var(--moss);border-right-color:var(--moss);color:var(--bone);">S-001</span>
+        <span class="sheet-label">Begin Studio <span class="sheet-arrow"></span></span>
+      </a>
+      <a href="#fit" class="btn-leader">
+        <span class="leader-num">01</span>
+        <span class="leader-line"></span>
+        <span class="leader-label">Is this you?</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap-narrow">
+    <div class="section-head">
+      <div class="num">I.</div>
+      <h2>The deliberate quiet.</h2>
+      <p>Studio is built for the practitioner who doesn't need a multi-discipline team product. One discipline. The corpora that matter to your charter. The level of detail your signature requires.</p>
+    </div>
+    <div class="panel-pair">
+      <div class="panel">
+        <h3>Single discipline.</h3>
+        <p>Architecture only, or M&amp;E only, or fire only — whichever charter you hold. We read against that discipline's corpora and surface only the findings that affect your scope. No cross-pass, no other-discipline noise.</p>
+      </div>
+      <div class="panel">
+        <h3>Right-sized pack.</h3>
+        <p>Up to 50 documents per pack. Right for the typical sole-practitioner brief — a residential extension, a small commercial fit-out, a single-discipline review on a wider team's pack where you're the named lead.</p>
+      </div>
+      <div class="panel">
+        <h3>Lighter touch.</h3>
+        <p>One-pass read. Source-quoted findings. RFI-ready language. No coordination cross-pass (that's the multi-discipline product). No reviewer queue overhead. Released within 24 hours.</p>
+      </div>
+      <div class="panel">
+        <h3>Same locked posture.</h3>
+        <p>Same review discipline. Same locked disclaimer. Same audit log. The professional indemnity stays with you; we surface, you verify, you sign.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section tint" id="fit">
+  <div class="wrap-narrow">
+    <div class="section-head">
+      <div class="num">II.</div>
+      <h2>Who Studio is for.</h2>
+      <p>If you recognise yourself in one of these, Studio probably fits.</p>
+    </div>
+    <ul class="who-list">
+      <li><span class="dot"></span>A chartered architect signing a residential extension or refurbishment under PSDP / BCAR.</li>
+      <li><span class="dot"></span>A CEng M&amp;E engineer reviewing one discipline of a wider team's tender pack, where you're the named technical lead.</li>
+      <li><span class="dot"></span>A SCSI quantity surveyor checking a Bill of Quantities for a small commercial fit-out before issue.</li>
+      <li><span class="dot"></span>A fire safety consultant reviewing a fire strategy + cause-and-effect matrix for a single-discipline appointment.</li>
+      <li><span class="dot"></span>A conservation architect reviewing a Method Statement for a Protected Structure works package.</li>
+      <li><span class="dot"></span>An Assigned Certifier preparing the BCAR doc-set hygiene check (NOT the AC function itself — that stays with you).</li>
+      <li><span class="dot"></span>A sole-practitioner architectural technologist drafting under the supervision of a registered architect.</li>
+    </ul>
+    <p style="font-family:var(--font-serif);font-style:italic;color:var(--ink-soft);margin-top:24px;">If your job is multi-discipline coordination on a big team's pack, <a href="index.html">Verify</a> is the right product. If you're a contractor pricing a tender, <a href="hunt.html">Hunt</a> is the right product. Studio is the quietest of the three.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap-narrow">
+    <div class="section-head">
+      <div class="num">III.</div>
+      <h2>Pricing.</h2>
+      <p>Per-pack or annual. Sole practitioners typically pick per-pack and graduate to annual if they run two or more packs per quarter.</p>
+    </div>
+
+    <div class="price-block">
+      <div class="price-cell">
+        <span class="eye">— Per-pack</span>
+        <h3>Studio pack.</h3>
+        <span class="sub">Single discipline · up to 50 docs</span>
+        <div class="price tab-num">€290</div>
+        <span class="sub">+ VAT · per pack</span>
+        <ul>
+          <li>Source-quoted findings</li>
+          <li>RFI-ready language</li>
+          <li>Reviewer-signed audit log</li>
+          <li>XLSX register export</li>
+          <li>Released within 24 hours</li>
+        </ul>
+        <a href="onboarding-wizard.html" class="btn-leader">
+          <span class="leader-num">I</span>
+          <span class="leader-line"></span>
+          <span class="leader-label">Start a Studio pack</span>
+        </a>
+      </div>
+
+      <div class="price-cell featured">
+        <span class="eye">— Annual seat</span>
+        <h3>Studio year.</h3>
+        <span class="sub">Unlimited Studio packs · single user</span>
+        <div class="price tab-num">€2,800</div>
+        <span class="sub">+ VAT · per year</span>
+        <ul>
+          <li>Unlimited Studio packs</li>
+          <li>One named user</li>
+          <li>Concierge replies in 48 hours</li>
+          <li>Audit log retention · 2 years</li>
+          <li>Studio-specific reviewer queue</li>
+        </ul>
+        <a href="onboarding-wizard.html" class="btn-sheet-tag">
+          <span class="sheet-code" style="background:var(--moss);border-right-color:var(--moss);color:var(--bone);">YEAR</span>
+          <span class="sheet-label">Take a Studio year <span class="sheet-arrow"></span></span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section tint">
+  <div class="wrap-narrow">
+    <div class="section-head">
+      <div class="num">IV.</div>
+      <h2>What Studio is not.</h2>
+      <p>Honest about scope. Same as every VerifIQ product.</p>
+    </div>
+    <div style="font-family:var(--font-sans);font-size:1rem;line-height:1.7;color:var(--ink-soft);">
+      <p>Studio is not a substitute for your professional judgement. The chartered eye stays with you; we surface, you verify, you sign.</p>
+      <p>Studio is not a multi-discipline read. If your pack covers more than one discipline, <a href="index.html">Verify</a> is the right product — Studio will only read the discipline you nominate.</p>
+      <p>Studio is not the BCAR Assigned Certifier function. If you are signing as Assigned Certifier, Studio is a reading aid to support your work — it does not replace the AC function.</p>
+      <p>Studio is not a tender-strategy or design-strategy consultancy. We surface what's in the documents you've shared; we do not advise on what to design or how to bid.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap-narrow" style="text-align:center;">
+    <span class="t-eyebrow" style="color:var(--moss);">— Next step</span>
+    <h2 style="font-family:var(--font-serif);font-weight:500;font-size:clamp(1.75rem,3vw,2.5rem);margin:14px 0 12px;">A free taster, on your discipline.</h2>
+    <p style="font-family:var(--font-serif);font-style:italic;font-size:1.125rem;color:var(--ink-soft);margin:0 0 28px;">One discipline. Up to twenty documents. Counts plus one worked finding. No card. Twenty-two minutes end-to-end.</p>
+    <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
+      <a href="scan-result-free.html" class="btn-sheet-tag">
+        <span class="sheet-code" style="background:var(--moss);border-right-color:var(--moss);color:var(--bone);">FREE</span>
+        <span class="sheet-label">Free taster <span class="sheet-arrow"></span></span>
+      </a>
+      <a href="onboarding-wizard.html" class="btn-leader">
+        <span class="leader-num">01</span>
+        <span class="leader-line"></span>
+        <span class="leader-label">Request the brief</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="locked-block">
+  <div class="wrap-narrow">
+    <span class="t-eyebrow">— Notice · Locked Disclaimer</span>
+    <p class="lb-text">VerifIQ is a software-based reading aid. It surfaces, in the documents' own words, what a registered professional may wish to read closely. It does not certify, sign, opine, or substitute for professional judgement. The registered designer reads our output, exercises their own judgement, verifies locally, and signs. The professional indemnity remains theirs. We carry product-quality risk only.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="foot-row">
+    <a href="index.html" style="color:var(--brass);border-bottom:0;font-family:var(--font-serif);font-weight:600;font-size:1.25rem;letter-spacing:0.06em;">VerifIQ</a>
+    <div style="display:flex;gap:20px;font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.22em;text-transform:uppercase;">
+      <a href="index.html">Verify</a>
+      <a href="hunt.html">Hunt</a>
+      <a href="studio.html">Studio</a>
+      <a href="three-products.html">Compare</a>
+      <a href="pricing.html">Pricing</a>
+    </div>
+    <span><a href="legal-notice.html">Legal · per jurisdiction ↗</a></span>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VerifIQ — Hunt · For contractors · Variation exposure read</title>
+<meta name="description" content="Hunt is VerifIQ for contractors. Surface the variation exposure in a tender pack before you price. Source-quoted findings; tactical RFI list; Friday-night discrepancies caught Tuesday morning." />
+<link rel="stylesheet" href="verifiq-system.css" />
+<link rel="stylesheet" href="verifiq-cad.css" />
+<style>
+  body { background: var(--bone); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+  .wrap-narrow { max-width: 880px; margin: 0 auto; padding: 0 32px; }
+  .top-nav { position: sticky; top: 0; z-index: 50; background: rgba(245,241,235,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--ink); }
+  .top-nav .inner { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .wordmark { font-family: var(--font-serif); font-weight: 600; font-size: 1.4rem; letter-spacing: 0.06em; color: var(--ink); border-bottom: 0; }
+  .product-pip { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--amber); padding: 3px 8px; border: 1px solid var(--amber); margin-left: 12px; vertical-align: middle; }
+
+  /* HUNT — slightly more amber/tactical accent than core brand */
+  .hunt-accent { color: var(--amber); }
+  .hunt-border { border-color: var(--amber); }
+
+  .hero-h { position: relative; padding: 80px 0 100px; border-bottom: 1px solid var(--ink); overflow: hidden; }
+  .hero-h::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: url('https://images.unsplash.com/photo-1581094288338-2314dddb7ece?q=80&w=2400&auto=format&fit=crop');
+    background-size: cover; background-position: center;
+    opacity: 0.10; filter: grayscale(1);
+    pointer-events: none;
+  }
+  .hero-h .inner { position: relative; display: grid; grid-template-columns: 1fr; gap: 48px; }
+  @media (min-width: 920px) { .hero-h .inner { grid-template-columns: 1.4fr 1fr; align-items: end; } }
+  .hero-h h1 { font-family: var(--font-serif); font-weight: 600; font-size: clamp(3rem,7vw,6rem); line-height: 0.96; letter-spacing: -0.015em; margin: 18px 0; color: var(--ink); }
+  .hero-h h1 em { font-style: italic; font-weight: 500; color: var(--amber); }
+  .hero-h .lede { font-family: var(--font-serif); font-style: italic; font-size: 1.375rem; line-height: 1.5; color: var(--ink-soft); max-width: 32em; }
+  .hero-h .ctas { display: flex; gap: 20px; align-items: center; margin-top: 28px; flex-wrap: wrap; }
+  .hero-h .data-card { border: 1px solid var(--ink); background: var(--paper); padding: 26px 22px; }
+  .hero-h .data-card .stat { font-family: var(--font-serif); font-weight: 500; font-size: 3rem; color: var(--amber); line-height: 1; }
+  .hero-h .data-card .sub { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--graphite); margin-top: 8px; }
+
+  .section { padding: 80px 0; border-bottom: 1px solid var(--ink); }
+  .section.tint { background: var(--vellum); }
+  .section.dark { background: var(--ink); color: var(--bone); }
+  .section.dark .t-eyebrow { color: var(--brass-light); }
+  .section-head { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 40px; }
+  @media (min-width: 920px) { .section-head { grid-template-columns: 1fr 2fr; gap: 64px; } }
+  .section-head .num { font-family: var(--font-serif); font-weight: 500; font-size: 3rem; color: var(--amber); line-height: 1; }
+  .section.dark .section-head .num { color: var(--brass-light); }
+  .section-head h2 { font-family: var(--font-serif); font-weight: 500; font-size: clamp(1.625rem,3vw,2.5rem); margin: 0 0 12px; }
+  .section-head p { font-family: var(--font-serif); font-style: italic; color: var(--ink-soft); margin: 0; max-width: 58ch; }
+  .section.dark .section-head h2 { color: var(--bone); }
+  .section.dark .section-head p { color: var(--vellum); }
+
+  .three-pillars { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--ink); border: 1px solid var(--ink); }
+  @media (min-width: 720px) { .three-pillars { grid-template-columns: repeat(3, 1fr); } }
+  .pillar { background: var(--bone); padding: 32px 24px; }
+  .pillar .roman { font-family: var(--font-serif); font-size: 2.25rem; color: var(--amber); line-height: 1; margin-bottom: 16px; }
+  .pillar h3 { font-family: var(--font-sans); font-weight: 600; font-size: 1.0625rem; margin: 0 0 12px; }
+  .pillar p { font-family: var(--font-sans); font-size: 0.9375rem; line-height: 1.65; color: var(--graphite); margin: 0; }
+
+  .pricing-h { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--ink); border: 1px solid var(--ink); margin-top: 32px; }
+  @media (min-width: 720px) { .pricing-h { grid-template-columns: 1fr 1fr; } }
+  .price-tile { background: var(--bone); padding: 36px 28px; display: flex; flex-direction: column; }
+  .price-tile.featured { background: var(--paper); }
+  .price-tile .tier-eyebrow { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--amber); margin-bottom: 8px; }
+  .price-tile h3 { font-family: var(--font-serif); font-weight: 500; font-size: 1.625rem; margin: 0 0 10px; }
+  .price-tile .price { font-family: var(--font-serif); font-weight: 500; font-size: 2.75rem; line-height: 1; color: var(--ink); margin: 18px 0 6px; }
+  .price-tile .price-sub { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.18em; color: var(--graphite); text-transform: uppercase; }
+  .price-tile ul { list-style: none; padding: 0; margin: 22px 0; flex: 1; }
+  .price-tile li { font-family: var(--font-sans); font-size: 0.875rem; padding: 6px 0; color: var(--ink-soft); display: flex; align-items: baseline; gap: 10px; line-height: 1.5; }
+  .price-tile li::before { content: '·'; color: var(--amber); font-weight: 700; font-size: 1.25rem; }
+
+  .scenario { background: var(--bone); border: 1px solid var(--ink); padding: 32px 28px; margin-top: 28px; }
+  .scenario h3 { font-family: var(--font-serif); font-weight: 500; font-size: 1.5rem; margin: 0 0 16px; }
+  .scenario .scenario-grid { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--ink); border: 1px solid var(--ink); margin: 20px 0; }
+  @media (min-width: 720px) { .scenario .scenario-grid { grid-template-columns: repeat(3, 1fr); } }
+  .scenario .scenario-stat { background: var(--paper); padding: 20px 18px; text-align: center; }
+  .scenario .scenario-stat .num { font-family: var(--font-serif); font-weight: 500; font-size: 1.875rem; color: var(--amber); line-height: 1; }
+  .scenario .scenario-stat .lab { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--graphite); margin-top: 8px; }
+
+  .pull-q { font-family: var(--font-serif); font-style: italic; font-size: clamp(1.5rem,3vw,2rem); line-height: 1.4; color: var(--bone); max-width: 36ch; }
+
+  .locked-block { padding: 48px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); background: var(--paper); text-align: center; }
+  .locked-block .lb-text { font-family: var(--font-serif); font-style: italic; font-size: 1rem; line-height: 1.7; color: var(--ink); max-width: 58ch; margin: 14px auto; padding: 0 20px; }
+
+  footer { padding: 36px 0 40px; background: var(--ink); color: var(--bone); }
+  footer .foot-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--vellum); }
+  footer a { color: var(--vellum); border-bottom: 1px solid var(--graphite); }
+  footer a:hover { color: var(--brass-light); border-bottom-color: var(--brass-light); }
+</style>
+</head>
+<body class="paper-texture">
+
+<nav class="top-nav">
+  <div class="wrap inner">
+    <a href="index.html" class="wordmark">VerifIQ<span class="product-pip">Hunt</span></a>
+    <span style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);">— For contractors · Pre-pricing</span>
+    <a href="onboarding-wizard.html" style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.22em;text-transform:uppercase;color:var(--ink);border-bottom:1px solid var(--ink);">Request a hunt ↗</a>
+  </div>
+</nav>
+
+<header class="hero-h">
+  <div class="wrap inner">
+    <div>
+      <span class="t-eyebrow" style="color:var(--amber);">— Drawing 20 · Hunt · For contractors</span>
+      <h1>The discrepancy<br/>you'd have found <em>on Friday at six.</em></h1>
+      <p class="lede">Hunt reads tender packs before you price them. Source-quoted findings, tactical RFI list, variation-exposure read. Tuesday morning, not Friday night.</p>
+      <div class="ctas">
+        <a href="onboarding-wizard.html" class="btn-sheet-tag">
+          <span class="sheet-code" style="background:var(--amber);border-right-color:var(--amber);color:var(--ink);">H-001</span>
+          <span class="sheet-label">Start a hunt <span class="sheet-arrow"></span></span>
+        </a>
+        <a href="#scenario" class="btn-leader">
+          <span class="leader-num">01</span>
+          <span class="leader-line"></span>
+          <span class="leader-label">See the math</span>
+        </a>
+      </div>
+    </div>
+    <div class="data-card">
+      <span class="t-eyebrow" style="color:var(--amber);">— Validation pack · pre-tender</span>
+      <div class="stat tab-num" style="margin: 16px 0 4px;">€3.89m</div>
+      <span style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.18em;text-transform:uppercase;color:var(--graphite);">central exposure surfaced · single Stage 2C pack</span>
+      <hr style="border:0;border-top:1px solid rgba(26,26,31,0.12);margin:22px 0;">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+        <div><div style="font-family:var(--font-serif);font-weight:500;font-size:1.5rem;color:var(--amber);line-height:1;">327</div><div style="font-family:var(--font-mono);font-size:.625rem;letter-spacing:.18em;text-transform:uppercase;color:var(--graphite);margin-top:6px;">findings</div></div>
+        <div><div style="font-family:var(--font-serif);font-weight:500;font-size:1.5rem;color:var(--sanguine);line-height:1;">3</div><div style="font-family:var(--font-mono);font-size:.625rem;letter-spacing:.18em;text-transform:uppercase;color:var(--graphite);margin-top:6px;">critical</div></div>
+        <div><div style="font-family:var(--font-serif);font-weight:500;font-size:1.5rem;color:var(--amber);line-height:1;">38h</div><div style="font-family:var(--font-mono);font-size:.625rem;letter-spacing:.18em;text-transform:uppercase;color:var(--graphite);margin-top:6px;">end-to-end</div></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div><div class="num">I.</div><span class="t-eyebrow" style="color:var(--amber);display:block;margin-top:8px;">— What Hunt does</span></div>
+      <div><h2>Three reads, before you price.</h2><p>Hunt is VerifIQ tuned for contractor bid teams. The chartered review stays where it always was — but the document hunt happens faster than your QS can read it.</p></div>
+    </div>
+
+    <div class="three-pillars">
+      <div class="pillar">
+        <div class="roman">I</div>
+        <h3>Pre-pricing variation read</h3>
+        <p>Surface ambiguities, missing scope, contradictory specs, and standards typos before your bid team prices the pack. Each finding source-quoted from the document — you take it into the bid meeting verbatim, not paraphrased.</p>
+      </div>
+      <div class="pillar">
+        <div class="roman">II</div>
+        <h3>Tactical RFI list</h3>
+        <p>The 30-item RFI register the Employer's CA was waiting for, but didn't get because their design team is overloaded. Hunt drafts your RFIs in CA-routed language, ready to submit before the query deadline.</p>
+      </div>
+      <div class="pillar">
+        <div class="roman">III</div>
+        <h3>Variation exposure band</h3>
+        <p>Headline financial estimate of what unresolved items become if they go to award. €24–270k on a typical mid-size pack. Useful for pricing programme risk, useful for the conversation with your bid director.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section tint" id="scenario">
+  <div class="wrap">
+    <div class="section-head">
+      <div><div class="num">II.</div><span class="t-eyebrow" style="color:var(--amber);display:block;margin-top:8px;">— The math</span></div>
+      <div><h2>What it costs you not to hunt.</h2><p>One real Stage 2C pack we read pre-tender. The contractor that priced it caught most of these in week 8 of construction, at variation rates rather than tender rates.</p></div>
+    </div>
+
+    <div class="scenario">
+      <h3>Pack profile</h3>
+      <p style="font-family:var(--font-sans);font-size:.9375rem;line-height:1.65;color:var(--ink-soft);margin:0 0 18px;">Adult Day Service, Stage 2C, public-sector procurement under PW-CF5. 161 documents, five disciplines. Likely Contract Sum €1.1m. Six bidders.</p>
+
+      <div class="scenario-grid">
+        <div class="scenario-stat"><div class="num tab-num">€24k</div><div class="lab">Low band</div></div>
+        <div class="scenario-stat"><div class="num tab-num">€140k</div><div class="lab">Central estimate</div></div>
+        <div class="scenario-stat"><div class="num tab-num">€270k</div><div class="lab">High band</div></div>
+      </div>
+
+      <p style="font-family:var(--font-sans);font-size:.9375rem;line-height:1.65;color:var(--ink-soft);margin:14px 0 0;">Three critical pre-tender items at €8–€90k each. Five high-severity items at €5–€30k each. Twenty medium items at €0.5–€5k each. <strong>Per-pack Hunt fee at this tier: €890.</strong> The math is simple.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section dark">
+  <div class="wrap" style="display:grid;grid-template-columns:1fr;gap:48px;align-items:center;">
+    <p class="pull-q" style="margin:0 auto;text-align:center;max-width:32ch;">"The discrepancy you'd have found on Friday at six — surfaced on Tuesday at ten."</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div><div class="num">III.</div><span class="t-eyebrow" style="color:var(--amber);display:block;margin-top:8px;">— Pricing · per-pack or annual</span></div>
+      <div><h2>Hunt by pack, hunt by year.</h2><p>Per-pack pricing for opportunistic reads. Annual seat for bid teams that price 6+ packs a year.</p></div>
+    </div>
+
+    <div class="pricing-h">
+      <div class="price-tile">
+        <span class="tier-eyebrow">— Per-pack</span>
+        <h3>Pack hunt.</h3>
+        <span style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.18em;text-transform:uppercase;color:var(--graphite);">Tier-priced as Verify · Tier I–V</span>
+        <div class="price tab-num">from €290</div>
+        <div class="price-sub">+ VAT · per pack</div>
+        <ul>
+          <li>Full register · source-quoted</li>
+          <li>Tactical RFI list (CA-routed format)</li>
+          <li>Variation exposure band</li>
+          <li>Reviewer-signed audit log</li>
+          <li>Same SLA as Verify per tier</li>
+        </ul>
+        <a href="pricing.html" class="btn-leader">
+          <span class="leader-num">$</span>
+          <span class="leader-line"></span>
+          <span class="leader-label">See full tier table</span>
+        </a>
+      </div>
+
+      <div class="price-tile featured">
+        <span class="tier-eyebrow">— Annual seat</span>
+        <h3>Hunt year.</h3>
+        <span style="font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.18em;text-transform:uppercase;color:var(--graphite);">For bid teams that price &gt;6 packs/year</span>
+        <div class="price tab-num">from €5,800</div>
+        <div class="price-sub">+ VAT · per year</div>
+        <ul>
+          <li>Unlimited Tier II hunts</li>
+          <li>Up to 5 named bid-team users</li>
+          <li>Concierge priority queue</li>
+          <li>Hunt-specific reviewer routing</li>
+          <li>Annual exposure-band benchmark report</li>
+        </ul>
+        <a href="onboarding-wizard.html" class="btn-sheet-tag">
+          <span class="sheet-code" style="background:var(--amber);border-right-color:var(--amber);color:var(--ink);">SEAT</span>
+          <span class="sheet-label">Take a hunt-year <span class="sheet-arrow"></span></span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section tint">
+  <div class="wrap-narrow">
+    <div class="section-head">
+      <div><div class="num">IV.</div><span class="t-eyebrow" style="color:var(--amber);display:block;margin-top:8px;">— What Hunt is not</span></div>
+      <div><h2>Honest about scope.</h2><p>Hunt is a contractor-bid-team reading aid. It is not a tender-strategy consultancy, a price-prediction tool, or a guarantee of bid success.</p></div>
+    </div>
+    <div style="font-family:var(--font-sans);font-size:1rem;line-height:1.7;color:var(--ink-soft);">
+      <p>Hunt does not tell you what to bid. It surfaces what's missing, ambiguous, or contradictory in the pack so your bid team can price programme risk honestly and submit RFIs that move the pack to clarity before tender close.</p>
+      <p>Hunt does not certify the design — the Employer's design team owns that. Findings are indicative; the registered professional on either side of the table verifies locally.</p>
+      <p>Hunt does not replace your QS or your bid director's judgement. It accelerates the document hunt so your QS spends Friday afternoon on the judgement calls instead of the page-by-page read.</p>
+      <p>Hunt does not work on packs that violate our locked posture — we will not run Hunt on packs you do not have lawful permission to share with us, on US healthcare packs without a BAA, or on UK higher-risk-building packs while Building Safety Act posture is being finalised.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap-narrow" style="text-align:center;">
+    <span class="t-eyebrow" style="color:var(--amber);">— Next step</span>
+    <h2 style="font-family:var(--font-serif);font-weight:500;font-size:clamp(1.75rem,3vw,2.5rem);margin:14px 0 12px;">Send a pack. We'll hunt it.</h2>
+    <p style="font-family:var(--font-serif);font-style:italic;font-size:1.125rem;color:var(--ink-soft);margin:0 0 28px;">Free taster — one discipline, twenty docs, counts and one worked finding. If the math lands, you proceed at tier.</p>
+    <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
+      <a href="scan-result-free.html" class="btn-sheet-tag">
+        <span class="sheet-code" style="background:var(--amber);border-right-color:var(--amber);color:var(--ink);">FREE</span>
+        <span class="sheet-label">Free taster <span class="sheet-arrow"></span></span>
+      </a>
+      <a href="onboarding-wizard.html" class="btn-leader">
+        <span class="leader-num">01</span>
+        <span class="leader-line"></span>
+        <span class="leader-label">Request the brief</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="locked-block">
+  <div class="wrap-narrow">
+    <span class="t-eyebrow">— Notice · Locked Disclaimer</span>
+    <p class="lb-text">VerifIQ is a software-based reading aid. It surfaces, in the documents' own words, what a registered professional may wish to read closely. It does not certify, sign, opine, or substitute for professional judgement. The registered designer reads our output, exercises their own judgement, verifies locally, and signs. The professional indemnity remains theirs. We carry product-quality risk only.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-row" style="margin-bottom:24px;">
+      <a href="index.html" class="wordmark" style="color: var(--brass); border-bottom: 0;">VerifIQ</a>
+      <div style="display:flex;gap:20px;font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.22em;text-transform:uppercase;">
+        <a href="index.html">Verify</a>
+        <a href="hunt.html">Hunt</a>
+        <a href="studio.html">Studio</a>
+        <a href="three-products.html">Compare</a>
+        <a href="pricing.html">Pricing</a>
+      </div>
+    </div>
+    <hr style="border:0;border-top:1px solid var(--graphite);margin:20px 0;">
+    <div class="foot-row">
+      <span>© MMXXVI · VerifIQ · GovIQ Ltd · Dublin</span>
+      <span><a href="legal-notice.html">Legal · per jurisdiction ↗</a></span>
+      <span>Quietly · before the brief</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

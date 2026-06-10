@@ -1,0 +1,168 @@
+/* =====================================================================
+   VerifIQ Design System v0.3 — Engineering / Architectural Register
+   Reference: Arup (Pentagram refresh) — heritage-serif + technical sans
+   Family:   IBM Plex (Serif / Sans / Mono) — OFL via Google Fonts
+   Palette:  Drawing-paper, not SaaS-canvas
+   ===================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* INK */
+  --ink:        #1A1A1F;
+  --ink-soft:   #2A2A30;
+  --graphite:   #6B6B72;
+  --graphite-2: #9A9AA0;
+
+  /* PAPER */
+  --bone:       #F5F1EB;
+  --bone-warm:  #EFE9DB;
+  --vellum:     #E8E2D5;
+  --paper:      #FAF7F1;
+
+  /* DARK SURFACE (for dashboard/console) */
+  --black:      #0E0E12;
+  --charcoal:   #16161C;
+  --slate:      #1F1F26;
+  --hairline:   #2C2C34;
+
+  /* ACCENT */
+  --draft:      #2D4A5F;   /* blueprint blue, desaturated */
+  --draft-light:#4A6F86;
+  --brass:      #B8945A;   /* desaturated luxury cue */
+  --brass-light:#D4B485;
+  --sanguine:   #B23E2E;   /* CRITICAL only */
+  --amber:      #C28A2A;   /* HIGH */
+  --olive:      #6B7340;   /* MEDIUM */
+  --moss:       #4A6F50;   /* LOW / passed */
+
+  /* TYPOGRAPHY */
+  --font-serif: 'IBM Plex Serif', 'Times New Roman', Georgia, serif;
+  --font-sans:  'IBM Plex Sans', -apple-system, system-ui, sans-serif;
+  --font-mono:  'IBM Plex Mono', 'JetBrains Mono', Consolas, monospace;
+
+  /* GRID & RHYTHM */
+  --baseline:   8px;
+  --module:     80px;
+  --gutter:     24px;
+  --hairline-w: 1px;
+
+  /* RADII — minimal, drawings have no radii */
+  --r-sm: 0;
+  --r-md: 2px;
+  --r-lg: 4px;
+
+  /* SHADOWS — flat by default, very rare */
+  --shadow-1: 0 1px 0 0 rgba(26,26,31,0.06);
+  --shadow-2: 0 4px 16px -8px rgba(26,26,31,0.10);
+}
+
+/* ---------- BASE ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bone);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 1.55;
+  font-feature-settings: "lnum", "tnum" 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+body.surface-dark { background: var(--black); color: var(--bone); }
+
+::selection { background: var(--brass); color: var(--ink); }
+
+/* ---------- TYPE SCALE ---------- */
+.t-display {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+.t-h1 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(1.875rem, 3vw, 2.75rem);
+  line-height: 1.15;
+  letter-spacing: -0.005em;
+}
+.t-h2 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  line-height: 1.2;
+}
+.t-h3 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 1.125rem;
+  line-height: 1.3;
+  letter-spacing: 0.005em;
+}
+.t-body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.t-lede {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.25rem;
+  line-height: 1.45;
+  color: var(--graphite);
+}
+.t-label,
+.t-eyebrow {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.6875rem;          /* 11px */
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--draft);
+}
+.t-meta {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  color: var(--graphite);
+}
+.t-data {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- HAIRLINES ---------- */
+.hairline    { border: 0; height: 1px; background: var(--hairline); }
+.hairline-x  { border-top: 1px solid var(--ink); opacity: 0.10; }
+
+/* ---------- DRAWING-PAPER TEXTURE (subtle) ---------- */
+.paper-texture {
+  background-image:
+    repeating-linear-gradient(0deg, rgba(26,26,31,0.012) 0 1px, transparent 1px 4px),
+    radial-gradient(circle at 20% 20%, rgba(184,148,90,0.025), transparent 60%);
+}
+
+/* ---------- GRID OVERLAY (toggle for development) ---------- */
+.grid-overlay {
+  background-image:
+    linear-gradient(rgba(45,74,95,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45,74,95,0.05) 1px, transparent 1px);
+  background-size: var(--module) var(--module);
+}
+
+/* ---------- LINKS ---------- */
+a { color: var(--draft); text-decoration: none; border-bottom: 1px solid currentColor; transition: color 0.2s ease; }
+a:hover { color: var(--sanguine); }
+
+/* ---------- TABULAR FIGURES ---------- */
+.tab-num { font-variant-numeric: tabular-nums; }

@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VerifIQ — CAD Component Library</title>
+<link rel="stylesheet" href="verifiq-system.css" />
+<link rel="stylesheet" href="verifiq-cad.css" />
+<style>
+  /* Page-only layout */
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 56px 32px 120px; }
+  .nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 56px; padding-bottom: 24px; border-bottom: 1px solid var(--ink); }
+  .wordmark { font-family: var(--font-serif); font-weight: 500; font-size: 1.5rem; letter-spacing: 0.08em; color: var(--ink); border-bottom: 0; }
+  .section { margin-top: 72px; }
+  .section + .section { border-top: 1px solid rgba(26,26,31,0.10); padding-top: 56px; }
+  .row { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; margin-top: 24px; padding: 32px 0; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-top: 24px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 24px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 24px; }
+  .demo-tile { background: var(--paper); padding: 28px; }
+  .code { display:block; margin-top:14px; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.04em; color: var(--graphite); white-space: pre-wrap; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; }
+  .section-head .num { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.24em; color: var(--brass); }
+  body { background: var(--bone); }
+</style>
+</head>
+<body class="paper-texture">
+<div class="wrap">
+
+  <!-- NAV -->
+  <nav class="nav">
+    <a href="index.html" class="wordmark">VerifIQ</a>
+    <span class="t-eyebrow">— Spec Sheet · 01 · CAD Library</span>
+    <a href="index.html" class="t-meta">↩ Atelier</a>
+  </nav>
+
+  <!-- HEADER -->
+  <header class="title-block">
+    <span class="tb-tr"></span>
+    <span class="tb-bl"></span>
+    <span class="t-eyebrow">Drawing 01 · Component Reference</span>
+    <h1 class="t-display" style="margin: 12px 0 8px;">CAD Component Library</h1>
+    <p class="t-lede" style="max-width: 56ch;">A vocabulary borrowed from the drawing board — sheet tags, leader callouts, dimension lines, detail bubbles, revision clouds. Built so VerifIQ looks like the work, not like a marketing site.</p>
+    <div style="margin-top: 24px; display: flex; flex-wrap: wrap; gap: 20px;">
+      <span class="scale-chip">Rev · A · 2026-06</span>
+      <span class="scale-chip">IBM Plex · OFL</span>
+      <span class="scale-chip">Bone · Ink · Brass</span>
+    </div>
+    <span class="title-block-stamp">VIQ · 01 · A</span>
+  </header>
+
+  <!-- TYPOGRAPHY -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num">I.</span>
+      <span class="t-eyebrow">Typography</span>
+    </div>
+    <h2 class="t-h1" style="margin-top: 16px;">A heritage-engineering register.</h2>
+    <p class="t-body" style="max-width: 64ch;">IBM Plex Serif for display and the wordmark — a heritage serif with the precision of Arup's register, the openness of an OFL licence. Plex Sans carries the body. Plex Mono labels every datum.</p>
+
+    <div class="grid-3">
+      <div class="demo-tile">
+        <span class="t-eyebrow">Display · Plex Serif</span>
+        <p class="t-display" style="margin: 12px 0 0;">Verified.</p>
+        <span class="code">.t-display</span>
+      </div>
+      <div class="demo-tile">
+        <span class="t-eyebrow">Body · Plex Sans</span>
+        <p class="t-body" style="margin: 12px 0 0;">Each consultant uploads to their own discipline gate. The pack is read against the live Irish corpus and gated by a chartered reviewer.</p>
+        <span class="code">.t-body</span>
+      </div>
+      <div class="demo-tile">
+        <span class="t-eyebrow">Mono · Plex Mono</span>
+        <p class="t-data" style="margin: 12px 0 0; font-size: 0.95rem;">REF · A-510 · 1:5 · 2026-06-01</p>
+        <span class="code">.t-data</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- PALETTE -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num">II.</span>
+      <span class="t-eyebrow">Palette · Drawing paper, not SaaS canvas</span>
+    </div>
+    <h2 class="t-h2" style="margin-top: 16px;">Six pigments, mixed sparingly.</h2>
+    <div class="grid-4">
+      <div>
+        <div style="height: 96px; background: var(--ink); border: 1px solid var(--ink);"></div>
+        <p class="t-meta" style="margin: 10px 0 0;">Ink · #1A1A1F</p>
+      </div>
+      <div>
+        <div style="height: 96px; background: var(--bone); border: 1px solid var(--ink);"></div>
+        <p class="t-meta" style="margin: 10px 0 0;">Bone · #F5F1EB</p>
+      </div>
+      <div>
+        <div style="height: 96px; background: var(--draft); border: 1px solid var(--ink);"></div>
+        <p class="t-meta" style="margin: 10px 0 0;">Draft Blue · #2D4A5F</p>
+      </div>
+      <div>
+        <div style="height: 96px; background: var(--brass); border: 1px solid var(--ink);"></div>
+        <p class="t-meta" style="margin: 10px 0 0;">Brass · #B8945A</p>
+      </div>
+      <div>
+        <div style="height: 96px; background: var(--sanguine); border: 1px solid var(--ink);"></div>
+        <p class="t-meta" style="margin: 10px 0 0;">Sanguine · #B23E2E · Critical only</p>
+      </div>
+      <div>
+        <div style="height: 96px; background: var(--graphite); border: 1px solid var(--ink);"></div>
+        <p class="t-meta" style="margin: 10px 0 0;">Graphite · #6B6B72</p>
+      </div>
+      <div>
+        <div style="height: 96px; background: var(--vellum); border: 1px solid var(--ink);"></div>
+        <p class="t-meta" style="margin: 10px 0 0;">Vellum · #E8E2D5</p>
+      </div>
+      <div>
+        <div style="height: 96px; background: var(--olive); border: 1px solid var(--ink);"></div>
+        <p class="t-meta" style="margin: 10px 0 0;">Olive · #6B7340 · Medium</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUTTONS -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num">III.</span>
+      <span class="t-eyebrow">Buttons · Drawing-derived</span>
+    </div>
+    <h2 class="t-h2" style="margin-top: 16px;">Every action looks like an annotation.</h2>
+
+    <!-- Sheet tag -->
+    <div class="row">
+      <a href="#" class="btn-sheet-tag">
+        <span class="sheet-code">A-201</span>
+        <span class="sheet-label">Request the brief <span class="sheet-arrow"></span></span>
+      </a>
+      <a href="#" class="btn-sheet-tag">
+        <span class="sheet-code">M-301</span>
+        <span class="sheet-label">Begin scan <span class="sheet-arrow"></span></span>
+      </a>
+      <span class="t-meta">.btn-sheet-tag — Primary CTA</span>
+    </div>
+
+    <!-- Leader -->
+    <div class="row">
+      <a href="#" class="btn-leader">
+        <span class="leader-num">01</span>
+        <span class="leader-line"></span>
+        <span class="leader-label">View references</span>
+      </a>
+      <a href="#" class="btn-leader">
+        <span class="leader-num">02</span>
+        <span class="leader-line"></span>
+        <span class="leader-label">Read the manifesto</span>
+      </a>
+      <a href="#" class="btn-leader">
+        <span class="leader-num">03</span>
+        <span class="leader-line"></span>
+        <span class="leader-label">Pricing</span>
+      </a>
+      <span class="t-meta">.btn-leader — Nav / secondary</span>
+    </div>
+
+    <!-- Dimension -->
+    <div class="row">
+      <button class="btn-dimension">
+        <span class="dim-line"></span>
+        Continue
+      </button>
+      <button class="btn-dimension">
+        <span class="dim-line"></span>
+        Step back
+      </button>
+      <button class="btn-dimension">
+        <span class="dim-line"></span>
+        Compile the brief
+      </button>
+      <span class="t-meta">.btn-dimension — Form actions</span>
+    </div>
+  </section>
+
+  <!-- BADGES + BUBBLES -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num">IV.</span>
+      <span class="t-eyebrow">Detail Bubbles · Status</span>
+    </div>
+    <h2 class="t-h2" style="margin-top: 16px;">Severity, read at the glance.</h2>
+    <div class="row">
+      <span class="bubble bubble-critical"><span class="bubble-mark">C</span>Critical · 3</span>
+      <span class="bubble bubble-high"><span class="bubble-mark">H</span>High · 38</span>
+      <span class="bubble bubble-medium"><span class="bubble-mark">M</span>Medium · 47</span>
+      <span class="bubble bubble-low"><span class="bubble-mark">L</span>Low · 22</span>
+    </div>
+    <div class="row">
+      <span class="sev sev-critical">Critical</span>
+      <span class="sev sev-high">High</span>
+      <span class="sev sev-medium">Medium</span>
+      <span class="sev sev-low">Low</span>
+      <span class="t-meta">.sev — Compact severity pill</span>
+    </div>
+  </section>
+
+  <!-- REVISION CLOUD -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num">V.</span>
+      <span class="t-eyebrow">Revision Cloud · Critical wrapper</span>
+    </div>
+    <h2 class="t-h2" style="margin-top: 16px;">When the finding matters, the page tells you.</h2>
+    <div class="rev-cloud" style="margin-top: 24px;">
+      <span class="rev-tag">Rev · A · Critical</span>
+      <span class="t-eyebrow" style="color: var(--sanguine);">Finding · C-03</span>
+      <h3 class="t-h3" style="margin: 8px 0 12px;">Date for Substantial Completion is left blank.</h3>
+      <p class="t-body" style="margin: 0 0 16px;">Liquidated damages are unenforceable as drawn. The Date for Substantial Completion is a required entry in the Form of Tender Schedule, Part 1, Section 4.2.</p>
+      <div class="source-quote">
+        "Date for Substantial Completion: ___________"
+        <span class="src-ref">Form of Tender · Schedule Part 1 · §4.2 · Page 12</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHANTOM + HATCH -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num">VI.</span>
+      <span class="t-eyebrow">States · Pending · Hatched</span>
+    </div>
+    <h2 class="t-h2" style="margin-top: 16px;">Drawn but not yet built.</h2>
+    <div class="grid-2">
+      <div class="phantom">
+        <span class="t-eyebrow" style="color: var(--graphite);">Discipline · VII</span>
+        <h3 class="t-h3" style="margin: 8px 0 6px;">BCAR / Assigned Certifier</h3>
+        <p class="t-meta">Awaiting upload · phantom-line</p>
+      </div>
+      <div class="hatch-hover" style="border: 1px solid var(--ink); padding: 24px;">
+        <span class="t-eyebrow">Hover me</span>
+        <h3 class="t-h3" style="margin: 8px 0 6px;">Hatch on hover</h3>
+        <p class="t-meta">Diagonal poché emerges at 45° · .hatch-hover</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TITLE BLOCK -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num">VII.</span>
+      <span class="t-eyebrow">Title Block · Frame</span>
+    </div>
+    <h2 class="t-h2" style="margin-top: 16px;">A drawing is a contract.</h2>
+    <div class="title-block" style="margin-top: 24px;">
+      <span class="tb-tr"></span>
+      <span class="tb-bl"></span>
+      <span class="t-eyebrow">Pack · 04-26 · HSE Adult Day Service</span>
+      <h3 class="t-h2" style="margin: 12px 0 8px;">Stage 2C Tender Pack</h3>
+      <p class="t-body">187 files · 7 disciplines · Tier III · Dublin · MMXXVI</p>
+      <span class="title-block-stamp">VIQ · 04-26 · A</span>
+    </div>
+  </section>
+
+  <!-- SOURCE QUOTE -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num">VIII.</span>
+      <span class="t-eyebrow">Source Quote · Verbatim</span>
+    </div>
+    <h2 class="t-h2" style="margin-top: 16px;">The document, in its own words.</h2>
+    <div class="source-quote" style="margin-top: 24px;">
+      "Hoist supplier: CARBITAN model 510, ceiling-mounted, 200 kg SWL, with sling integration as per Room Data Sheet 12."
+      <span class="src-ref">M&E Specification · §11.4 · Page 47</span>
+    </div>
+    <div class="source-quote redacted" style="margin-top: 16px;">
+      "The Building Owner is identified as…"
+      <span class="src-ref">Form of Tender · Schedule Part 1 · §1.1 · Page 4</span>
+    </div>
+  </section>
+
+  <!-- NORTH ARROW + SCALE CHIP -->
+  <section class="section">
+    <div class="section-head">
+      <span class="num">IX.</span>
+      <span class="t-eyebrow">Wayfinding · North Arrow · Scale Chip</span>
+    </div>
+    <h2 class="t-h2" style="margin-top: 16px;">Where you are, at what scale.</h2>
+    <div class="row">
+      <span class="north-arrow">
+        <svg class="arrow-svg" viewBox="0 0 26 26" fill="none">
+          <circle cx="13" cy="13" r="12.5" stroke="#1A1A1F"/>
+          <path d="M13 4 L17 18 L13 15 L9 18 Z" fill="#1A1A1F"/>
+          <text x="13" y="25" text-anchor="middle" font-family="IBM Plex Mono" font-size="6" font-weight="600" fill="#1A1A1F">N</text>
+        </svg>
+        <span>North</span>
+      </span>
+      <span class="scale-chip">1:5 · BCAR-ready</span>
+      <span class="scale-chip">Tier III · Large pack</span>
+      <span class="scale-chip">EU · Dublin · West</span>
+    </div>
+  </section>
+
+  <!-- LOCKED DISCLAIMER -->
+  <aside style="margin-top: 80px; padding: 40px 32px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); background: var(--paper);">
+    <div style="max-width: 56rem; margin: 0 auto; text-align: center;">
+      <span class="t-eyebrow" style="display: block; margin-bottom: 16px;">— Notice · Locked Disclaimer</span>
+      <p class="t-lede" style="color: var(--ink); font-size: 1.0625rem; line-height: 1.7; max-width: 60ch; margin: 0 auto;">
+        VerifIQ is a software-based reading aid. It surfaces, in the documents' own words, what a registered professional may wish to read closely. It does not certify, sign, opine, or substitute for professional judgement. The registered designer reads our output, exercises their own judgement, verifies locally, and signs. The professional indemnity remains theirs. We carry product-quality risk only.
+      </p>
+    </div>
+  </aside>
+
+  <!-- FOOTER -->
+  <footer style="margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--ink); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <span class="t-meta">VerifIQ · CAD Component Library · v0.1</span>
+    <a href="legal-notice.html" class="t-meta" style="color: var(--draft); border-bottom: 1px solid var(--draft);">Legal · per jurisdiction ↗</a>
+    <span class="t-meta">MMXXVI · Dublin</span>
+  </footer>
+
+</div>
+</body>
+</html>

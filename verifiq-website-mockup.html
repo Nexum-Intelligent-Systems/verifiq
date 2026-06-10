@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VerifIQ — Find tender pack issues faster.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
+        },
+        colors: {
+          background: '#030303',
+          surface: '#0A0A0A',
+          surface2: '#121212',
+          border: '#222222',
+          primary: '#FFFFFF',
+          secondary: '#A1A1AA',
+          accent: '#818CF8',
+          accent2: '#C084FC',
+        },
+        animation: {
+          'fade-in-up': 'fadeInUp 1s ease-out forwards',
+          'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          'float': 'float 6s ease-in-out infinite',
+        },
+        keyframes: {
+          fadeInUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+          float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } }
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-family: 'Inter', sans-serif; }
+  ::selection { background-color: rgba(129, 140, 248, 0.4); color: #ffffff; }
+  .noise-bg {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    pointer-events: none; z-index: 50; opacity: 0.035;
+  }
+  .glass { background: rgba(15, 15, 15, 0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
+  .gradient-border-wrapper { position: relative; background: #121212; border-radius: 1rem; z-index: 1; }
+  .gradient-border-wrapper::before {
+    content: ""; position: absolute; inset: -1px; border-radius: 1.1rem;
+    background: linear-gradient(45deg, #818CF8, #C084FC, #818CF8); background-size: 200% 200%;
+    z-index: -1; animation: gradientMove 4s ease infinite;
+  }
+  @keyframes gradientMove { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+  .parse-editor { background: #0d1117; color: #c9d1d9; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; line-height: 1.7; overflow: hidden; }
+  .parse-editor-scroll { overflow-x: auto; }
+  .parse-editor .line { display: flex; white-space: pre; min-height: 1.7em; transition: background 120ms ease; }
+  .parse-editor .line.active { background: rgba(255,255,255,0.025); }
+  .parse-editor .num { width: 3rem; padding-right: 1rem; color: #484f58; text-align: right; user-select: none; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .parse-editor .text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .parse-editor .kw { color: #ff7b72; }
+  .parse-editor .cls { color: #d2a8ff; }
+  .parse-editor .fn { color: #d2a8ff; }
+  .parse-editor .vr { color: #79c0ff; }
+  .parse-editor .str { color: #a5d6ff; }
+  .parse-editor .prop { color: #79c0ff; }
+  .parse-editor .cm { color: #8b949e; font-style: italic; }
+  .parse-caret { display: inline-block; width: 0.55ch; height: 1.05em; background: #c9d1d9; margin-left: 1px; vertical-align: -2px; animation: parseCaretBlink 1s step-end infinite; }
+  @keyframes parseCaretBlink { 50% { opacity: 0; } }
+
+  .parse-prose { font-family: 'Inter', sans-serif; font-size: 15px; line-height: 1.8; color: #d1d5db; }
+  .parse-prose .line { display: block; min-height: 1.8em; }
+  .parse-prose em { color: #c4b5fd; font-style: normal; font-weight: 500; background: rgba(196,181,253,0.08); padding: 0 4px; border-radius: 2px; }
+  .parse-prose cite { color: #a78bfa; font-style: normal; background: rgba(167,139,250,0.14); padding: 1px 6px; border-radius: 3px; font-size: 0.8em; font-family: 'JetBrains Mono', ui-monospace, monospace; border: 1px solid rgba(167,139,250,0.28); margin: 0 1px; }
+  .parse-prose .parse-caret { background: #a78bfa; }
+
+  .parse-rail-ico { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; color: #6e7681; }
+  .parse-rail-ico.is-active { color: #c4b5fd; }
+</style>
+</head>
+<body class="bg-[#030303] text-white">
+
+<div class="relative flex flex-col min-h-screen bg-[#030303] text-white overflow-x-hidden">
+
+  <div class="noise-bg" aria-hidden="true" style="background-image: url(&quot;data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E&quot;)"></div>
+  <div class="absolute top-0 left-[-10%] w-[40vw] h-[40vw] rounded-full bg-indigo-900/20 blur-[120px] pointer-events-none mix-blend-screen"></div>
+  <div class="absolute top-[20%] right-[-10%] w-[30vw] h-[30vw] rounded-full bg-fuchsia-900/10 blur-[100px] pointer-events-none mix-blend-screen"></div>
+
+  <header class="fixed top-0 w-full z-40 border-b border-white/[0.04] bg-[#030303]/80 backdrop-blur-xl">
+    <div class="max-w-7xl mx-auto px-6 h-16 sm:h-20 flex justify-between items-center">
+      <a href="#" class="flex items-center gap-2.5 group">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center shadow-[0_0_15px_rgba(129,140,248,0.4)]">
+          <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg>
+        </div>
+        <span class="text-xl font-semibold tracking-tight text-white">VerifIQ</span>
+      </a>
+      <nav class="hidden md:flex gap-8 items-center">
+        <a class="text-sm font-medium text-gray-400 hover:text-white transition-colors" href="#how">How it works</a>
+        <a class="text-sm font-medium text-gray-400 hover:text-white transition-colors" href="#products">Products</a>
+        <a class="text-sm font-medium text-gray-400 hover:text-white transition-colors" href="#guarantees">Guarantees</a>
+        <a class="text-sm font-medium text-gray-400 hover:text-white transition-colors" href="#pricing">Pricing</a>
+      </nav>
+      <div class="flex items-center gap-4">
+        <a href="#" class="hidden sm:block text-sm font-medium text-gray-400 hover:text-white transition-colors">Sign In</a>
+        <a href="#pricing" class="relative inline-flex h-9 items-center justify-center rounded-full bg-white px-5 font-medium text-black transition-transform active:scale-95 hover:bg-gray-200">
+          Run a free check
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 w-full pt-28 sm:pt-36">
+
+    <section class="relative w-full px-6 flex flex-col items-center text-center max-w-[1400px] mx-auto opacity-0 animate-fade-in-up" style="animation-delay: 0.1s">
+      <div class="mb-8 inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 backdrop-blur-md text-xs font-medium text-gray-300">
+        <span class="flex h-2 w-2 rounded-full bg-accent animate-pulse"></span>
+        Introducing VerifIQ — built for Irish standards
+        <svg class="w-3 h-3 ml-1 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </div>
+      <h1 class="text-[clamp(48px,9.5vw,136px)] font-bold tracking-tighter leading-[1.02] mb-8 text-white">
+        Find tender pack <br class="hidden sm:block">
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-indigo-400 animate-pulse-slow">issues faster.</span>
+      </h1>
+      <p class="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto mb-10 font-light">
+        Upload an Irish tender pack. VerifIQ surfaces possible issues — outdated standards, cut-paste from prior projects, missing schedules, FSC condition gaps. Source-quoted evidence. You verify locally.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+        <a href="#pricing" class="inline-flex items-center justify-center h-12 px-8 rounded-full bg-white text-black font-medium text-sm transition-transform active:scale-95 hover:bg-gray-200 w-full sm:w-auto shadow-[0_0_30px_rgba(255,255,255,0.15)]">
+          Run a free check
+        </a>
+        <a href="#live-synth" class="inline-flex items-center justify-center h-12 px-8 rounded-full bg-[#121212] border border-[#222222] text-white font-medium text-sm transition-colors hover:bg-[#222222] w-full sm:w-auto">
+          See it think
+        </a>
+      </div>
+      <p class="mt-6 text-xs font-mono uppercase tracking-[0.3em] text-gray-500">
+        Indicative output · You verify · No professional opinion · EU-hosted
+      </p>
+    </section>
+
+    <section class="relative w-full px-6 mt-20 sm:mt-24 max-w-[1100px] mx-auto">
+      <p class="text-center font-mono text-[10px] uppercase tracking-[0.4em] text-secondary mb-8">— Built against Irish standards corpora —</p>
+      <ul class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-x-8 gap-y-9 items-center justify-items-center">
+        <li class="flex flex-col items-center gap-2">
+          <div class="h-8 px-3 rounded border border-white/10 bg-white/[0.02] flex items-center justify-center text-secondary font-mono text-[10px] tracking-widest">NSAI</div>
+          <span class="font-mono text-[9px] uppercase tracking-[0.2em] text-secondary">I.S. Standards</span>
+        </li>
+        <li class="flex flex-col items-center gap-2">
+          <div class="h-8 px-3 rounded border border-white/10 bg-white/[0.02] flex items-center justify-center text-secondary font-mono text-[10px] tracking-widest">BCAR</div>
+          <span class="font-mono text-[9px] uppercase tracking-[0.2em] text-secondary">SI 9/2014</span>
+        </li>
+        <li class="flex flex-col items-center gap-2">
+          <div class="h-8 px-3 rounded border border-white/10 bg-white/[0.02] flex items-center justify-center text-secondary font-mono text-[10px] tracking-widest">CWMF</div>
+          <span class="font-mono text-[9px] uppercase tracking-[0.2em] text-secondary">ARM4</span>
+        </li>
+        <li class="flex flex-col items-center gap-2">
+          <div class="h-8 px-3 rounded border border-white/10 bg-white/[0.02] flex items-center justify-center text-secondary font-mono text-[10px] tracking-widest">PW-CF</div>
+          <span class="font-mono text-[9px] uppercase tracking-[0.2em] text-secondary">All forms</span>
+        </li>
+        <li class="flex flex-col items-center gap-2">
+          <div class="h-8 px-3 rounded border border-white/10 bg-white/[0.02] flex items-center justify-center text-secondary font-mono text-[10px] tracking-widest">TGD A-M</div>
+          <span class="font-mono text-[9px] uppercase tracking-[0.2em] text-secondary">2024 ed.</span>
+        </li>
+        <li class="flex flex-col items-center gap-2">
+          <div class="h-8 px-3 rounded border border-white/10 bg-white/[0.02] flex items-center justify-center text-secondary font-mono text-[10px] tracking-widest">EUROCODE</div>
+          <span class="font-mono text-[9px] uppercase tracking-[0.2em] text-secondary">+ Irish NA</span>
+        </li>
+        <li class="flex flex-col items-center gap-2">
+          <div class="h-8 px-3 rounded border border-white/10 bg-white/[0.02] flex items-center justify-center text-secondary font-mono text-[10px] tracking-widest">HSE PCM</div>
+          <span class="font-mono text-[9px] uppercase tracking-[0.2em] text-secondary">Estates</span>
+        </li>
+        <li class="flex flex-col items-center gap-2">
+          <div class="h-8 px-3 rounded border border-white/10 bg-white/[0.02] flex items-center justify-center text-secondary font-mono text-[10px] tracking-widest">HBN/HTM</div>
+          <span class="font-mono text-[9px] uppercase tracking-[0.2em] text-secondary">Healthcare</span>
+        </li>
+      </ul>
+    </section>
+
+    <section id="how" class="relative w-full px-4 sm:px-6 mt-20 sm:mt-28 mb-8">
+      <div class="max-w-[1400px] mx-auto">
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-8 px-2">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[10px] font-mono uppercase tracking-[0.3em] text-gray-300 mb-4">
+              <span>Step 01</span>
+              <span class="w-px h-3 bg-white/20"></span>
+              <span class="text-fuchsia-300">Drop a pack</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white">Drop a tender pack. Anything.</h2>
+          </div>
+          <p class="text-gray-400 text-sm sm:text-base max-w-md leading-relaxed">No setup. No file conversion. No CDE wrangling. Drag the pack — drawings, specs, schedules, BoQ, fire reports. We never store the source longer than your retention policy.</p>
+        </div>
+
+        <label class="block group cursor-pointer relative">
+          <div class="absolute -inset-px rounded-2xl bg-gradient-to-r from-indigo-500/0 via-indigo-500/30 to-fuchsia-500/0 opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-500 -z-10"></div>
+          <div class="relative rounded-2xl border-2 border-dashed border-white/15 bg-[#0A0A0A]/80 group-hover:border-indigo-400/60 transition-all duration-300 overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-fuchsia-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <div class="absolute inset-0 opacity-30 pointer-events-none" style="background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 22px 22px; mask-image: radial-gradient(ellipse 70% 60% at center, black 30%, transparent 90%); -webkit-mask-image: radial-gradient(ellipse 70% 60% at center, black 30%, transparent 90%);"></div>
+
+            <div class="relative px-6 sm:px-12 py-12 sm:py-16 flex flex-col items-center text-center">
+              <div class="relative mb-6 sm:mb-8">
+                <div class="absolute -inset-6 bg-indigo-500/25 blur-3xl rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div class="relative w-16 h-20 rounded-md bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] border border-white/10 flex flex-col items-center justify-center gap-1.5 group-hover:scale-105 group-hover:-rotate-2 transition-transform duration-500 shadow-2xl shadow-indigo-500/30">
+                  <svg class="w-7 h-7 text-fuchsia-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6"/>
+                  </svg>
+                  <span class="text-[8px] font-mono text-gray-500 tracking-widest uppercase">PACK</span>
+                </div>
+                <div class="absolute -top-2 -right-4 bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shadow-lg whitespace-nowrap">Up to 1500 pp</div>
+                <div class="absolute top-1.5 left-1.5 w-16 h-20 rounded-md bg-white/[0.02] border border-white/5 -z-10 group-hover:translate-x-1 group-hover:translate-y-1 transition-transform duration-500"></div>
+                <div class="absolute top-3 left-3 w-16 h-20 rounded-md bg-white/[0.015] border border-white/5 -z-20 group-hover:translate-x-2 group-hover:translate-y-2 transition-transform duration-500"></div>
+              </div>
+
+              <h3 class="text-xl sm:text-2xl font-semibold text-white tracking-tight mb-2">Drop your tender pack here</h3>
+              <p class="text-gray-400 text-sm mb-7 max-w-sm">or <span class="text-indigo-300 underline decoration-dotted underline-offset-4 group-hover:text-white transition-colors">click to browse</span> — VerifIQ reads it all. First small pack free, no card.</p>
+
+              <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[10px] font-mono uppercase tracking-[0.25em] text-gray-500 mb-6">
+                <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>EU-hosted · encrypted</span>
+                <span class="text-gray-700 hidden sm:inline">·</span>
+                <span>PDF · DOCX · XLSX · DWG</span>
+                <span class="text-gray-700 hidden sm:inline">·</span>
+                <span>Up to 1500 pages</span>
+              </div>
+
+              <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-[11px] text-gray-400 font-mono">
+                <svg class="w-3 h-3 text-fuchsia-400" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+                <span>Try the demo: <span class="text-white">Stage_2C_Tender_Pack.pdf</span></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              </div>
+            </div>
+          </div>
+          <input type="file" class="sr-only" accept=".pdf,.docx,.xlsx,.dwg">
+        </label>
+
+        <div class="flex flex-col items-center gap-1.5 mt-8 mb-2 text-[10px] font-mono uppercase tracking-[0.3em] text-gray-500">
+          <span>Then</span>
+          <svg class="w-4 h-6 animate-bounce" viewBox="0 0 16 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 4v16m0 0l-4-4m4 4l4-4"/>
+          </svg>
+          <span class="text-fuchsia-300">Watch it check</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="live-synth" class="relative w-full px-4 sm:px-6 mt-16 sm:mt-24 mb-8">
+      <div class="max-w-[1400px] mx-auto">
+
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-8 px-2">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[10px] font-mono uppercase tracking-[0.3em] text-gray-300 mb-4">
+              <span>Step 02</span>
+              <span class="w-px h-3 bg-white/20"></span>
+              <span class="text-indigo-300 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Check · Live</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white">Watch VerifIQ check.</h2>
+          </div>
+          <p class="text-gray-400 text-sm sm:text-base max-w-md leading-relaxed">A real Irish Stage 2C tender pack — 161 PDFs, 560 pages of specs — scanned on the left, findings synthesised into prose on the right. Real time.</p>
+        </div>
+
+        <div class="relative rounded-xl sm:rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_30px_120px_-20px_rgba(129,140,248,0.25)]">
+          <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[60%] h-64 bg-indigo-500/30 blur-[120px] -z-10 pointer-events-none"></div>
+
+          <div class="h-11 bg-[#161b22] border-b border-white/5 flex items-stretch pl-4 pr-4 gap-3">
+            <div class="flex items-center gap-1.5">
+              <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+              <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+              <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+            </div>
+            <div class="flex items-stretch ml-3 gap-px">
+              <div class="flex items-center gap-2 px-3 bg-[#0d1117] border-r border-l border-t border-white/10 -mb-px rounded-t text-xs text-gray-200 font-mono">
+                <svg class="w-3 h-3 text-fuchsia-400" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" opacity=".4"/><path d="M14 2v6h6"/></svg>
+                <span>Stage_2C_Tender_Pack.pdf</span>
+                <span class="w-1 h-1 rounded-full bg-fuchsia-400 ml-1"></span>
+              </div>
+              <div class="hidden sm:flex items-center gap-2 px-3 text-xs text-gray-500 font-mono">
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+                <span>scan.ts</span>
+              </div>
+            </div>
+            <div class="ml-auto flex items-center gap-3 sm:gap-4 text-[10px] font-mono uppercase tracking-[0.25em] text-gray-500">
+              <span class="hidden sm:inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Scanning</span>
+              <span class="hidden md:inline">Files 161</span>
+              <span class="text-indigo-300">96.2%</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 bg-[#0d1117]">
+            <div class="parse-editor relative border-b md:border-b-0 md:border-r border-white/5 min-h-[460px]">
+              <div class="absolute top-0 left-0 w-10 h-full bg-[#0a0d12] border-r border-white/5 flex flex-col items-center py-3 gap-3">
+                <div class="parse-rail-ico is-active">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M2 6a2 2 0 012-2h5l2 2h9a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/></svg>
+                </div>
+                <div class="parse-rail-ico">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="M20 20l-3.5-3.5"/></svg>
+                </div>
+                <div class="parse-rail-ico">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 3v18M18 3v18M3 9h6m6 0h6M3 15h6m6 0h6"/></svg>
+                </div>
+                <div class="parse-rail-ico">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 2"/></svg>
+                </div>
+              </div>
+              <div class="pl-12 pr-4 py-4 parse-editor-scroll">
+                <div id="code-typer"></div>
+              </div>
+            </div>
+
+            <div class="relative bg-[#0a0d12] p-6 sm:p-10 min-h-[460px] flex flex-col">
+              <div class="flex items-center justify-between mb-6 gap-4">
+                <div class="flex items-center gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-fuchsia-400 animate-pulse"></span>
+                  <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-fuchsia-300">Findings Brief</span>
+                </div>
+                <span class="text-[10px] font-mono uppercase tracking-[0.25em] text-gray-500">Stream · v2</span>
+              </div>
+              <div id="prose-typer" class="parse-prose flex-1"></div>
+              <div class="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.25em] text-gray-500 gap-3">
+                <span class="flex items-center gap-1.5">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/></svg>
+                  3 sources cited
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                  Confidence 96.2%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="h-7 bg-gradient-to-r from-indigo-600 via-indigo-500 to-fuchsia-600 px-3 flex items-center text-[10px] text-white/95 font-mono uppercase tracking-[0.2em] gap-3 sm:gap-4 select-none">
+            <span class="flex items-center gap-1.5"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 3v12a3 3 0 003 3h6a3 3 0 003-3V9M6 3l4 4M6 3v6h6"/></svg>main</span>
+            <span class="hidden sm:inline">UTF-8</span>
+            <span>TypeScript</span>
+            <span class="ml-auto">Ln <span id="lnval">1</span></span>
+            <span>Col <span id="colval">1</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="products" class="w-full px-6 py-24 sm:py-32 max-w-6xl mx-auto relative z-10 border-t border-white/5 mt-16">
+      <div class="text-center mb-16 sm:mb-20">
+        <h2 class="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4 text-white">One engine. Three products.</h2>
+        <p class="text-gray-300 text-lg max-w-2xl mx-auto leading-relaxed">Same checking engine. Three audiences. Three pricing models. Pick the one that fits how you work.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <div class="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#0E0E0E] p-8 transition-all hover:border-indigo-500/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.05)]">
+          <div class="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-indigo-500/[0.08] blur-3xl"></div>
+          <div class="relative z-10 h-full flex flex-col">
+            <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-8 text-indigo-400">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 20l-3.5-3.5"/></svg>
+            </div>
+            <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-indigo-400 mb-2">Verify</span>
+            <h3 class="text-2xl font-semibold text-white mb-3 tracking-tight">For design teams.</h3>
+            <p class="text-gray-400 leading-relaxed mb-6 group-hover:text-gray-300 transition-colors">Run a pack before you issue. Catch the cut-paste, the schedule defects, the standards drift your trainees missed.</p>
+            <div class="font-mono text-[11px] uppercase tracking-[0.3em] text-gray-500 mt-auto pt-6 border-t border-white/10 flex justify-between">
+              <span>€150-€800</span><span class="text-indigo-400">per check</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#0E0E0E] p-8 transition-all hover:border-orange-500/40 hover:shadow-[0_0_30px_rgba(249,115,22,0.05)]">
+          <div class="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-orange-500/[0.08] blur-3xl"></div>
+          <div class="relative z-10 h-full flex flex-col">
+            <div class="w-12 h-12 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-8 text-orange-400">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+            </div>
+            <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-orange-400 mb-2">Hunt</span>
+            <h3 class="text-2xl font-semibold text-white mb-3 tracking-tight">For contractors.</h3>
+            <p class="text-gray-400 leading-relaxed mb-6 group-hover:text-gray-300 transition-colors">Scan a tender pack before you commit pricing resource. Variation risk ranked by € exposure with PW-CF clause references.</p>
+            <div class="font-mono text-[11px] uppercase tracking-[0.3em] text-gray-500 mt-auto pt-6 border-t border-white/10 flex justify-between">
+              <span>€300-€2,000</span><span class="text-orange-400">per scan</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#0E0E0E] p-8 transition-all hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.05)]">
+          <div class="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-emerald-500/[0.08] blur-3xl"></div>
+          <div class="relative z-10 h-full flex flex-col">
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-8 text-emerald-400">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/></svg>
+            </div>
+            <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-emerald-400 mb-2">Studio</span>
+            <h3 class="text-2xl font-semibold text-white mb-3 tracking-tight">For sole practitioners.</h3>
+            <p class="text-gray-400 leading-relaxed mb-6 group-hover:text-gray-300 transition-colors">Single-discipline checks for solo architects, engineers and specialist firms. Pay only for the discipline you actually work in.</p>
+            <div class="font-mono text-[11px] uppercase tracking-[0.3em] text-gray-500 mt-auto pt-6 border-t border-white/10 flex justify-between">
+              <span>€60-€300</span><span class="text-emerald-400">per check</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="guarantees" class="relative w-full px-6 py-24 sm:py-32 border-t border-white/5 z-10 overflow-hidden">
+      <div class="absolute inset-0 -z-10">
+        <div class="absolute inset-0 bg-background/85"></div>
+        <div class="absolute inset-0" style="background: radial-gradient(ellipse 70% 50% at 50% 50%, transparent 25%, rgba(3,3,3,0.92) 90%);"></div>
+        <div class="absolute -left-40 top-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-accent/[0.06] blur-3xl pointer-events-none"></div>
+        <div class="absolute -right-40 top-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-accent2/[0.06] blur-3xl pointer-events-none"></div>
+      </div>
+      <div class="max-w-6xl mx-auto">
+        <div class="text-center max-w-2xl mx-auto mb-16">
+          <span class="text-[10px] uppercase tracking-[0.4em] text-accent font-semibold">// § 04 / Why VerifIQ</span>
+          <h2 class="mt-4 text-3xl sm:text-4xl md:text-5xl text-primary leading-[1.05] tracking-tight font-semibold">Four guarantees, printed inside the docs.</h2>
+          <p class="mt-5 text-secondary text-base md:text-lg leading-relaxed">What separates VerifIQ from the wrapper-of-the-week. Audited each release. Built for Irish standards, not ported from a UK tool.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-7">
+
+          <article class="group relative bg-surface2 border border-white/10 hover:border-accent/40 transition-colors p-7 md:p-9 rounded-2xl overflow-hidden">
+            <div class="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-accent/[0.10] blur-3xl pointer-events-none"></div>
+            <div class="relative z-10 flex items-start justify-between mb-6">
+              <div class="w-12 h-12 rounded-xl border border-accent/40 bg-accent/10 text-accent backdrop-blur-sm flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z"/></svg>
+              </div>
+              <span class="font-mono text-[10px] uppercase tracking-[0.4em] text-secondary tabular-nums">V · 01</span>
+            </div>
+            <h3 class="relative z-10 text-2xl md:text-3xl text-primary mb-3 tracking-tight leading-[1.05] font-semibold">Source-quoted, never made up.</h3>
+            <p class="relative z-10 text-secondary text-sm md:text-base leading-relaxed mb-6">Every finding links to the source PDF, page and verbatim quote. VerifIQ cannot surface what it cannot cite — hallucinations fail the source-quote checker before the finding ships.</p>
+            <div class="relative z-10 flex items-baseline justify-between border-t border-white/10 pt-4 font-mono text-[10px] uppercase tracking-[0.3em]">
+              <span class="text-secondary">Citation rate · 100%</span>
+              <span class="text-accent">Verifiable · always</span>
+            </div>
+          </article>
+
+          <article class="group relative bg-surface2 border border-white/10 hover:border-accent2/40 transition-colors p-7 md:p-9 rounded-2xl overflow-hidden">
+            <div class="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-accent2/[0.10] blur-3xl pointer-events-none"></div>
+            <div class="relative z-10 flex items-start justify-between mb-6">
+              <div class="w-12 h-12 rounded-xl border border-accent2/40 bg-accent2/10 text-accent2 backdrop-blur-sm flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <span class="font-mono text-[10px] uppercase tracking-[0.4em] text-secondary tabular-nums">V · 02</span>
+            </div>
+            <h3 class="relative z-10 text-2xl md:text-3xl text-primary mb-3 tracking-tight leading-[1.05] font-semibold">EU-hosted, never lifted.</h3>
+            <p class="relative z-10 text-secondary text-sm md:text-base leading-relaxed mb-6">Your packs stay in EU regions. Inference providers under DPA. Sub-processors disclosed. Single-tenant deployments available for Programme-tier buyers. Customer data never used to train shared models.</p>
+            <div class="relative z-10 flex items-baseline justify-between border-t border-white/10 pt-4 font-mono text-[10px] uppercase tracking-[0.3em]">
+              <span class="text-secondary">Hosting · EU only</span>
+              <span class="text-accent2">DPIA · ready</span>
+            </div>
+          </article>
+
+          <article class="group relative bg-surface2 border border-white/10 hover:border-emerald-400/40 transition-colors p-7 md:p-9 rounded-2xl overflow-hidden">
+            <div class="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-emerald-400/[0.10] blur-3xl pointer-events-none"></div>
+            <div class="relative z-10 flex items-start justify-between mb-6">
+              <div class="w-12 h-12 rounded-xl border border-emerald-400/40 bg-emerald-400/10 text-emerald-300 backdrop-blur-sm flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
+              </div>
+              <span class="font-mono text-[10px] uppercase tracking-[0.4em] text-secondary tabular-nums">V · 03</span>
+            </div>
+            <h3 class="relative z-10 text-2xl md:text-3xl text-primary mb-3 tracking-tight leading-[1.05] font-semibold">Hours, not days.</h3>
+            <p class="relative z-10 text-secondary text-sm md:text-base leading-relaxed mb-6">A 161-file Stage 2C pack — 4 hours, end to end. An independent chartered peer review costs 5-10 days and €7-15k. VerifIQ is the first-pass that surfaces the surface area; humans go deep where it matters.</p>
+            <div class="relative z-10 flex items-baseline justify-between border-t border-white/10 pt-4 font-mono text-[10px] uppercase tracking-[0.3em]">
+              <span class="text-secondary">Tier 2 · 4 hours</span>
+              <span class="text-emerald-300">Tier 1 · 60 min</span>
+            </div>
+          </article>
+
+          <article class="group relative bg-surface2 border border-white/10 hover:border-amber-400/40 transition-colors p-7 md:p-9 rounded-2xl overflow-hidden">
+            <div class="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-amber-400/[0.10] blur-3xl pointer-events-none"></div>
+            <div class="relative z-10 flex items-start justify-between mb-6">
+              <div class="w-12 h-12 rounded-xl border border-amber-400/40 bg-amber-400/10 text-amber-300 backdrop-blur-sm flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
+              </div>
+              <span class="font-mono text-[10px] uppercase tracking-[0.4em] text-secondary tabular-nums">V · 04</span>
+            </div>
+            <h3 class="relative z-10 text-2xl md:text-3xl text-primary mb-3 tracking-tight leading-[1.05] font-semibold">Indicative output, no liability.</h3>
+            <p class="relative z-10 text-secondary text-sm md:text-base leading-relaxed mb-6">VerifIQ surfaces possible issues for you to verify. It does not certify, sign off or provide professional advice. No PI exposure. You keep the judgement. The tool keeps you out of trouble.</p>
+            <div class="relative z-10 flex items-baseline justify-between border-t border-white/10 pt-4 font-mono text-[10px] uppercase tracking-[0.3em]">
+              <span class="text-secondary">Liability · disclaimed</span>
+              <span class="text-amber-300">You · verify</span>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <section class="w-full px-6 py-20 sm:py-28 max-w-6xl mx-auto relative z-10">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 lg:gap-16 items-center">
+        <div class="md:col-span-7 relative">
+          <div class="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 bg-surface2">
+            <div class="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-[#0a0a0a] to-fuchsia-900/30"></div>
+            <div class="absolute inset-0 opacity-30" style="background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px); background-size: 22px 22px;"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div class="w-full max-w-md mx-auto px-8 space-y-3">
+                <div class="bg-[#0d1117]/90 backdrop-blur border border-white/10 rounded-lg p-4 font-mono text-[11px] text-gray-300">
+                  <div class="flex justify-between mb-2"><span class="text-indigo-400">Architectural</span><span class="text-gray-500">142 findings</span></div>
+                  <div class="h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 w-[85%]"></div></div>
+                </div>
+                <div class="bg-[#0d1117]/90 backdrop-blur border border-white/10 rounded-lg p-4 font-mono text-[11px] text-gray-300">
+                  <div class="flex justify-between mb-2"><span class="text-fuchsia-400">Civil &amp; Structural</span><span class="text-gray-500">53 findings</span></div>
+                  <div class="h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-fuchsia-500 to-fuchsia-400 w-[55%]"></div></div>
+                </div>
+                <div class="bg-[#0d1117]/90 backdrop-blur border border-white/10 rounded-lg p-4 font-mono text-[11px] text-gray-300">
+                  <div class="flex justify-between mb-2"><span class="text-emerald-400">Mechanical</span><span class="text-gray-500">72 findings</span></div>
+                  <div class="h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 w-[68%]"></div></div>
+                </div>
+                <div class="bg-[#0d1117]/90 backdrop-blur border border-white/10 rounded-lg p-4 font-mono text-[11px] text-gray-300">
+                  <div class="flex justify-between mb-2"><span class="text-amber-400">Electrical</span><span class="text-gray-500">47 findings</span></div>
+                  <div class="h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-amber-500 to-amber-400 w-[60%]"></div></div>
+                </div>
+                <div class="bg-[#0d1117]/90 backdrop-blur border border-white/10 rounded-lg p-4 font-mono text-[11px] text-gray-300">
+                  <div class="flex justify-between mb-2"><span class="text-red-400">Fire</span><span class="text-gray-500">13 findings</span></div>
+                  <div class="h-1 bg-white/5 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-red-500 to-red-400 w-[35%]"></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/85 border border-white/15 backdrop-blur-md">
+              <span class="relative flex h-2 w-2">
+                <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-400"></span>
+              </span>
+              <span class="font-mono text-[10px] uppercase tracking-[0.3em] text-secondary">5 disciplines · parallel</span>
+            </div>
+            <div class="absolute -bottom-6 -right-6 hidden md:flex flex-col gap-2 w-56 rounded-xl border border-white/10 bg-surface2/95 backdrop-blur-md p-4 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.55)]">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-mono uppercase tracking-widest text-secondary">Total · 327 findings</span>
+                <span class="text-[10px] font-mono text-accent">Live</span>
+              </div>
+              <ul class="flex flex-col gap-1.5 text-[11px] text-primary">
+                <li class="flex justify-between"><span>CRITICAL</span><span class="text-red-400 tabular-nums">30</span></li>
+                <li class="flex justify-between"><span>HIGH</span><span class="text-orange-400 tabular-nums">144</span></li>
+                <li class="flex justify-between"><span>MEDIUM</span><span class="text-yellow-400 tabular-nums">116</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="md:col-span-5 flex flex-col justify-center">
+          <span class="text-[10px] uppercase tracking-[0.4em] text-accent font-semibold mb-4">// CHAPTER A · ROUTING</span>
+          <h2 class="text-3xl md:text-4xl text-primary leading-[1.05] tracking-tight font-semibold mb-5 border-l-2 border-accent pl-4">Right discipline, right standard, right second.</h2>
+          <p class="text-secondary text-base md:text-lg leading-relaxed mb-4">Five parallel discipline checkers — architectural, civil &amp; structural, mechanical, electrical, fire. Each runs against its own chartered Irish standards corpus. Cross-discipline coordination layer surfaces the gaps between them.</p>
+          <p class="text-secondary text-sm md:text-base leading-relaxed mb-6">Smart routing puts cheap models on hygiene checks and frontier models on cross-discipline reasoning. The bill is published per check. No black-box billing, no surprise tiers.</p>
+          <ul class="flex flex-col gap-3 font-mono text-[11px] uppercase tracking-[0.25em] text-secondary border-t border-white/10 pt-5">
+            <li class="flex justify-between"><span>Disciplines · 5</span><span class="text-accent">Parallel</span></li>
+            <li class="flex justify-between"><span>Cost · per-token</span><span class="text-accent">Published</span></li>
+            <li class="flex justify-between"><span>Corpus · Irish</span><span class="text-accent">Chartered</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="w-full px-6 py-20 sm:py-28 max-w-6xl mx-auto relative z-10">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 lg:gap-16 items-center">
+        <div class="md:col-span-5 flex flex-col justify-center order-2 md:order-1">
+          <span class="text-[10px] uppercase tracking-[0.4em] text-accent2 font-semibold mb-4 md:text-right">// CHAPTER B · CORPUS</span>
+          <h2 class="text-3xl md:text-4xl text-primary leading-[1.05] tracking-tight font-semibold mb-5 border-r-2 border-accent2 pr-4 md:text-right">Read once. Reference forever.</h2>
+          <p class="text-secondary text-base md:text-lg leading-relaxed mb-4 md:text-right">VerifIQ maintains a live Irish standards corpus — I.S., I.S. EN, EN+NA, BS where adopted, TGD A-M, BCAR SI 9/2014, CWMF ARM4, PW-CF forms, HSE PCM, HBN, HTM, HIQA. Updated monthly. Stamped on every check.</p>
+          <p class="text-secondary text-sm md:text-base leading-relaxed mb-6 md:text-right">When NSAI publishes I.S. 3218:2024 or EU 2024/573 lands, the corpus updates. Your checks pick up the new standard within the week. No drift.</p>
+          <ul class="flex flex-col gap-3 font-mono text-[11px] uppercase tracking-[0.25em] text-secondary border-t border-white/10 pt-5">
+            <li class="flex justify-between"><span class="text-accent2">800+</span><span>Standards · indexed</span></li>
+            <li class="flex justify-between"><span class="text-accent2">Monthly</span><span>Corpus · refresh</span></li>
+            <li class="flex justify-between"><span class="text-accent2">Stamped</span><span>Version · per check</span></li>
+          </ul>
+        </div>
+        <div class="md:col-span-7 relative order-1 md:order-2">
+          <div class="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 bg-surface2">
+            <div class="absolute inset-0 bg-gradient-to-bl from-fuchsia-900/40 via-[#0a0a0a] to-indigo-900/30"></div>
+            <div class="absolute inset-0 p-8 overflow-hidden">
+              <div class="grid grid-cols-3 gap-2 h-full text-[10px] font-mono">
+                <div class="bg-[#0d1117]/80 backdrop-blur border border-white/10 rounded p-2 text-gray-300"><div class="text-fuchsia-400 mb-1">I.S. 10101:2020+A1:2024</div><div class="text-gray-500 text-[9px]">Electrical installations</div></div>
+                <div class="bg-[#0d1117]/80 backdrop-blur border border-white/10 rounded p-2 text-gray-300"><div class="text-fuchsia-400 mb-1">I.S. 3218:2024</div><div class="text-gray-500 text-[9px]">Fire detection</div></div>
+                <div class="bg-[#0d1117]/80 backdrop-blur border border-white/10 rounded p-2 text-gray-300"><div class="text-fuchsia-400 mb-1">I.S. 3217:2023</div><div class="text-gray-500 text-[9px]">Emergency lighting</div></div>
+                <div class="bg-[#0d1117]/80 backdrop-blur border border-white/10 rounded p-2 text-gray-300"><div class="text-indigo-400 mb-1">TGD-B Vol 2 (2024)</div><div class="text-gray-500 text-[9px]">Fire safety</div></div>
+                <div class="bg-[#0d1117]/80 backdrop-blur border border-white/10 rounded p-2 text-gray-300"><div class="text-indigo-400 mb-1">TGD-M (2022)</div><div class="text-gray-500 text-[9px]">Access &amp; use</div></div>
+                <div class="bg-[#0d1117]/80 backdrop-blur border border-white/10 rounded p-2 text-gray-300"><div class="text-indigo-400 mb-1">TGD-L (2022)</div><div class="text-gray-500 text-[9px]">NZEB energy</div></div>
+                <div class="bg-[#0d1117]/80 backdrop-blur border border-white/10 rounded p-2 text-gray-300"><div class="text-emerald-400 mb-1">SI 9/2014</div><div class="text-gray-500 text-[9px]">BCAR</div></div>
+                <div class="bg-[#0d1117]/80 backdrop-blur border border-white/10 rounded p-2 text-gray-300"><div class="text-emerald-400 mb-1">SI 284/2016</div><div class="text-gray-500 text-[9px]">EU procurement</div></div>
+                <div class="bg-[#0d1117]/80 backdrop-blur border border-white/10 rounded p-2 text-gray-300"><div class="text-emerald-400 mb-1">CWMF ARM4</div><div class="text-gray-500 text-[9px]">+ Supp1Iss2</div></div>
+                <div class="bg-[#0d1117]/80 backdrop-blur border border-white/10 rounded p-2 text-gray-300"><div class="text-amber-400 mb-1">PW-CF1/3/5</div><div class="text-gray-500 text-[9px]">All forms</div></div>
+                <div class="bg-[#0d1117]/80 backdrop-blur border border-white/10 rounded p-2 text-gray-300"><div class="text-amber-400 mb-1">EU 2024/573</div><div class="text-gray-500 text-[9px]">F-Gas</div></div>
+                <div class="bg-[#0d1117]/80 backdrop-blur border border-white/10 rounded p-2 text-gray-300"><div class="text-amber-400 mb-1">HTM 04-01</div><div class="text-gray-500 text-[9px]">Water · HSE L8</div></div>
+              </div>
+            </div>
+            <div class="absolute top-4 right-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/85 border border-white/15 backdrop-blur-md">
+              <span class="font-mono text-[10px] uppercase tracking-[0.3em] text-secondary">Corpus v.2026.05</span>
+              <span class="text-[10px] font-mono text-accent2">Live</span>
+            </div>
+            <div class="absolute -bottom-6 -left-6 hidden md:flex flex-col gap-2 w-60 rounded-xl border border-white/10 bg-surface2/95 backdrop-blur-md p-4 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.55)]">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-mono uppercase tracking-widest text-secondary">Last refresh · 22-May</span>
+                <span class="text-[10px] font-mono text-emerald-400">✓ current</span>
+              </div>
+              <ul class="flex flex-col gap-1.5 text-[11px] text-primary">
+                <li class="flex justify-between"><span>I.S. EN added</span><span class="text-secondary tabular-nums">14</span></li>
+                <li class="flex justify-between"><span>TGD updates</span><span class="text-secondary tabular-nums">3</span></li>
+                <li class="flex justify-between"><span>Standards total</span><span class="text-secondary tabular-nums">847</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="w-full px-6 py-24 sm:py-32 border-t border-white/5 relative z-10">
+      <div class="max-w-6xl mx-auto">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-16 gap-8">
+          <div>
+            <h2 class="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4 text-white">See VerifIQ in action.</h2>
+            <p class="text-gray-300 text-lg max-w-xl">A real spec extract on the left. The VerifIQ finding on the right. Source-quoted, page-referenced, ranked for your verification.</p>
+          </div>
+        </div>
+        <div class="grid md:grid-cols-12 gap-8 items-stretch">
+          <div class="md:col-span-7 rounded-2xl border border-white/10 bg-[#0A0A0A] p-6 sm:p-8 relative group overflow-hidden shadow-lg">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+            <div class="font-mono text-[11px] uppercase tracking-[0.3em] text-fuchsia-300 mb-4 flex items-center gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-fuchsia-400"></span>
+              Source · Electrical Specification §12.20
+            </div>
+            <div class="font-serif text-base sm:text-lg leading-relaxed text-gray-400 space-y-4">
+              <p><span class="text-gray-300 font-semibold">12.20 LIGHTNING PROTECTION SYSTEM</span></p>
+              <p>The lightning protection system shall be designed in accordance with BS 7430 and BS EN 62305. The installation is for the proposed <span class="bg-red-500/20 text-gray-100 px-1.5 py-0.5 rounded border border-red-500/30">School Type Building at Convent Hill, Ballina, Co. Mayo</span> being a 2-storey structure approximately <span class="bg-red-500/20 text-gray-100 px-1.5 py-0.5 rounded border border-red-500/30">11.0m high</span>.</p>
+              <p>The system shall comprise air termination network, down conductors, and earth termination network in compliance with the architectural drawings prepared by <span class="bg-red-500/20 text-gray-100 px-1.5 py-0.5 rounded border border-red-500/30">SJK Architects</span>.</p>
+            </div>
+          </div>
+          <div class="md:col-span-5 relative">
+            <div class="hidden md:block absolute top-1/2 -left-8 w-8 border-t border-dashed border-white/20"></div>
+            <div class="rounded-2xl border border-white/10 bg-[#121212] p-6 sm:p-8 shadow-2xl relative h-full flex flex-col">
+              <div class="flex items-center gap-2 mb-6">
+                <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                <span class="text-xs font-mono uppercase tracking-widest text-red-400 font-semibold">Finding · CRITICAL</span>
+              </div>
+              <div class="font-mono text-[10px] uppercase tracking-[0.3em] text-gray-500 mb-2">E-103</div>
+              <h4 class="text-xl font-semibold text-white mb-4 leading-tight">Wrong-project cut-paste in Lightning Protection spec.</h4>
+              <p class="text-gray-300 text-sm leading-relaxed flex-1">
+                Spec §12.20 describes a 2-storey school in Co. Mayo (Convent Hill, Ballina) with a different architect (SJK). The actual project is a single-storey day-centre in Dublin. The entire lightning protection design intent has been imported from a different project without project-specific adaptation. <span class="text-fuchsia-300 font-medium">Please verify locally and request a re-issue from the M&amp;E designer.</span>
+              </p>
+              <div class="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+                <div class="flex items-center gap-2 text-gray-400">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/></svg>
+                  <span class="text-[10px] font-mono uppercase tracking-widest">Elec Spec · p.78 · §12.20</span>
+                </div>
+                <div class="px-2 py-1 bg-white/5 border border-white/5 rounded text-[10px] font-mono text-gray-400">Cited verbatim</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing" class="w-full px-6 py-24 sm:py-32 relative z-10 border-t border-white/5">
+      <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-16 sm:mb-20">
+          <h2 class="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4 text-white">Pay per check. Or subscribe.</h2>
+          <p class="text-gray-300 text-lg max-w-xl mx-auto">First check is free. No card required. Subscriptions for active practices, contractors and programmes.</p>
+        </div>
+        <div class="grid md:grid-cols-4 gap-6 items-stretch">
+
+          <div class="rounded-2xl border border-white/10 bg-[#0E0E0E] p-8 flex flex-col h-full hover:border-emerald-500/40 transition-colors shadow-lg">
+            <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-emerald-400 mb-2">Studio</span>
+            <h3 class="text-xl font-medium text-white mb-2">Single discipline</h3>
+            <p class="text-sm text-gray-300 mb-8">Sole practitioners. Pick the discipline you actually work in.</p>
+            <div class="mb-8 flex items-baseline gap-1">
+              <span class="text-4xl font-bold tracking-tighter text-white">€60</span>
+              <span class="text-gray-400 text-sm">/check</span>
+            </div>
+            <ul class="space-y-3 mb-8 flex-1 text-sm text-gray-200">
+              <li class="flex items-start gap-2"><span class="text-emerald-400 mt-1">✓</span>Arch, C&amp;S, M&amp;E, Fire or Elec only</li>
+              <li class="flex items-start gap-2"><span class="text-emerald-400 mt-1">✓</span>Source-quoted findings</li>
+              <li class="flex items-start gap-2"><span class="text-emerald-400 mt-1">✓</span>Excel + Word export</li>
+              <li class="flex items-start gap-2"><span class="text-emerald-400 mt-1">✓</span>~90 min turnaround</li>
+            </ul>
+            <a href="#" class="w-full inline-flex h-11 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-white font-medium text-sm hover:bg-white/10 transition-all">
+              Start free
+            </a>
+          </div>
+
+          <div class="gradient-border-wrapper shadow-2xl shadow-indigo-500/10">
+            <div class="h-full bg-[#121212] rounded-2xl p-8 flex flex-col relative overflow-hidden">
+              <div class="absolute top-0 right-0">
+                <div class="bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-bl-lg">Most popular</div>
+              </div>
+              <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-indigo-400 mb-2">Verify</span>
+              <h3 class="text-xl font-medium text-white mb-2">Multi-discipline</h3>
+              <p class="text-sm text-gray-300 mb-8">Design teams. Catch issues before the client does.</p>
+              <div class="mb-8 flex items-baseline gap-1">
+                <span class="text-4xl font-bold tracking-tighter text-white">€400</span>
+                <span class="text-gray-400 text-sm">/check</span>
+              </div>
+              <ul class="space-y-3 mb-8 flex-1 text-sm text-gray-200">
+                <li class="flex items-start gap-2"><span class="text-indigo-400 mt-1">✓</span>All 5 disciplines</li>
+                <li class="flex items-start gap-2"><span class="text-indigo-400 mt-1">✓</span>Cross-discipline coordination</li>
+                <li class="flex items-start gap-2"><span class="text-indigo-400 mt-1">✓</span>FSC condition propagation</li>
+                <li class="flex items-start gap-2"><span class="text-indigo-400 mt-1">✓</span>~4 hour turnaround</li>
+              </ul>
+              <a href="#" class="w-full inline-flex h-11 items-center justify-center rounded-lg bg-white text-black font-semibold text-sm hover:bg-gray-200 transition-all">
+                Run a check
+              </a>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-white/10 bg-[#0E0E0E] p-8 flex flex-col h-full hover:border-orange-500/40 transition-colors shadow-lg">
+            <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-orange-400 mb-2">Hunt</span>
+            <h3 class="text-xl font-medium text-white mb-2">Variation scanner</h3>
+            <p class="text-sm text-gray-300 mb-8">Contractors. Know what you're pricing before you commit.</p>
+            <div class="mb-8 flex items-baseline gap-1">
+              <span class="text-4xl font-bold tracking-tighter text-white">€800</span>
+              <span class="text-gray-400 text-sm">/scan</span>
+            </div>
+            <ul class="space-y-3 mb-8 flex-1 text-sm text-gray-200">
+              <li class="flex items-start gap-2"><span class="text-orange-400 mt-1">✓</span>€-banded variation exposure</li>
+              <li class="flex items-start gap-2"><span class="text-orange-400 mt-1">✓</span>PW-CF clause mapping</li>
+              <li class="flex items-start gap-2"><span class="text-orange-400 mt-1">✓</span>Bid-decision register</li>
+              <li class="flex items-start gap-2"><span class="text-orange-400 mt-1">✓</span>~4 hour turnaround</li>
+            </ul>
+            <a href="#" class="w-full inline-flex h-11 items-center justify-center rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-400 font-medium text-sm hover:bg-orange-500/20 transition-all">
+              Free scan
+            </a>
+          </div>
+
+          <div class="rounded-2xl border border-white/10 bg-[#0E0E0E] p-8 flex flex-col h-full hover:border-fuchsia-500/40 transition-colors shadow-lg">
+            <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-fuchsia-400 mb-2">Programme</span>
+            <h3 class="text-xl font-medium text-white mb-2">Capital programme</h3>
+            <p class="text-sm text-gray-300 mb-8">HSE, OGP, framework holders. Custom contract, audit trail, SSO.</p>
+            <div class="mb-8 flex items-baseline gap-1">
+              <span class="text-4xl font-bold tracking-tighter text-white">Custom</span>
+            </div>
+            <ul class="space-y-3 mb-8 flex-1 text-sm text-gray-200">
+              <li class="flex items-start gap-2"><span class="text-fuchsia-400 mt-1">✓</span>Unlimited multi-disc checks</li>
+              <li class="flex items-start gap-2"><span class="text-fuchsia-400 mt-1">✓</span>SSO + audit trail</li>
+              <li class="flex items-start gap-2"><span class="text-fuchsia-400 mt-1">✓</span>Custom DPA + corpus</li>
+              <li class="flex items-start gap-2"><span class="text-fuchsia-400 mt-1">✓</span>Dedicated success manager</li>
+            </ul>
+            <a href="#" class="w-full inline-flex h-11 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-white font-medium text-sm hover:bg-white/10 transition-all">
+              Talk to us
+            </a>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="border-t border-white/5 py-12 w-full mt-auto relative z-10 bg-[#030303]">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+      <div class="flex items-center gap-3 opacity-70 hover:opacity-100 transition-opacity">
+        <div class="w-6 h-6 rounded border border-white/20 flex items-center justify-center">
+          <svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg>
+        </div>
+        <span class="text-sm font-medium text-white tracking-tight">VerifIQ © 2026 · An Irish company · Built for Irish standards</span>
+      </div>
+      <nav class="flex flex-wrap justify-center gap-6">
+        <a class="text-sm text-gray-400 hover:text-white transition-colors" href="#">Terms</a>
+        <a class="text-sm text-gray-400 hover:text-white transition-colors" href="#">Privacy</a>
+        <a class="text-sm text-gray-400 hover:text-white transition-colors" href="#">Sub-processors</a>
+        <a class="text-sm text-gray-400 hover:text-white transition-colors" href="#">DPIA</a>
+        <a class="text-sm text-gray-400 hover:text-white transition-colors" href="#">hello@verifiq.ie</a>
+      </nav>
+    </div>
+    <div class="max-w-7xl mx-auto px-6 mt-8 pt-6 border-t border-white/[0.04] text-[11px] text-gray-500 leading-relaxed">
+      <strong class="text-gray-400">Important.</strong> VerifIQ is a software checking tool. Outputs are indicative software outputs, not professional advice. Users are responsible for verifying every finding and for any decision taken based on the output. VerifIQ does not provide design review, certification or compliance opinions. VerifIQ is not a substitute for the work of an Assigned Certifier, Design Certifier, Lead Designer, Chartered Architect, Chartered Engineer, Chartered Surveyor or any other designated professional.
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  const CODE_LINES = [
+    { t: "import { VerifIQ } from '@verifiq/check'", h: "<span class=\"kw\">import</span> { <span class=\"cls\">VerifIQ</span> } <span class=\"kw\">from</span> <span class=\"str\">'@verifiq/check'</span>" },
+    { t: "", h: "&nbsp;" },
+    { t: "const pack = await VerifIQ.load(", h: "<span class=\"kw\">const</span> <span class=\"vr\">pack</span> = <span class=\"kw\">await</span> <span class=\"cls\">VerifIQ</span>.<span class=\"fn\">load</span>(" },
+    { t: "  'Stage_2C_Tender_Pack.pdf'", h: "  <span class=\"str\">'Stage_2C_Tender_Pack.pdf'</span>" },
+    { t: ")", h: ")" },
+    { t: "", h: "&nbsp;" },
+    { t: "const findings = await VerifIQ.scan(pack, {", h: "<span class=\"kw\">const</span> <span class=\"vr\">findings</span> = <span class=\"kw\">await</span> <span class=\"cls\">VerifIQ</span>.<span class=\"fn\">scan</span>(<span class=\"vr\">pack</span>, {" },
+    { t: "  corpus: 'irish',", h: "  <span class=\"prop\">corpus</span>: <span class=\"str\">'irish'</span>," },
+    { t: "  cite: true,", h: "  <span class=\"prop\">cite</span>: <span class=\"kw\">true</span>," },
+    { t: "})", h: "})" },
+    { t: "", h: "&nbsp;" },
+    { t: "// -> 327 issues surfaced", h: "<span class=\"cm\">// -> 327 issues surfaced</span>" },
+    { t: "// -> 561 source quotes cited", h: "<span class=\"cm\">// -> 561 source quotes cited</span>" },
+    { t: "// -> confidence: 96.2%", h: "<span class=\"cm\">// -> confidence: 96.2%</span>" },
+  ];
+
+  const PROSE_LINES = [
+    { t: "The Stage 2C tender pack surfaces three", h: "The Stage 2C tender pack surfaces three" },
+    { t: "critical document-quality issues that", h: "critical document-quality issues that" },
+    { t: "warrant verification before issue.", h: "warrant verification before issue." },
+    { t: "", h: "&nbsp;" },
+    { t: "First, the Windows Schedule contains", h: "First, the <em>Windows Schedule</em> contains" },
+    { t: "stair-section drawings [AR-40002].", h: "stair-section drawings <cite>[AR-40002]</cite>." },
+    { t: "Second, fire dampers cite a withdrawn", h: "Second, fire dampers cite a <em>withdrawn</em>" },
+    { t: "British standard [§5.02.13] superseded", h: "British standard <cite>[§5.02.13]</cite> superseded" },
+    { t: "by IS EN 15650. Third, Lightning Protection", h: "by <em>IS EN 15650</em>. Third, Lightning Protection" },
+    { t: "[§12.20] describes a school in Mayo —", h: "<cite>[§12.20]</cite> describes a school in Mayo —" },
+    { t: "wrong project entirely.", h: "wrong project entirely." },
+  ];
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function buildHtml(lines, state, withNums) {
+    let html = "";
+    for (let k = 0; k < lines.length; k++) {
+      let content;
+      if (k < state.i) {
+        content = lines[k].h || "&nbsp;";
+      } else if (k === state.i) {
+        const typed = lines[k].t.slice(0, state.j);
+        content = (typed.length ? escapeHtml(typed) : "") + '<span class="parse-caret"></span>';
+      } else {
+        content = "&nbsp;";
+      }
+      const active = k === state.i && state.j < lines[k].t.length ? " active" : "";
+      if (withNums) {
+        html += '<div class="line' + active + '"><span class="num">' + (k + 1) + '</span><span class="text">' + content + '</span></div>';
+      } else {
+        html += '<div class="line">' + content + '</div>';
+      }
+    }
+    return html;
+  }
+
+  function startTyper(targetEl, lines, opts, onTick) {
+    let state = { i: 0, j: 0 };
+    const charDelay = opts.charDelay || 22;
+    const lineDelay = opts.lineDelay || 90;
+    const rand = opts.rand || 18;
+    const restart = opts.restart || 6500;
+    const withNums = !!opts.withNums;
+
+    function render() {
+      targetEl.innerHTML = buildHtml(lines, state, withNums);
+      if (onTick) onTick(state);
+    }
+
+    function tick() {
+      if (state.i >= lines.length) {
+        setTimeout(() => {
+          state = { i: 0, j: 0 };
+          render();
+          setTimeout(tick, 600);
+        }, restart);
+        return;
+      }
+      const cur = lines[state.i];
+      if (state.j < cur.t.length) {
+        state.j += 1;
+        render();
+        const ch = cur.t.charAt(state.j - 1);
+        const d = ch === " " ? charDelay * 0.6 : charDelay + Math.random() * rand;
+        setTimeout(tick, d);
+      } else {
+        state.i += 1; state.j = 0;
+        render();
+        setTimeout(tick, lineDelay);
+      }
+    }
+
+    setTimeout(() => { render(); tick(); }, opts.initial || 0);
+  }
+
+  const codeEl = document.getElementById('code-typer');
+  const proseEl = document.getElementById('prose-typer');
+  const lnEl = document.getElementById('lnval');
+  const colEl = document.getElementById('colval');
+
+  startTyper(codeEl, CODE_LINES, {
+    charDelay: 16, lineDelay: 90, rand: 22, restart: 6500, initial: 200, withNums: true
+  }, (state) => {
+    const ln = Math.min(state.i + 1, CODE_LINES.length);
+    const col = (state.i < CODE_LINES.length ? state.j : CODE_LINES[CODE_LINES.length - 1].t.length) + 1;
+    if (lnEl) lnEl.textContent = ln;
+    if (colEl) colEl.textContent = col;
+  });
+
+  startTyper(proseEl, PROSE_LINES, {
+    charDelay: 22, lineDelay: 140, rand: 26, restart: 6500, initial: 1100, withNums: false
+  });
+</script>
+
+</body>
+</html>
