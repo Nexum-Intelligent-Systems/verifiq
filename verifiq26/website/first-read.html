@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VerifIQ — First Read · Catch the errors before they cost you.</title>
+<meta name="description" content="A senior's second pair of eyes on your tender pack. VerifIQ reads the whole pack — drawings, specifications and the contract form — and hands you a ranked, source-quoted shortlist of what to read closely before issue. First Read from €20. Output is indicative. You verify locally." />
+<meta property="og:title" content="VerifIQ First Read — catch the errors before they cost you." />
+<meta property="og:description" content="Your first read on a tender pack, source-quoted. From €20. Work email required." />
+<meta property="og:type" content="website" />
+<link rel="stylesheet" href="verifiq-system.css" />
+<link rel="stylesheet" href="verifiq-cad.css" />
+<script>
+  /* ── Paste your Stripe Payment Link here to switch from concierge intake to
+     instant checkout. Leave empty and the CTAs open a work-email intake mail. */
+  window.VERIFIQ_FIRST_READ_URL = "";
+</script>
+<script src="verifiq-atelier.js" defer></script>
+<style>
+  .hero { padding: 64px 0 56px; border-bottom: 1px solid var(--ink); background: var(--paper); }
+  .hero-grid { display: grid; gap: 44px; align-items: center; }
+  @media (min-width: 980px) { .hero-grid { grid-template-columns: 1.05fr 0.95fr; } }
+  .hero h1 { font-family: var(--font-serif); font-weight: 600; font-size: clamp(2.3rem,4.6vw,3.9rem); line-height: 1.03; margin: 16px 0 16px; max-width: 15ch; }
+  .hero .lede { font-family: var(--font-serif); font-style: italic; font-size: clamp(1.1rem,1.9vw,1.35rem); color: var(--ink-soft); max-width: 54ch; margin: 0 0 18px; }
+  .hero .sub { font-family: var(--font-sans); font-size: 1rem; line-height: 1.6; color: var(--ink-soft); max-width: 52ch; margin: 0 0 30px; }
+  .hero .ctas { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+  .price-cta { display: inline-flex; align-items: stretch; border: 1px solid var(--ink); background: var(--ink); }
+  .price-cta .pc-price { display: flex; align-items: center; padding: 14px 16px; background: var(--brass); color: var(--ink); font-family: var(--font-serif); font-weight: 600; font-size: 1.25rem; }
+  .price-cta .pc-label { display: flex; align-items: center; gap: 10px; padding: 14px 20px; color: var(--bone); font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase; }
+  .price-cta:hover .pc-label { color: var(--vellum); }
+  .gate-note { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--graphite); margin-top: 14px; }
+  .gate-note strong { color: var(--brass); }
+
+  .section { padding: 60px 0; }
+  .section.tint { background: var(--vellum); border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+  .section-head { margin-bottom: 36px; max-width: 64ch; }
+  .section-head h2 { font-family: var(--font-serif); font-weight: 500; font-size: clamp(1.7rem,3vw,2.4rem); line-height: 1.1; margin: 12px 0 12px; }
+  .section-head p { font-family: var(--font-serif); font-style: italic; font-size: 1.12rem; color: var(--ink-soft); margin: 0; }
+
+  /* the junior/senior problem */
+  .prob { display: grid; gap: 1px; background: var(--ink); border: 1px solid var(--ink); grid-template-columns: 1fr; }
+  @media (min-width: 760px) { .prob { grid-template-columns: repeat(3, 1fr); } }
+  .prob .step { background: var(--bone); padding: 28px 24px; }
+  .prob .step .n { font-family: var(--font-serif); font-weight: 500; font-size: 2rem; color: var(--brass); line-height: 1; }
+  .prob .step h3 { font-family: var(--font-serif); font-weight: 500; font-size: 1.2rem; margin: 12px 0 8px; }
+  .prob .step p { font-family: var(--font-sans); font-size: 0.9rem; line-height: 1.55; color: var(--ink-soft); margin: 0; }
+
+  /* the more-you-upload ladder */
+  .ladder { display: grid; gap: 1px; background: var(--ink); border: 1px solid var(--ink); grid-template-columns: 1fr; }
+  @media (min-width: 760px) { .ladder { grid-template-columns: 1fr 1.4fr; } }
+  .ladder .rung { background: var(--bone); padding: 30px 28px; }
+  .ladder .rung.power { background: var(--paper); }
+  .ladder .rung .tag { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--graphite); }
+  .ladder .rung.power .tag { color: var(--brass); }
+  .ladder .rung h3 { font-family: var(--font-serif); font-weight: 500; font-size: 1.4rem; margin: 12px 0 10px; }
+  .ladder .rung p { font-family: var(--font-sans); font-size: 0.95rem; line-height: 1.6; color: var(--ink-soft); margin: 0; }
+
+  /* modules */
+  .mod-grid { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--ink); border: 1px solid var(--ink); margin-top: 26px; }
+  @media (min-width: 640px) { .mod-grid { grid-template-columns: repeat(2, 1fr); } }
+  .mod { background: var(--bone); padding: 26px 24px; }
+  .mod .role { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--brass); }
+  .mod h3 { font-family: var(--font-serif); font-weight: 500; font-size: 1.2rem; margin: 10px 0 8px; }
+  .mod p { font-family: var(--font-sans); font-size: 0.875rem; line-height: 1.55; color: var(--ink-soft); margin: 0; }
+
+  /* what you get */
+  .get-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+  .get-list li { display: flex; gap: 14px; font-family: var(--font-sans); font-size: 1rem; line-height: 1.55; color: var(--ink-soft); }
+  .get-list li::before { content: "✓"; color: var(--brass); font-weight: 700; }
+
+  /* faq */
+  .faq { display: grid; gap: 1px; background: var(--ink); border: 1px solid var(--ink); }
+  .faq details { background: var(--bone); padding: 22px 24px; }
+  .faq summary { font-family: var(--font-serif); font-weight: 500; font-size: 1.15rem; color: var(--ink); cursor: pointer; list-style: none; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: "+ "; color: var(--brass); }
+  .faq details[open] summary::before { content: "– "; }
+  .faq p { font-family: var(--font-sans); font-size: 0.95rem; line-height: 1.6; color: var(--ink-soft); margin: 12px 0 0; }
+
+  .closer { text-align: center; }
+  .closer .ctas { justify-content: center; margin-top: 26px; }
+</style>
+</head>
+<body class="paper-texture" data-sheet="F-001" data-sheet-title="First Read · launch offer">
+
+<nav class="top-nav"><div class="wrap inner">
+  <a href="index.html" class="wordmark">VerifIQ</a>
+  <div class="nav-links">
+    <a href="index.html#who">Who it's for</a>
+    <a href="case-study-01.html">Case study</a>
+    <a href="three-products.html">Products</a>
+    <a href="about.html">About</a>
+  </div>
+  <a class="first-read-cta site-cta" href="mailto:liam@goviq.ie?subject=VerifIQ%20First%20Read%20%E2%80%94%20%E2%82%AC20">Start your First Read ↗</a>
+</div></nav>
+
+<header class="hero"><div class="wrap hero-grid">
+  <div>
+    <span class="t-eyebrow">— First Read · launch offer</span>
+    <h1>Catch the errors before they cost you.</h1>
+    <p class="lede">A senior's second pair of eyes on the pack — before you're the only pair.</p>
+    <p class="sub">Your junior does the first pass. You check their work — across 160 documents, under a tender deadline. VerifIQ reads the whole pack and hands you a ranked, source-quoted shortlist of what to read closely. You decide what matters. You verify locally. You sign.</p>
+    <div class="ctas">
+      <a class="first-read-cta price-cta" href="mailto:liam@goviq.ie?subject=VerifIQ%20First%20Read%20%E2%80%94%20%E2%82%AC20"><span class="pc-price">€20</span><span class="pc-label">Start your First Read →</span></a>
+      <a href="case-study-01.html" class="btn-leader"><span class="leader-num">→</span><span class="leader-line"></span><span class="leader-label">See 327 findings</span></a>
+    </div>
+    <p class="gate-note"><strong>Work email required</strong> · €20 launch price · first two weeks, then €40 · one per practice</p>
+  </div>
+
+  <!-- The live review — the read happens in front of the visitor. -->
+  <figure class="doc-frag" id="hero-review" aria-label="A VerifIQ reading of a Form of Tender fragment: the blank Date for Substantial Completion is found and tagged critical.">
+    <div class="df-head"><span>Form of Tender · Schedule Part 1</span><span>§4 · Page 12</span></div>
+    <div class="df-body">
+      <div class="df-scan" aria-hidden="true"></div>
+      <p class="df-line"><span class="df-clause">4.1</span>The Contract Sum shall be the amount stated in the Tender and inclusive of all obligations under the Contract.</p>
+      <p class="df-line"><span class="df-clause">4.2</span>Date for Substantial Completion: <span class="df-blank">____________</span></p>
+      <p class="df-line"><span class="df-clause">4.3</span>Liquidated damages shall apply in accordance with PW-CF5 Clause 9.5.</p>
+      <div class="df-tag" aria-hidden="true"><span class="sev sev-critical solid">Critical</span> C-03</div>
+    </div>
+    <svg class="df-leader" aria-hidden="true"></svg>
+    <figcaption class="df-finding" aria-live="polite"></figcaption>
+    <button class="df-replay" type="button">↻ Replay the read</button>
+  </figure>
+</div></header>
+
+<div class="stat-band">
+  <div class="cell"><div class="num tab-num count-up" data-target="327">327</div><div class="lab t-meta">Findings · one real pack</div></div>
+  <div class="cell"><div class="num tab-num count-up" data-target="161">161</div><div class="lab t-meta">Documents · cross-read</div></div>
+  <div class="cell"><div class="num tab-num count-up" data-target="38" data-suffix="h">38h</div><div class="lab t-meta">End-to-end</div></div>
+  <div class="cell"><div class="num">€20</div><div class="lab t-meta">First Read · launch</div></div>
+</div>
+
+<div class="dim-rule"><span class="dim-tick"></span><span class="dim-label">§ 01 · the problem</span><span class="dim-tick"></span></div>
+
+<section class="section reveal"><div class="wrap">
+  <div class="section-head">
+    <span class="t-eyebrow">— Why a senior loses a weekend</span>
+    <h2>You don't have time to read it. You have time to check it.</h2>
+    <p>But checking a junior's work still means reading the whole pack to know what to check.</p>
+  </div>
+  <div class="prob">
+    <div class="step"><div class="n">1</div><h3>The junior drafts it.</h3><p>Specs cut-and-pasted from the last job, schedules half-filled, a standard that was withdrawn two years ago.</p></div>
+    <div class="step"><div class="n">2</div><h3>You're meant to check it.</h3><p>160 documents, five disciplines, a tender date anchored to a programme milestone. Nobody reads all of it closely.</p></div>
+    <div class="step"><div class="n">3</div><h3>It slips through.</h3><p>A blank completion date, an REI 30 against a Condition that reads 60 — surfaced post-award as a variation, not pre-issue as an RFI.</p></div>
+  </div>
+</div></section>
+
+<div class="dim-rule"><span class="dim-tick"></span><span class="dim-label">§ 02 · the more you upload</span><span class="dim-tick"></span></div>
+
+<section class="section tint reveal"><div class="wrap">
+  <div class="section-head">
+    <span class="t-eyebrow">— The real power</span>
+    <h2><span class="rev-cloud">The more you upload, the more it finds.</span></h2>
+    <p>Twenty drawings catch the small things. The whole pack — read against itself — catches the expensive ones.</p>
+  </div>
+  <div class="ladder">
+    <div class="rung">
+      <span class="tag">First Read · €20</span>
+      <h3>20 drawings.</h3>
+      <p>One discipline, the obvious catches — outdated references, missing entries, cut-paste from a prior project. A taste of the method on your own scope.</p>
+    </div>
+    <div class="rung power">
+      <span class="tag">The full review</span>
+      <h3>Drawings + specifications + the contract form.</h3>
+      <p>Upload the technical and general specs, the particulars, and the form of contract alongside the drawings — and VerifIQ checks that the <strong>design specification is actually met by the technical requirements</strong>, across every discipline, against the contract. That cross-reference is where the variations hide.</p>
+    </div>
+  </div>
+  <div class="mod-grid">
+    <div class="mod"><span class="role">Module 01</span><h3>Cross-discipline coordination</h3><p>Architect vs structures vs M&amp;E vs fire vs electrical — spec against schedule against drawing. The interface gaps between teams who drew their parts separately.</p></div>
+    <div class="mod"><span class="role">Module 02</span><h3>Specification ↔ requirements</h3><p>Does the design specification actually meet the particular and technical requirements it cites? The gap between what's required and what's drawn.</p></div>
+    <div class="mod"><span class="role">Module 03</span><h3>Contract compliance · PW-CF</h3><p>Are the design documents consistent with the public-works form of contract (PW-CF5 and the CWMF suite)? The clauses that bite at award.</p></div>
+    <div class="mod"><span class="role">Module 04</span><h3>Standards currency</h3><p>Withdrawn or superseded standards, and IS-versus-BS jurisdictional mis-references that don't belong in an Irish pack.</p></div>
+  </div>
+</div></section>
+
+<div class="dim-rule"><span class="dim-tick"></span><span class="dim-label">§ 03 · what you get</span><span class="dim-tick"></span></div>
+
+<section class="section reveal"><div class="wrap-narrow">
+  <div class="section-head">
+    <span class="t-eyebrow">— For €20</span>
+    <h2>A register you can put in front of your boss.</h2>
+  </div>
+  <ul class="get-list">
+    <li>A ranked, severity-classed shortlist — Critical / High / Medium / Low — so your review time goes to the points that matter.</li>
+    <li>Every finding quoting the exact line in the exact document that raised it. No black box; you can verify each one in seconds.</li>
+    <li>Framed as advisory — "possible issues, please verify locally." You stay the decision-maker; the indemnity stays yours.</li>
+    <li>Read by a named chartered reviewer during the pilot — what's signed and what's surfaced is marked, never blurred.</li>
+    <li>Delivered as a branded PDF within 24–48 hours.</li>
+  </ul>
+  <div class="source-quote" style="margin-top:26px;">"Date for Substantial Completion: ____________"<span class="src-ref">Form of Tender · Schedule Part 1 · §4.2 · Page 12 — a required entry, left blank. Liquidated damages unenforceable as drawn.</span></div>
+</div></section>
+
+<div class="dim-rule"><span class="dim-tick"></span><span class="dim-label">§ 04 · questions</span><span class="dim-tick"></span></div>
+
+<section class="section reveal"><div class="wrap-narrow">
+  <div class="faq">
+    <details><summary>Why isn't it free?</summary><p>Because free trials get farmed with throwaway emails and tell us nothing. €20 on a work card means you're a real practice with a real pack — and it gets you a real result, not a demo. It's the launch price; it rises to €40 after the first two weeks.</p></details>
+    <details><summary>What do you need from me?</summary><p>For the €20 First Read, up to 20 drawings from one discipline. For the full power, upload everything — drawings, the technical and general specifications, the particulars, and the form of contract. The more complete the pack, the more the cross-reference finds.</p></details>
+    <details><summary>Why a work email?</summary><p>This is a tool for practising design teams, and we keep it that way. Work email only, one First Read per practice — no anonymous sign-ups, no abuse.</p></details>
+    <details><summary>Is this giving me design advice?</summary><p>No. VerifIQ is a reading aid. It surfaces, in the documents' own words, what a registered professional may wish to read closely. It does not certify, sign, or opine. You read it, you exercise your judgement, you verify locally, you sign.</p></details>
+  </div>
+</div></section>
+
+<section class="section tint reveal"><div class="wrap-narrow closer">
+  <span class="t-eyebrow">— Your pack, read like this</span>
+  <h2 style="font-family:var(--font-serif);font-weight:500;font-size:clamp(1.8rem,3vw,2.6rem);margin:14px 0 10px;">Spend your review time on the 30 points that matter.</h2>
+  <p style="font-family:var(--font-serif);font-style:italic;font-size:1.15rem;color:var(--ink-soft);margin:0;">Not the 3,000 pages.</p>
+  <div class="ctas">
+    <a class="first-read-cta price-cta" href="mailto:liam@goviq.ie?subject=VerifIQ%20First%20Read%20%E2%80%94%20%E2%82%AC20"><span class="pc-price">€20</span><span class="pc-label">Start your First Read →</span></a>
+  </div>
+  <p class="gate-note">Work email required · launch price, first two weeks</p>
+</div></section>
+
+<section class="locked-block"><div class="wrap-narrow">
+  <span class="t-eyebrow">— Notice · Locked disclaimer</span>
+  <p class="lb-text">VerifIQ is a software-based reading aid. It surfaces, in the documents' own words, what a registered professional may wish to read closely. It does not certify, sign, opine, or substitute for professional judgement. The registered designer reads our output, exercises their own judgement, verifies locally, and signs. The professional indemnity remains theirs. We carry product-quality risk only.</p>
+</div></section>
+
+<footer class="site-footer"><div class="foot-row">
+  <span>© MMXXVI · VerifIQ · GovIQ Ltd · Dublin</span>
+  <span><a href="legal.html">Legal notice ↗</a></span>
+  <span><a href="mailto:liam@goviq.ie">liam@goviq.ie</a></span>
+</div></footer>
+
+<script>
+  /* Point every First Read CTA at the Stripe Payment Link when configured;
+     otherwise open a work-email intake (concierge) with the fields we need. */
+  (function () {
+    var url = window.VERIFIQ_FIRST_READ_URL;
+    var intake = "mailto:liam@goviq.ie?subject=" +
+      encodeURIComponent("VerifIQ First Read — €20") + "&body=" +
+      encodeURIComponent("Practice / organisation:\nWork email:\nProject / stage:\nWhat to read (drawings + specs + contract form):\n");
+    document.querySelectorAll(".first-read-cta").forEach(function (a) {
+      a.setAttribute("href", url && url.length ? url : intake);
+    });
+  })();
+</script>
+</body>
+</html>
