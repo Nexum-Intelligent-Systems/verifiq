@@ -4,7 +4,7 @@ import { SheetTagButton, LeaderButton } from "@/components/ui/Button";
 export const metadata = {
   title: "VerifIQ — Hunt · For contractors · Variation exposure read",
   description:
-    "Hunt is VerifIQ for contractors. Surface the variation exposure in a tender pack before you price. Source-quoted findings; tactical RFI list; Friday-night discrepancies caught Tuesday morning.",
+    "Hunt is VerifIQ for contractors. Variation checks in hours, not days — so bid coordinators can price the job appropriately. Source-quoted findings; tactical RFI list; Friday-night discrepancies caught Tuesday morning.",
 };
 
 /**
@@ -45,8 +45,10 @@ export default function HuntPage() {
                 </em>
               </h1>
               <p className="t-lede" style={{ maxWidth: "32em" }}>
-                Hunt reads tender packs before you price them. Source-quoted findings,
-                tactical RFI list, variation-exposure read. Tuesday morning, not Friday night.
+                Hunt reads tender packs before you price them. Variation checks in hours,
+                not days — so your bid coordinators can price the job appropriately.
+                Source-quoted findings, tactical RFI list, variation-exposure read. Tuesday
+                morning, not Friday night.
               </p>
               <div
                 style={{
@@ -100,7 +102,7 @@ export default function HuntPage() {
               num="I."
               eyebrow="— What Hunt does"
               title="Three reads, before you price."
-              lede="Hunt is VerifIQ tuned for contractor bid teams. The chartered review stays where it always was — but the document hunt happens faster than your QS can read it."
+              lede="Hunt is VerifIQ tuned for contractor bid teams. The variation checks that used to take days land in hours — giving bid coordinators the exposure map they need before they commit pricing resource."
             />
             <div
               style={{
@@ -114,7 +116,7 @@ export default function HuntPage() {
               <Pillar
                 roman="I"
                 title="Pre-pricing variation read"
-                body="Surface ambiguities, missing scope, contradictory specs, and standards typos before your bid team prices the pack. Each finding source-quoted from the document — you take it into the bid meeting verbatim, not paraphrased."
+                body="Surface ambiguities, missing scope, contradictory specs, and standards typos before your bid coordinators price the pack. Checks complete in hours, not days — each finding source-quoted from the document so you take it into the bid meeting verbatim, not paraphrased."
               />
               <Pillar
                 roman="II"
@@ -267,8 +269,8 @@ export default function HuntPage() {
             <div className="t-body" style={{ fontSize: "1rem", lineHeight: 1.7 }}>
               <p>
                 Hunt does not tell you what to bid. It surfaces what&rsquo;s missing, ambiguous,
-                or contradictory in the pack so your bid team can price programme risk honestly
-                and submit RFIs that move the pack to clarity before tender close.
+                or contradictory in the pack so your bid coordinators can price programme risk
+                honestly and submit RFIs that move the pack to clarity before tender close.
               </p>
               <p>
                 Hunt does not certify the design — the Employer&rsquo;s design team owns that.
@@ -277,8 +279,9 @@ export default function HuntPage() {
               </p>
               <p>
                 Hunt does not replace your QS or your bid director&rsquo;s judgement. It
-                accelerates the document hunt so your QS spends Friday afternoon on the judgement
-                calls instead of the page-by-page read.
+                completes the variation read in hours, not days — so bid coordinators price with
+                exposure mapped, and your QS spends on the judgement calls, not the page-by-page
+                read.
               </p>
               <p>
                 Hunt does not work on packs that violate our locked posture — we will not run Hunt

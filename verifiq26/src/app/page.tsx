@@ -301,7 +301,7 @@ export default function Page() {
               tag="II · Hunt"
               eyebrow="— Hunt · II"
               title="For Contractors."
-              meta="Variation exposure · Pre-pricing"
+              meta="Variation checks in hours · Bid pricing"
               link="Visit Hunt"
               img="https://images.unsplash.com/photo-1581094288338-2314dddb7ece?q=80&w=1100&auto=format&fit=crop"
               alt="Construction site with cranes"
