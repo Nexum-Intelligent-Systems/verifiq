@@ -1,13 +1,17 @@
 {
   "name": "verifiq-workspace",
   "private": true,
+  "dependencies": {
+    "convex": "^1.13.0"
+  },
   "scripts": {
     "dev": "npm run dev --prefix verifiq26/src",
     "build": "npm run build --prefix verifiq26/src",
     "start": "npm run start --prefix verifiq26/src",
     "lint": "npm run lint --prefix verifiq26/src",
     "typecheck": "npm run typecheck --prefix verifiq26/src",
-    "convex:dev": "npm run convex:dev --prefix verifiq26/src",
+    "convex:dev": "convex dev",
+    "convex:deploy": "convex deploy",
     "test": "npm run test --prefix verifiq26/src"
   }
 }
