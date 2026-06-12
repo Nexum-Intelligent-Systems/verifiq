@@ -5,9 +5,9 @@ import { ThemeProvider, noFlashThemeScript } from "@/components/theme/ThemeProvi
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 
 export const metadata: Metadata = {
-  title: "VerifIQ — Know before you build",
+  title: "VerifIQ — Drawings and documentation, ready for tender",
   description:
-    "VerifIQ gives Irish project teams a structured, evidence-based answer to one question: are we actually ready to build?",
+    "VerifIQ reads your construction tender pack before release — drawings, specifications, schedules, and contract forms checked across every discipline. Source-quoted findings for Irish project teams.",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

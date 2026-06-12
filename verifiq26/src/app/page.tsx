@@ -5,9 +5,9 @@ import { SeverityPill } from "@/components/ui/SeverityPill";
 import { SourceQuote } from "@/components/ui/SourceQuote";
 
 export const metadata = {
-  title: "VerifIQ — Know before you build.",
+  title: "VerifIQ — Drawings and documentation, ready for tender.",
   description:
-    "VerifIQ convenes a virtual Pre-Build Compliance Council across your project disciplines and returns one coordinated, source-quoted decision. Multi-discipline review, reviewer-gated, indicative — for Irish project teams.",
+    "VerifIQ reads your construction tender pack before release — drawings, specifications, schedules, and contract forms checked across every discipline. Source-quoted findings, reviewer-gated, for Irish project teams.",
 };
 
 /** Section header with the roman-numeral eyebrow column used across the page. */
@@ -95,26 +95,28 @@ export default function Page() {
         />
         <Wrap style={{ position: "relative", display: "grid", gridTemplateColumns: "1fr", gap: 48 }}>
           <div>
-            <span className="t-eyebrow">Pre-Construction Compliance Checks</span>
+            <span className="t-eyebrow">Tender Pack Review · Drawings &amp; Documentation</span>
             <h1
               className="t-display"
               style={{ fontSize: "clamp(3rem, 7vw, 5.5rem)", lineHeight: 0.98, margin: "24px 0", color: "var(--text)" }}
             >
-              Are we actually{" "}
+              Drawings and documentation,{" "}
               <span style={{ color: "var(--gold)", fontStyle: "italic", fontWeight: 500 }}>
-                ready to build?
+                ready for tender.
               </span>
             </h1>
             <p
               className="t-lede"
-              style={{ fontSize: "1.375rem", lineHeight: 1.5, color: "var(--text-soft)", maxWidth: "30em" }}
+              style={{ fontSize: "1.375rem", lineHeight: 1.5, color: "var(--text-soft)", maxWidth: "32em" }}
             >
-              Know before you build. VerifIQ convenes a virtual Pre-Build Compliance Council across your
-              project disciplines, returns one coordinated decision — Proceed, Proceed with conditions, Pause
-              before build, or Insufficient information. Source-quoted. Reviewer-gated. Indicative.
+              Before your pack goes to market, VerifIQ reads every drawing, specification, schedule, and
+              contract form across all disciplines — and returns one coordinated register of what needs
+              attention. Source-quoted from the documents themselves. Reviewer-gated before release.
+              Indicative, not a certification.
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 22, marginTop: 28 }}>
-              <span className="t-meta">Review your Construction Tender Pack before you go to market</span>
+              <span className="t-meta">Construction tender packs · pre-release review</span>
+              <span className="t-meta">Drawings · specs · schedules · contract forms</span>
               <span className="t-meta">Standards · I.S. · TGD · BCAR · CWMF · PW-CF</span>
               <span className="t-meta">EU data residency · Dublin</span>
             </div>
@@ -184,7 +186,7 @@ export default function Page() {
             num="II."
             eyebrow="— Principles"
             title="Three things we hold to."
-            lede="Trust is not a tagline. It is held in three operational disciplines, written into the platform."
+            lede="A tender pack is only as strong as its weakest document. Trust is held in three operational disciplines, written into the platform."
           />
           <div style={{ ...cellGrid, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
             {[
@@ -226,8 +228,8 @@ export default function Page() {
           <SectionHead
             num="III."
             eyebrow="— Method"
-            title="From bench to read, in five strikes."
-            lede="Method is the work. Each strike is a hand-pass through the pack, against a corpus, ending in a chartered eye."
+            title="From upload to tender-ready, in five strikes."
+            lede="You upload the pack. We read every document against the Irish corpus, discipline by discipline, and a reviewer gates the register before it leaves the atelier."
           />
           <div style={{ ...cellGrid, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
             {[
@@ -281,7 +283,7 @@ export default function Page() {
             num="IV."
             eyebrow="— Portfolio"
             title="Three products. One platform. One method."
-            lede="The same source-quoted read behind each. The point of entry changes with the role."
+            lede="The same source-quoted read of drawings and documentation behind each product. The point of entry changes with the role."
           />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 32 }}>
             <ProductCard
@@ -290,7 +292,7 @@ export default function Page() {
               eyebrow="— Verify · I"
               title="For the Design Team."
               meta="Multi-discipline · Pre-tender · Office project"
-              body="A full pre-tender read of the design pack across all the disciplines on your project. The atelier's flagship."
+              body="A full pre-tender read of your design pack — drawings, specs, and documentation across every discipline on the project. The atelier's flagship."
               link="Learn more about Verify"
               img="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1600&auto=format&fit=crop"
               alt="Architectural plans on a drafting table"
@@ -698,8 +700,8 @@ export default function Page() {
             The Pilot Cohort.
           </h2>
           <p className="t-lede" style={{ color: "var(--c-vellum)", fontSize: "1.25rem", maxWidth: "50ch", margin: "0 auto 36px" }}>
-            Ten Irish practices, one pack each, working through the atelier this quarter at early-pilot rates.
-            Concierge replies in person within 48 hours.
+            Ten Irish practices, one tender pack each — drawings and documentation checked before release,
+            at early-pilot rates. Concierge replies in person within 48 hours.
           </p>
           <div style={{ display: "flex", gap: 24, justifyContent: "center", flexWrap: "wrap" }}>
             <SheetTagButton code="A-001" label="Request the brief" href="/request" />
