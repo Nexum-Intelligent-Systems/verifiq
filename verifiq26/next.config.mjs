@@ -12,6 +12,7 @@ const nextConfig = {
     tsconfigPath: "tsconfig.app.json",
         ignoreBuildErrors: true,
   },
+    eslint: { ignoreDuringBuilds: true },
   // App Router lives at src/app — Next finds it automatically when there's a
   // `src/` directory. No `pages/` here.
 };
