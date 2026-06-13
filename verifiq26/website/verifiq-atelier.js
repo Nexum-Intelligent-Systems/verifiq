@@ -41,6 +41,19 @@
     document.head.appendChild(link);
   }
 
+  /* ── "Open app" link — connects the marketing site to the product app on its
+     own subdomain. Override the target with window.VERIFIQ_APP_URL. ────────── */
+  function appLink() {
+    var url = window.VERIFIQ_APP_URL || "https://app.verifiq.ie";
+    var links = document.querySelector(".top-nav .nav-links");
+    if (!links || links.querySelector(".app-link")) return;
+    var a = document.createElement("a");
+    a.className = "app-link";
+    a.href = url;
+    a.textContent = "Open app ↗";
+    links.appendChild(a);
+  }
+
   /* ── Mobile sheet drawer — the drawing index, below 860px ────────────────── */
   function sheetDrawer() {
     var nav = document.querySelector(".top-nav");
@@ -69,6 +82,15 @@
       a.appendChild(document.createTextNode(s.title));
       drawer.appendChild(a);
     });
+    // The product app, on its subdomain.
+    var appA = document.createElement("a");
+    appA.href = window.VERIFIQ_APP_URL || "https://app.verifiq.ie";
+    var appCode = document.createElement("span");
+    appCode.className = "sd-code";
+    appCode.textContent = "APP";
+    appA.appendChild(appCode);
+    appA.appendChild(document.createTextNode("Open the app ↗"));
+    drawer.appendChild(appA);
 
     // The toggle sits where the desktop links are hidden; drawer under the bar.
     var cta = inner.querySelector(".site-cta, a[href^='mailto']");
@@ -507,6 +529,7 @@
   /* ── boot ────────────────────────────────────────────────────────────────── */
   function boot() {
     favicon();
+    appLink();
     sheetDrawer();
     titleBlock();
     receivedStamp();

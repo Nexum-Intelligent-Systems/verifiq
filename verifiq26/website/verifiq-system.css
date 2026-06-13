@@ -181,6 +181,8 @@ h1, h2, h3, h4 { font-family: var(--font-serif); font-weight: 500; }
 .nav-links { display: none; gap: 28px; }
 .nav-links a { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--graphite); }
 .nav-links a:hover { color: var(--ink); }
+.nav-links a.app-link { color: var(--brass); }
+.nav-links a.app-link:hover { color: var(--ink); }
 @media (min-width: 860px) { .nav-links { display: flex; } }
 .site-cta { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); border-bottom: 1px solid var(--ink); white-space: nowrap; }
 
