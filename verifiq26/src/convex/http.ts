@@ -70,7 +70,16 @@ http.route({
       return json({ ok: false, error: "missing_fields" }, 422);
     }
 
-    // TODO(Sprint 1 §1.7): per-IP + per-email rate limit before issuing.
+    // Per-IP + per-email rate limit before issuing (docs/42 §5.4 N1).
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("cf-connecting-ip") ||
+      "unknown";
+    const guard = await ctx.runMutation(internal.uploadTokens.guardIntake, {
+      ip,
+      email: (b.email as string).trim(),
+    });
+    if (!guard.allowed) return json({ ok: false, error: "rate_limited" }, 429);
 
     const result = await ctx.runAction(internal.uploadTokens.submitIntake, {
       name: (b.name as string).trim(),
