@@ -247,6 +247,45 @@ export const checkUploadSession = query({
   },
 });
 
+/** Default fixed-window limits for the /intake endpoint (docs/42 §5.4 N1). */
+export const INTAKE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+export const INTAKE_IP_LIMIT = 20;
+export const INTAKE_EMAIL_LIMIT = 5;
+
+/**
+ * Rate-limit guard for the /intake endpoint: throttles per source IP and per
+ * email so a single actor cannot mass-issue codes (docs/42 §5.4 N1). Called by
+ * the httpAction before any project/token is created. Fixed window that resets
+ * lazily once it lapses.
+ */
+export const guardIntake = internalMutation({
+  args: { ip: v.string(), email: v.string() },
+  handler: async (ctx, args): Promise<{ allowed: boolean }> => {
+    const now = Date.now();
+
+    // Returns true if the bucket is within budget for the window (and records
+    // the hit), false once exhausted.
+    const bump = async (bucket: string, limit: number): Promise<boolean> => {
+      const row = await ctx.db
+        .query("intake_rate")
+        .withIndex("by_bucket", (q) => q.eq("bucket", bucket))
+        .unique();
+      if (!row || now - row.window_start >= INTAKE_WINDOW_MS) {
+        if (row) await ctx.db.patch(row._id, { window_start: now, count: 1 });
+        else await ctx.db.insert("intake_rate", { bucket, window_start: now, count: 1 });
+        return true;
+      }
+      if (row.count >= limit) return false;
+      await ctx.db.patch(row._id, { count: row.count + 1 });
+      return true;
+    };
+
+    const okIp = await bump(`ip:${args.ip}`, INTAKE_IP_LIMIT);
+    const okEmail = await bump(`email:${normalizeEmail(args.email)}`, INTAKE_EMAIL_LIMIT);
+    return { allowed: okIp && okEmail };
+  },
+});
+
 /** Revoke a token (abuse handling / admin). Internal only. */
 export const revokeUploadToken = internalMutation({
   args: { token_id: v.id("upload_tokens") },

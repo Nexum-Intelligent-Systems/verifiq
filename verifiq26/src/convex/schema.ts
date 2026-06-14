@@ -320,6 +320,17 @@ export default defineSchema({
     .index("by_project", ["project_id"]),
 
   // --------------------------------------------------------------------------
+  // intake_rate — fixed-window rate-limit counters for the public /intake
+  // endpoint (docs/42 §5.4 N1). One row per bucket ("ip:…" / "email:…"); the
+  // window resets lazily on the first request after it lapses.
+  // --------------------------------------------------------------------------
+  intake_rate: defineTable({
+    bucket: v.string(),
+    window_start: v.number(),
+    count: v.number(),
+  }).index("by_bucket", ["bucket"]),
+
+  // --------------------------------------------------------------------------
   // modules — activated regulatory modules per project (§05.4).
   // --------------------------------------------------------------------------
   modules: defineTable({
