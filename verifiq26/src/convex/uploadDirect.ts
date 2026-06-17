@@ -35,6 +35,7 @@ export const getUploadUrlForSession = action({
     sha256: v.string(),
     size_bytes: v.number(),
     discipline: v.optional(v.string()),
+    content_type: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<SignedUploadResult> => {
     const session = await ctx.runQuery(api.uploadTokens.checkUploadSession, {
@@ -51,6 +52,7 @@ export const getUploadUrlForSession = action({
         filename: args.filename,
         sha256: args.sha256,
         size_bytes: args.size_bytes,
+        content_type: args.content_type,
       });
     } catch {
       return { ok: false, error: "storage_unavailable" };

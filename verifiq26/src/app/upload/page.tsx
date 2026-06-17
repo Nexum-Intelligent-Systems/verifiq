@@ -116,6 +116,7 @@ export default function UploadPage() {
           sha256,
           size_bytes: item.file.size,
           discipline: item.discipline,
+          content_type: item.file.type || "application/octet-stream",
         });
         if (!signed.ok || !signed.uploadUrl || !signed.key) {
           patch({ status: "error", error: "Couldn’t get an upload slot — your link may have expired." });
