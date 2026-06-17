@@ -1,27 +1,41 @@
 "use node";
 
 /**
- * VerifIQ — Per-Discipline ZIP Upload Action
- *
- * Receives a ZIP uploaded by a consultant via magic-link, extracts it server-side,
- * classifies each file, queues per-discipline scan.
+ * VerifIQ — ZIP upload actions (single discipline + full multi-discipline suite).
  */
 
 import { createHash } from "crypto";
 import { writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { action, type ActionCtx } from "../_generated/server";
+import { action, internalAction, type ActionCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import StreamZip from "node-stream-zip";
+import {
+  DISCIPLINE_CODES,
+  inferDisciplineFromPath,
+  type DisciplineCode,
+} from "../lib/disciplineInfer";
 
-const MAX_ZIP_SIZE_BYTES = 1_000_000_000; // 1 GB cap per discipline ZIP
-const MAX_FILE_SIZE_BYTES = 60_000_000; // 60 MB per individual file
+const MAX_ZIP_SIZE_BYTES = 1_000_000_000;
+const MAX_FILE_SIZE_BYTES = 60_000_000;
 const SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".xlsx", ".xls", ".dwg", ".dxf", ".rvt"];
 
-const DISCIPLINE_CODES = ["arch", "cs", "mech", "elec", "fire", "qs", "bcar"] as const;
+type ExtractedZipFile = {
+  filePath: string;
+  fileName: string;
+  ext: string;
+  sizeBytes: number;
+  data: Buffer;
+};
+
+type DisciplineUploadResult = {
+  uploadId: Id<"disciplineUploads">;
+  fileCount: number;
+  totalSizeBytes: number;
+};
 
 export const submitDisciplineZip = action({
   args: {
@@ -29,11 +43,7 @@ export const submitDisciplineZip = action({
     zipStorageId: v.id("_storage"),
     consultantEmail: v.string(),
   },
-  handler: async (ctx, args): Promise<{
-    uploadId: Id<"disciplineUploads">;
-    fileCount: number;
-    totalSizeBytes: number;
-  }> => {
+  handler: async (ctx, args): Promise<DisciplineUploadResult> => {
     const invitation = await ctx.runQuery(internal.invitations.findByToken, {
       tokenHash: hashToken(args.magicLinkToken),
     });
@@ -63,41 +73,57 @@ export const submitDisciplineZip = action({
   },
 });
 
-/** Staff console upload — authenticated project owner, no magic link required. */
-export const staffSubmitDisciplineZip = action({
+export const processStaffDisciplineZip = internalAction({
   args: {
+    orgId: v.id("organizations"),
     projectId: v.id("projects"),
     discipline: v.string(),
     zipStorageId: v.id("_storage"),
+    uploadedBy: v.string(),
   },
-  handler: async (ctx, args): Promise<{
-    uploadId: Id<"disciplineUploads">;
-    fileCount: number;
-    totalSizeBytes: number;
-  }> => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.email) {
-      throw new Error("Not authenticated");
+  handler: async (ctx, args) => {
+    await processDisciplineZip(ctx, args);
+  },
+});
+
+export const processStaffFullSuiteZip = internalAction({
+  args: {
+    orgId: v.id("organizations"),
+    projectId: v.id("projects"),
+    zipStorageId: v.id("_storage"),
+    uploadedBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const zipBuffer = await loadZipBuffer(ctx, args.zipStorageId);
+    const extracted = await readZipEntries(zipBuffer);
+
+    const buckets = new Map<DisciplineCode, ExtractedZipFile[]>();
+    for (const file of extracted) {
+      const discipline = inferDisciplineFromPath(file.filePath, file.fileName);
+      const bucket = buckets.get(discipline) ?? [];
+      bucket.push(file);
+      buckets.set(discipline, bucket);
     }
 
-    const project = await ctx.runQuery(internal.projects.get, { id: args.projectId });
-    if (!project) {
-      throw new Error("Project not found");
-    }
-    if (project.createdBy !== identity.email) {
-      throw new Error("Not authorized for this project");
-    }
-    if (!DISCIPLINE_CODES.includes(args.discipline as (typeof DISCIPLINE_CODES)[number])) {
-      throw new Error(`Invalid discipline. Use one of: ${DISCIPLINE_CODES.join(", ")}`);
+    if (buckets.size === 0) {
+      throw new Error(
+        "No supported files found in ZIP. Include PDF, DOCX, XLSX, XLS, DWG, DXF, or RVT.",
+      );
     }
 
-    return await processDisciplineZip(ctx, {
-      orgId: project.orgId,
-      projectId: args.projectId,
-      discipline: args.discipline,
-      zipStorageId: args.zipStorageId,
-      uploadedBy: identity.email,
-    });
+    for (const discipline of DISCIPLINE_CODES) {
+      const files = buckets.get(discipline);
+      if (!files?.length) continue;
+
+      await persistDisciplineFiles(ctx, {
+        orgId: args.orgId,
+        projectId: args.projectId,
+        discipline,
+        zipStorageId: args.zipStorageId,
+        uploadedBy: args.uploadedBy,
+        files,
+      });
+    }
   },
 });
 
@@ -111,16 +137,37 @@ async function processDisciplineZip(
     uploadedBy: string;
     invitationId?: Id<"uploadInvitations">;
   },
-): Promise<{
-  uploadId: Id<"disciplineUploads">;
-  fileCount: number;
-  totalSizeBytes: number;
-}> {
-  const zipBlob = await ctx.storage.get(args.zipStorageId);
-  if (!zipBlob) throw new Error("ZIP not found in storage.");
-  const zipBuffer = Buffer.from(await zipBlob.arrayBuffer());
-  if (zipBuffer.byteLength > MAX_ZIP_SIZE_BYTES) {
-    throw new Error(`ZIP exceeds ${MAX_ZIP_SIZE_BYTES / 1e6}MB cap. Split into multiple uploads.`);
+): Promise<DisciplineUploadResult> {
+  const zipBuffer = await loadZipBuffer(ctx, args.zipStorageId);
+  const extracted = await readZipEntries(zipBuffer);
+
+  return await persistDisciplineFiles(ctx, {
+    orgId: args.orgId,
+    projectId: args.projectId,
+    discipline: args.discipline,
+    zipStorageId: args.zipStorageId,
+    uploadedBy: args.uploadedBy,
+    invitationId: args.invitationId,
+    files: extracted,
+  });
+}
+
+async function persistDisciplineFiles(
+  ctx: ActionCtx,
+  args: {
+    orgId: Id<"organizations">;
+    projectId: Id<"projects">;
+    discipline: string;
+    zipStorageId: Id<"_storage">;
+    uploadedBy: string;
+    invitationId?: Id<"uploadInvitations">;
+    files: ExtractedZipFile[];
+  },
+): Promise<DisciplineUploadResult> {
+  if (args.files.length === 0) {
+    throw new Error(
+      "No supported files found in ZIP. Include PDF, DOCX, XLSX, XLS, DWG, DXF, or RVT.",
+    );
   }
 
   const uploadId = await ctx.runMutation(internal.uploads.create, {
@@ -133,49 +180,27 @@ async function processDisciplineZip(
     uploadedAt: Date.now(),
   });
 
-  const zip = new StreamZip.async({ file: zipBufferToTempPath(zipBuffer) });
-  const entries = await zip.entries();
   const extractedFiles: Id<"files">[] = [];
   let totalSize = 0;
   let estimatedPages = 0;
 
-  for (const [name, entry] of Object.entries(entries)) {
-    if (entry.isDirectory) continue;
-
-    const ext = name.toLowerCase().substring(name.lastIndexOf("."));
-    if (!SUPPORTED_EXTENSIONS.includes(ext)) {
-      console.warn(`Skipping unsupported file: ${name}`);
-      continue;
-    }
-    if (entry.size > MAX_FILE_SIZE_BYTES) {
-      console.warn(`Skipping oversized file: ${name} (${entry.size} bytes)`);
-      continue;
-    }
-
-    const data = await zip.entryData(name);
-    const fileStorageId = await ctx.storage.store(new Blob([new Uint8Array(data)]));
-    totalSize += entry.size;
-    estimatedPages += estimatePagesFromSize(entry.size, ext);
+  for (const file of args.files) {
+    const fileStorageId = await ctx.storage.store(new Blob([new Uint8Array(file.data)]));
+    totalSize += file.sizeBytes;
+    estimatedPages += estimatePagesFromSize(file.sizeBytes, file.ext);
 
     const fileId = await ctx.runMutation(internal.files.create, {
       orgId: args.orgId,
       uploadId,
       packId: undefined,
-      fileName: name.split("/").pop() || name,
-      filePath: name,
-      mimeType: mimeFromExt(ext),
-      sizeBytes: entry.size,
+      fileName: file.fileName,
+      filePath: file.filePath,
+      mimeType: mimeFromExt(file.ext),
+      sizeBytes: file.sizeBytes,
       storageId: fileStorageId,
-      estimatedPages: estimatePagesFromSize(entry.size, ext),
+      estimatedPages: estimatePagesFromSize(file.sizeBytes, file.ext),
     });
     extractedFiles.push(fileId);
-  }
-  await zip.close();
-
-  if (extractedFiles.length === 0) {
-    throw new Error(
-      "No supported files found in ZIP. Include PDF, DOCX, XLSX, XLS, DWG, DXF, or RVT.",
-    );
   }
 
   await ctx.runMutation(internal.uploads.finalise, {
@@ -191,6 +216,48 @@ async function processDisciplineZip(
   });
 
   return { uploadId, fileCount: extractedFiles.length, totalSizeBytes: totalSize };
+}
+
+async function loadZipBuffer(ctx: ActionCtx, zipStorageId: Id<"_storage">): Promise<Buffer> {
+  const zipBlob = await ctx.storage.get(zipStorageId);
+  if (!zipBlob) throw new Error("ZIP not found in storage.");
+  const zipBuffer = Buffer.from(await zipBlob.arrayBuffer());
+  if (zipBuffer.byteLength > MAX_ZIP_SIZE_BYTES) {
+    throw new Error(`ZIP exceeds ${MAX_ZIP_SIZE_BYTES / 1e6}MB cap. Split into multiple uploads.`);
+  }
+  return zipBuffer;
+}
+
+async function readZipEntries(zipBuffer: Buffer): Promise<ExtractedZipFile[]> {
+  const zip = new StreamZip.async({ file: zipBufferToTempPath(zipBuffer) });
+  const entries = await zip.entries();
+  const extracted: ExtractedZipFile[] = [];
+
+  for (const [name, entry] of Object.entries(entries)) {
+    if (entry.isDirectory) continue;
+
+    const ext = name.toLowerCase().substring(name.lastIndexOf("."));
+    if (!SUPPORTED_EXTENSIONS.includes(ext)) {
+      console.warn(`Skipping unsupported file: ${name}`);
+      continue;
+    }
+    if (entry.size > MAX_FILE_SIZE_BYTES) {
+      console.warn(`Skipping oversized file: ${name} (${entry.size} bytes)`);
+      continue;
+    }
+
+    const data = Buffer.from(await zip.entryData(name));
+    extracted.push({
+      filePath: name,
+      fileName: name.split("/").pop()?.split("\\").pop() || name,
+      ext,
+      sizeBytes: entry.size,
+      data,
+    });
+  }
+
+  await zip.close();
+  return extracted;
 }
 
 function hashToken(token: string): string {

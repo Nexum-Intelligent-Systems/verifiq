@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { SeverityPill } from "@/components/ui/SeverityPill";
+import { StartReviewButton, TenderUploadPanel } from "@/components/project/TenderUploadPanel";
 
 const PHASE_LABELS: Record<string, string> = {
   pending: "Pending",
@@ -122,6 +123,9 @@ export function ProjectDashboard({ projectId }: { projectId: Id<"projects"> }) {
         </div>
       </header>
 
+      <TenderUploadPanel projectId={projectId} />
+      <StartReviewButton projectId={projectId} phase={state.phase} />
+
       {/* Severity summary */}
       <section className="mb-10 grid grid-cols-2 gap-4 md:grid-cols-4">
         {(
@@ -149,7 +153,7 @@ export function ProjectDashboard({ projectId }: { projectId: Id<"projects"> }) {
         </h2>
         {state.disciplineUploads.length === 0 ? (
           <p className="text-sm text-[var(--muted)]">
-            No discipline uploads yet. Upload packs via magic link to begin scanning.
+            Upload a discipline ZIP above to begin classification and review.
           </p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

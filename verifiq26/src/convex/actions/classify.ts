@@ -22,6 +22,7 @@ import { internalAction } from "../_generated/server";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { Anthropic } from "@anthropic-ai/sdk";
+import { classifyByFilename } from "../lib/disciplineInfer";
 
 const CHEAP_MODEL = "claude-haiku-4-5-20251001";
 const VISION_MODEL = "claude-sonnet-4-6-20250115"; // for ambiguous-only
@@ -93,46 +94,6 @@ async function classifyFile(
     classificationConfidence: 0.5,
     classificationMethod: "fallback",
   });
-}
-
-// =========================================
-// FILENAME PATTERN MATCHING
-// =========================================
-
-function classifyByFilename(fileName: string): {
-  discipline: string | null;
-  docType: string;
-  confidence: number;
-} {
-  const lower = fileName.toLowerCase();
-
-  // Document type from filename markers (highly reliable)
-  let docType = "unknown";
-  if (/(drawing|drwg|dwg|plan|elev|sect|detail|GA|RCP|key[- ]plan)/.test(lower)) docType = "drawing";
-  else if (/(spec|specification|NBS)/.test(lower))                                docType = "specification";
-  else if (/(schedule|sched|register|sched\.|finishes)/.test(lower))             docType = "schedule";
-  else if (/(report|narrative|design[- ]statement)/.test(lower))                docType = "report";
-  else if (/(calc|calcs|calculation|bending|attenuation)/.test(lower))           docType = "calc";
-  else if (/(BoQ|bill[- ]of[- ]quantities|FoT|ITT|pricing)/.test(lower))         docType = "boq";
-  else if (/(FSC|fire[- ]cert|DAC|safety[- ]cert)/.test(lower))                 docType = "certification";
-
-  // Discipline from filename markers
-  let discipline: string | null = null;
-  let conf = 0.5;
-  if (/(-AR-|RHA-AR-|architect|RIAI)/.test(fileName))               { discipline = "arch";  conf = 0.92; }
-  else if (/(-CS-|-CV-|RHA-CS-|structural|KMP-CS)/.test(fileName))  { discipline = "cs";    conf = 0.92; }
-  else if (/(-ME-|-MECH-|RHA-ME-|HVAC|plumb)/.test(fileName))       { discipline = "mech";  conf = 0.90; }
-  else if (/(-EE-|-EL-|RHA-EE-|electrical|elec[ -])/.test(fileName)) { discipline = "elec";  conf = 0.90; }
-  else if (/(fire|ORS|FSC)/.test(lower) && docType === "report")    { discipline = "fire";  conf = 0.85; }
-  else if (docType === "boq" || /quantit|surveyor/.test(lower))      { discipline = "qs";    conf = 0.88; }
-
-  // If filename indicates a drawing register / issue sheet → high-confidence metadata
-  if (/(drawing[- ]register|issue[- ]sheet|DR[ -]?\d+|RG-)/.test(lower)) {
-    docType = "register";
-    conf = Math.max(conf, 0.95);
-  }
-
-  return { discipline, docType, confidence: conf };
 }
 
 // =========================================
