@@ -267,6 +267,8 @@ export default defineSchema({
     author: v.optional(v.string()),
     stage: v.optional(Stage),
     classifier_confidence: v.optional(v.number()),
+    // First ~2000 chars of extracted text; used to build the review RunInput.
+    text_preview: v.optional(v.string()),
     status: DocumentStatus,
     created_at: v.number(),
   })

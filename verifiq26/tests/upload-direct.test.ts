@@ -7,7 +7,8 @@
  */
 
 /// <reference types="vite/client" />
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
+
 import { convexTest } from "convex-test";
 import schema from "../src/convex/schema";
 import { api, internal } from "../src/convex/_generated/api";
@@ -25,6 +26,10 @@ beforeAll(() => {
   process.env.R2_ACCESS_KEY_ID = "test-access-key";
   process.env.R2_SECRET_ACCESS_KEY = "test-secret-key";
   process.env.R2_BUCKET_NAME = "verifiq-prod-eu-west";
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 /** Issue a code and verify it to obtain a live upload session. */
@@ -125,7 +130,15 @@ describe("document registration + seal", () => {
 
     const project = await t.run(async (ctx) => ctx.db.get(projectId as never));
     expect((project as { scan_state: string }).scan_state).toBe("classifying");
-  });
+
+    // Give the event loop a few ticks so convex-test's scheduled-function
+    // runner can transition classifyOneDocument to "inProgress", then drain it.
+    // The action degrades gracefully in the test environment (no R2/LLM keys).
+    await new Promise((r) => setTimeout(r, 0));
+    await t.finishInProgressScheduledFunctions().catch(() => {});
+    await new Promise((r) => setTimeout(r, 0));
+    await t.finishInProgressScheduledFunctions().catch(() => {});
+  }, 15_000);
 
   it("listSessionDocuments returns [] for an invalid session (no leak)", async () => {
     const t = convexTest(schema, modules);

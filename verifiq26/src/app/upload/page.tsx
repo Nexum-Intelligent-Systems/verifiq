@@ -25,9 +25,9 @@ import {
 } from "../../storage/upload-client";
 
 const SESSION_KEY = "verifiq_upload_session";
+const INTAKE_URL = process.env.NEXT_PUBLIC_INTAKE_URL ?? "/";
 
 type Phase = "init" | "need-code" | "verifying" | "ready" | "sealed" | "error";
-
 type FileStatus = "pending" | "hashing" | "uploading" | "done" | "error";
 
 interface UploadItem {
@@ -40,11 +40,12 @@ interface UploadItem {
 }
 
 const ERROR_COPY: Record<string, string> = {
-  invalid: "That link or code isn’t valid. Request a fresh one from the site.",
+  invalid: "That link or code isn't valid. Request a fresh one from the site.",
   used: "That link has already been used. Request a fresh one from the site.",
   expired: "That link has expired. Request a fresh one from the site.",
   revoked: "That link has been revoked. Request a fresh one from the site.",
   locked: "Too many attempts. Request a fresh link from the site.",
+  session_expired: "Your upload session has expired. Please request a fresh link from the site.",
 };
 
 export default function UploadPage() {
@@ -65,6 +66,19 @@ export default function UploadPage() {
     api.uploadDocs.listSessionDocuments,
     sessionToken ? { sessionToken } : "skip",
   );
+  const sessionCheck = useQuery(
+    api.uploadTokens.checkUploadSession,
+    sessionToken && phase === "ready" ? { sessionToken } : "skip",
+  );
+
+  // Detect expired sessions restored from sessionStorage.
+  useEffect(() => {
+    if (sessionCheck !== undefined && !sessionCheck.ok && phase === "ready") {
+      sessionStorage.removeItem(SESSION_KEY);
+      setError(ERROR_COPY.session_expired);
+      setPhase("error");
+    }
+  }, [sessionCheck, phase]);
 
   const doVerify = useCallback(
     async (secret: string) => {
@@ -78,7 +92,7 @@ export default function UploadPage() {
           setProjectId(res.projectId);
           setPhase("ready");
         } else {
-          setError(ERROR_COPY[res.error] ?? "That link isn’t valid.");
+          setError(ERROR_COPY[res.error] ?? "That link isn't valid.");
           setPhase("error");
         }
       } catch {
@@ -119,7 +133,7 @@ export default function UploadPage() {
           content_type: item.file.type || "application/octet-stream",
         });
         if (!signed.ok || !signed.uploadUrl || !signed.key) {
-          patch({ status: "error", error: "Couldn’t get an upload slot — your link may have expired." });
+          patch({ status: "error", error: "Couldn't get an upload slot — your link may have expired." });
           return;
         }
         await putToSignedUrl(signed.uploadUrl, item.file, {
@@ -136,12 +150,12 @@ export default function UploadPage() {
           discipline: item.discipline,
         });
         if (!reg.ok) {
-          patch({ status: "error", error: "Upload couldn’t be recorded." });
+          patch({ status: "error", error: "Upload couldn't be recorded." });
           return;
         }
         patch({ status: "done", progress: 1 });
       } catch {
-        patch({ status: "error", error: "Upload failed — you can retry this file." });
+        patch({ status: "error", error: "Upload failed — tap Retry to try again." });
       }
     },
     [getUploadUrl, registerDoc, sessionToken],
@@ -158,7 +172,6 @@ export default function UploadPage() {
         progress: 0,
       }));
       setItems((prev) => [...prev, ...next]);
-      // Upload sequentially to keep memory + connections sane on large packs.
       void next.reduce(
         (chain, item) => chain.then(() => uploadOne(item)),
         Promise.resolve(),
@@ -191,7 +204,9 @@ export default function UploadPage() {
   }, [seal, sessionToken]);
 
   const doneCount = items.filter((it) => it.status === "done").length;
+  const errorCount = items.filter((it) => it.status === "error").length;
   const busy = items.some((it) => it.status === "hashing" || it.status === "uploading");
+  const uploadingIndex = items.findIndex((it) => it.status === "uploading");
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -209,10 +224,10 @@ export default function UploadPage() {
     return (
       <div>
         <span className="eyebrow">— Secure upload</span>
-        <h1 className="page-title">We couldn’t open that link</h1>
+        <h1 className="page-title">We couldn't open that link</h1>
         <p className="lede">{error}</p>
         <p>
-          <a className="btn" href="/first-read.html">
+          <a className="btn" href={INTAKE_URL}>
             Request a fresh link →
           </a>
         </p>
@@ -224,18 +239,17 @@ export default function UploadPage() {
     return (
       <div>
         <span className="eyebrow">— Pack received</span>
-        <h1 className="page-title">Your pack is in. The read has started.</h1>
+        <h1 className="page-title">Your pack is in.</h1>
         <p className="lede">
-          We’re classifying your {doneCount} {doneCount === 1 ? "file" : "files"} and the council is
-          beginning its read. You’ll get an email when the register is ready.
+          We're now classifying your {doneCount} {doneCount === 1 ? "file" : "files"} — this
+          takes a few minutes. Once done, the council will begin its read automatically. You'll
+          get an email when the register is ready.
         </p>
-        {projectId ? (
-          <p>
-            <a className="btn" href={`/projects/${projectId}`}>
-              Follow the read →
-            </a>
-          </p>
-        ) : null}
+        <p>
+          <a className="btn" href={projectId ? `/projects/${projectId}` : "/"}>
+            Follow the read →
+          </a>
+        </p>
       </div>
     );
   }
@@ -246,7 +260,8 @@ export default function UploadPage() {
         <span className="eyebrow">— Secure upload</span>
         <h1 className="page-title">Enter your upload code</h1>
         <p className="lede">
-          Open the link in your email, or type the 6-character code we sent you.
+          Open the link in your email, or enter the 6-character code we sent you. Case doesn't
+          matter. Links expire after 72 hours — check your spam folder if you can't find it.
         </p>
         <form
           className="np-form"
@@ -263,29 +278,36 @@ export default function UploadPage() {
               onChange={(e) => setCodeInput(e.target.value)}
               placeholder="e.g. K7M2QP"
               autoComplete="one-time-code"
+              autoFocus
             />
           </div>
           <button className="btn" type="submit" disabled={!codeInput.trim()}>
             Verify →
           </button>
         </form>
+        <p style={{ marginTop: 12, fontSize: "0.85rem", color: "var(--graphite)" }}>
+          Didn't receive an email?{" "}
+          <a href={INTAKE_URL}>Request a fresh link →</a>
+        </p>
       </div>
     );
   }
 
   // phase === "ready"
   const serverCount = Array.isArray(manifest) ? manifest.length : 0;
+  const uploadingItem = uploadingIndex >= 0 ? items[uploadingIndex] : null;
+
   return (
     <div>
       <span className="eyebrow">— Secure upload</span>
       <h1 className="page-title">Upload your pack</h1>
       <p className="lede">
-        Drag your files in — they upload directly and securely, and resume if your connection
-        drops. The read starts the moment you’re done.
+        Drag your files in — they upload directly and securely to our servers. The read starts
+        the moment you seal the pack.
       </p>
 
       <div style={{ margin: "16px 0" }}>
-        <label htmlFor="disc" style={{ marginRight: 8 }}>
+        <label htmlFor="disc" style={{ marginRight: 8, fontFamily: "var(--font-mono)", fontSize: "0.625rem", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--graphite)" }}>
           Tag new files as
         </label>
         <select
@@ -299,32 +321,45 @@ export default function UploadPage() {
             </option>
           ))}
         </select>
+        <span style={{ marginLeft: 10, fontSize: "0.8rem", color: "var(--graphite)" }}>
+          (optional — the classifier will also infer it)
+        </span>
       </div>
 
       <div
         className={dragOver ? "dropzone drag" : "dropzone"}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragOver(false);
-          addFiles(e.dataTransfer.files);
-        }}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
         onClick={() => fileInput.current?.click()}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.current?.click(); } }}
         role="button"
         tabIndex={0}
+        aria-label="Drop files here or press Enter to choose files"
         style={{
           border: "1.5px dashed currentColor",
-          padding: "32px",
+          padding: "40px 32px",
           textAlign: "center",
           cursor: "pointer",
+          minHeight: 160,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           opacity: dragOver ? 1 : 0.85,
         }}
       >
-        <p>Drop files here, or click to choose</p>
+        <div>
+          <p style={{ margin: 0 }}>Drop files here, or click to choose</p>
+          {uploadingItem && (
+            <p style={{ margin: "8px 0 0", fontSize: "0.8rem", color: "var(--graphite)" }}>
+              Uploading {uploadingItem.file.name}
+              {uploadingIndex >= 0 && items.length > 1
+                ? ` (${uploadingIndex + 1} of ${items.length})`
+                : ""}
+              {" "}— {Math.round(uploadingItem.progress * 100)}%
+            </p>
+          )}
+        </div>
         <input
           ref={fileInput}
           type="file"
@@ -334,23 +369,56 @@ export default function UploadPage() {
         />
       </div>
 
-      {items.length > 0 ? (
+      {items.length > 0 && (
         <ul className="proj-list" style={{ marginTop: 16 }}>
           {items.map((it) => (
-            <li key={it.id} className="proj-row">
+            <li key={it.id} className="proj-row" style={{ listStyle: "none" }}>
               <span className="name">{it.file.name}</span>
-              <span className="meta">
+              <span className="meta" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {it.discipline} · {formatBytes(it.file.size)} ·{" "}
                 {it.status === "uploading"
                   ? `${Math.round(it.progress * 100)}%`
                   : it.status === "error"
                     ? (it.error ?? "failed")
                     : it.status}
+                {it.status === "error" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setItems((prev) =>
+                        prev.map((x) =>
+                          x.id === it.id ? { ...x, status: "pending", error: undefined, progress: 0 } : x
+                        )
+                      );
+                      void uploadOne({ ...it, status: "pending", error: undefined, progress: 0 });
+                    }}
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "0.6rem",
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      border: "1px solid currentColor",
+                      background: "transparent",
+                      padding: "2px 8px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Retry
+                  </button>
+                )}
               </span>
             </li>
           ))}
         </ul>
-      ) : null}
+      )}
+
+      {items.length > 0 && (
+        <p style={{ marginTop: 8, fontFamily: "var(--font-mono)", fontSize: "0.625rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--graphite)" }}>
+          {doneCount} of {items.length} uploaded
+          {errorCount > 0 ? ` · ${errorCount} failed` : ""}
+          {serverCount > 0 ? ` · ${serverCount} recorded on server` : ""}
+        </p>
+      )}
 
       <div style={{ marginTop: 20 }}>
         <button
@@ -361,14 +429,9 @@ export default function UploadPage() {
         >
           {sealing
             ? "Starting the read…"
-            : `I’m done — start the read (${doneCount} uploaded)`}
+            : `I'm done — start the read (${doneCount} uploaded)`}
         </button>
-        {serverCount > 0 ? (
-          <p className="meta" style={{ marginTop: 8 }}>
-            {serverCount} {serverCount === 1 ? "file" : "files"} recorded on the server.
-          </p>
-        ) : null}
-        {error ? <p className="meta">{error}</p> : null}
+        {error ? <p className="meta" style={{ marginTop: 8, color: "var(--sanguine)" }}>{error}</p> : null}
       </div>
     </div>
   );
