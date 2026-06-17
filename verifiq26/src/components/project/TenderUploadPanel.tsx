@@ -6,6 +6,7 @@ import Link from "next/link";
 import { DragEvent, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 
 const DISCIPLINES = [
   { code: "arch", label: "Architectural" },
@@ -25,6 +26,32 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function uploadZipWithProgress(
+  uploadUrl: string,
+  file: File,
+  onProgress: (pct: number) => void,
+): Promise<{ storageId: Id<"_storage"> }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    });
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText) as { storageId: Id<"_storage"> });
+        return;
+      }
+      reject(new Error("Storage upload failed"));
+    });
+    xhr.addEventListener("error", () => reject(new Error("Storage upload failed")));
+    xhr.open("POST", uploadUrl);
+    xhr.setRequestHeader("Content-Type", "application/zip");
+    xhr.send(file);
+  });
+}
+
 export function TenderUploadPanel({ projectId }: { projectId: Id<"projects"> }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const generateUploadUrl = useMutation(api.storage.generateUploadUrl);
@@ -35,6 +62,7 @@ export function TenderUploadPanel({ projectId }: { projectId: Id<"projects"> }) 
   const [discipline, setDiscipline] = useState<string>("arch");
   const [dragOver, setDragOver] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [uploadPct, setUploadPct] = useState<number | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -52,44 +80,33 @@ export function TenderUploadPanel({ projectId }: { projectId: Id<"projects"> }) 
 
     setBusy(true);
     setError(null);
+    setUploadPct(0);
     setStatus(`Uploading ${file.name} (${formatBytes(file.size)})…`);
 
     try {
       const uploadUrl = await generateUploadUrl({});
-      const uploadResponse = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/zip" },
-        body: file,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error("Storage upload failed");
-      }
-
-      const { storageId } = (await uploadResponse.json()) as { storageId: Id<"_storage"> };
+      const { storageId } = await uploadZipWithProgress(uploadUrl, file, setUploadPct);
+      setUploadPct(100);
 
       if (mode === "full-suite") {
-        setStatus("Splitting pack into discipline gates — watch the dashboard update…");
+        setStatus("Splitting pack into discipline gates — watch progress bars below…");
         await submitFullSuiteZip({ projectId, zipStorageId: storageId });
-        setStatus(
-          "Full suite queued. Discipline gates will appear below as files are extracted and classified. Click Start review when the phase shows Confirm classification.",
-        );
+        setStatus("Full suite queued. Progress bars update as each gate extracts and classifies.");
       } else {
-        setStatus("Extracting files and classifying — watch the dashboard update…");
+        setStatus("Extracting files and classifying — watch progress bars below…");
         await submitDisciplineZip({
           projectId,
           discipline,
           zipStorageId: storageId,
         });
-        setStatus(
-          "Upload queued. Discipline card will appear below as classification runs. Click Start review when ready.",
-        );
+        setStatus("Upload queued. Progress bars update as classification runs.");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
       setStatus(null);
     } finally {
       setBusy(false);
+      setUploadPct(null);
     }
   }
 
@@ -218,7 +235,20 @@ export function TenderUploadPanel({ projectId }: { projectId: Id<"projects"> }) 
         />
       </div>
 
-      {status && <p className="mt-4 text-sm text-[var(--gold-light)]">{status}</p>}
+      {uploadPct !== null && (
+        <div className="mt-4">
+          <ProgressBar
+            value={uploadPct}
+            label="Uploading ZIP to storage"
+            hint={uploadPct < 100 ? "Sending file…" : "Processing on server…"}
+          />
+        </div>
+      )}
+
+      {status && !uploadPct && <p className="mt-4 text-sm text-[var(--gold-light)]">{status}</p>}
+      {status && uploadPct !== null && uploadPct >= 100 && (
+        <p className="mt-2 text-sm text-[var(--gold-light)]">{status}</p>
+      )}
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
     </section>
   );
@@ -227,9 +257,19 @@ export function TenderUploadPanel({ projectId }: { projectId: Id<"projects"> }) 
 export function StartReviewButton({
   projectId,
   phase,
+  phaseLabel,
+  uploadCount,
+  classifyProgress,
+  reviewProgress,
+  variant = "panel",
 }: {
   projectId: Id<"projects">;
   phase: string;
+  phaseLabel: string;
+  uploadCount: number;
+  classifyProgress: number;
+  reviewProgress: number;
+  variant?: "header" | "panel";
 }) {
   const startScan = useMutation(api.projects.startScan);
   const [busy, setBusy] = useState(false);
@@ -237,6 +277,8 @@ export function StartReviewButton({
   const [message, setMessage] = useState<string | null>(null);
 
   const canStart = phase === "confirm_classify";
+  const isScanning = phase === "scanning";
+  const waitingForUpload = uploadCount === 0 && phase === "pending";
 
   async function handleStart() {
     setBusy(true);
@@ -256,33 +298,75 @@ export function StartReviewButton({
     }
   }
 
-  if (!canStart && !message) {
-    return null;
+  const buttonLabel = busy ? "Starting…" : isScanning ? "Scanning…" : "Start review";
+
+  const buttonClass = canStart
+    ? "border-[var(--gold)] bg-[var(--gold)] text-black shadow-[0_0_24px_rgba(197,160,89,0.35)] hover:bg-[var(--gold-light)]"
+    : "border-[var(--gold)]/40 text-[var(--gold)] hover:bg-[var(--gold)]/10";
+
+  if (variant === "header") {
+    return (
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--gold)]">
+            Step 2 · Run review
+          </p>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            {waitingForUpload
+              ? "Step 1: upload a ZIP below. Then this button activates."
+              : canStart
+                ? "Classification done — click to scan and generate findings."
+                : isScanning
+                  ? "Review is running. Findings appear below."
+                  : `Waiting — phase: ${phaseLabel} (${classifyProgress}% classified)`}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void handleStart()}
+          disabled={busy || !canStart}
+          className={`shrink-0 px-8 py-3 font-mono text-xs uppercase tracking-[0.2em] transition disabled:cursor-not-allowed disabled:opacity-35 ${buttonClass}`}
+        >
+          {buttonLabel}
+        </button>
+        {error && <p className="text-sm text-red-400 sm:col-span-2">{error}</p>}
+        {message && <p className="text-sm text-[var(--gold-light)] sm:col-span-2">{message}</p>}
+      </div>
+    );
   }
 
   return (
     <section className="mb-10 border border-[var(--gold)]/35 bg-[var(--gold)]/5 p-6 md:p-8">
       <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--gold)]">
-        Ready to review
+        Review progress
       </p>
-      <p className="mt-2 text-sm text-[var(--muted)]">
-        Classification is complete. Start the discipline scan to populate findings on this
-        dashboard. With 3+ disciplines, a cross-discipline pass runs after scans complete.
-        Without <code className="font-mono text-[10px]">ANTHROPIC_API_KEY</code> on Convex, demo
-        findings are generated locally.
-      </p>
-      {canStart && (
-        <button
-          type="button"
-          onClick={() => void handleStart()}
-          disabled={busy}
-          className="mt-4 border border-[var(--gold)] px-6 py-2 font-mono text-xs uppercase tracking-widest text-[var(--gold)] transition hover:bg-[var(--gold)]/10 disabled:opacity-50"
-        >
-          {busy ? "Starting…" : "Start review"}
-        </button>
+      {uploadCount > 0 && (phase === "uploading" || phase === "classifying") && (
+        <div className="mt-4">
+          <ProgressBar
+            value={classifyProgress}
+            label="Classification"
+            hint="Tagging document types per discipline gate"
+            indeterminate={classifyProgress === 0}
+          />
+        </div>
       )}
-      {message && <p className="mt-4 text-sm text-[var(--gold-light)]">{message}</p>}
+      {uploadCount > 0 && (
+        <div className="mt-4">
+          <ProgressBar
+            value={reviewProgress}
+            label="Review scan"
+            hint={
+              isScanning
+                ? "Discipline scans running"
+                : canStart
+                  ? "Ready — use Start review in the header"
+                  : "Starts after classification"
+            }
+          />
+        </div>
+      )}
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+      {message && <p className="mt-4 text-sm text-[var(--gold-light)]">{message}</p>}
     </section>
   );
 }

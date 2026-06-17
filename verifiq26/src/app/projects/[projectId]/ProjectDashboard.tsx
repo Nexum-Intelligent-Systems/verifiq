@@ -4,7 +4,13 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { SeverityPill } from "@/components/ui/SeverityPill";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StartReviewButton, TenderUploadPanel } from "@/components/project/TenderUploadPanel";
+import {
+  computePipelineProgress,
+  disciplineProgressLabel,
+  disciplineProgressPct,
+} from "@/components/project/pipelineProgress";
 
 const PHASE_LABELS: Record<string, string> = {
   pending: "Pending",
@@ -75,6 +81,11 @@ export function ProjectDashboard({ projectId }: { projectId: Id<"projects"> }) {
 
   const phaseLabel = PHASE_LABELS[state.phase] ?? state.phase;
   const recentFindings = (findings ?? []).slice(0, 8);
+  const pipeline = computePipelineProgress(
+    state.phase,
+    state.disciplineUploads,
+    state.progressPct,
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -89,6 +100,16 @@ export function ProjectDashboard({ projectId }: { projectId: Id<"projects"> }) {
         <p className="mt-2 text-[var(--muted)]">
           {state.project.contractType ?? "PW-CF5"} · Tier {state.project.tier ?? "mid"}
         </p>
+
+        <StartReviewButton
+          variant="header"
+          projectId={projectId}
+          phase={state.phase}
+          phaseLabel={phaseLabel}
+          uploadCount={state.disciplineUploads.length}
+          classifyProgress={pipeline.classify}
+          reviewProgress={pipeline.review}
+        />
 
         <div className="mt-6 flex flex-wrap gap-6 font-mono text-xs">
           <div>
@@ -114,17 +135,49 @@ export function ProjectDashboard({ projectId }: { projectId: Id<"projects"> }) {
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="mt-6 h-1 w-full overflow-hidden bg-[var(--border)]">
-          <div
-            className="h-full bg-[var(--gold)] transition-all duration-500"
-            style={{ width: `${state.progressPct}%` }}
+        {/* Overall progress */}
+        <div className="mt-6">
+          <ProgressBar
+            value={pipeline.overall}
+            label="Overall pack progress"
+            hint={`${phaseLabel} · ${state.filesProcessed} / ${state.filesTotal} files · ${state.findingsCount} findings`}
+            size="lg"
           />
         </div>
+
+        {state.disciplineUploads.length > 0 && (
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <ProgressBar
+              value={pipeline.intake}
+              label="Intake"
+              hint="ZIP extracted into discipline gates"
+            />
+            <ProgressBar
+              value={pipeline.classify}
+              label="Classification"
+              hint="Document types tagged per file"
+            />
+            <ProgressBar
+              value={pipeline.review}
+              label="Review"
+              hint="Discipline scans and findings"
+            />
+          </div>
+        )}
       </header>
 
       <TenderUploadPanel projectId={projectId} />
-      <StartReviewButton projectId={projectId} phase={state.phase} />
+      {state.disciplineUploads.length > 0 && (
+        <StartReviewButton
+          variant="panel"
+          projectId={projectId}
+          phase={state.phase}
+          phaseLabel={phaseLabel}
+          uploadCount={state.disciplineUploads.length}
+          classifyProgress={pipeline.classify}
+          reviewProgress={pipeline.review}
+        />
+      )}
 
       {/* Severity summary */}
       <section className="mb-10 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -162,11 +215,23 @@ export function ProjectDashboard({ projectId }: { projectId: Id<"projects"> }) {
                 key={du.discipline}
                 className={`border p-4 transition-colors ${cardStateClass(du.scanStatus)}`}
               >
-                <div className="font-serif text-sm uppercase tracking-wider">
-                  {disciplineLabel(du.discipline)}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="font-serif text-sm uppercase tracking-wider">
+                    {disciplineLabel(du.discipline)}
+                  </div>
+                  <span className="font-mono text-[10px] tabular-nums text-[var(--gold-light)]">
+                    {disciplineProgressPct(du)}%
+                  </span>
+                </div>
+                <div className="mt-3">
+                  <ProgressBar
+                    value={disciplineProgressPct(du)}
+                    showPercent={false}
+                    size="sm"
+                  />
                 </div>
                 <div className="mt-2 font-mono text-[10px] uppercase tracking-widest text-[var(--muted)]">
-                  {du.scanStatus.replace("_", " ")}
+                  {disciplineProgressLabel(du)}
                 </div>
                 <div className="mt-3 flex gap-4 font-mono text-xs tabular-nums">
                   <span>{du.fileCount} files</span>
