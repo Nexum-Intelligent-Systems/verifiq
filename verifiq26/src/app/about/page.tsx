@@ -5,7 +5,7 @@ import { SourceQuote } from "@/components/ui/SourceQuote";
 export const metadata: Metadata = {
   title: "About — VerifIQ",
   description:
-    "Why VerifIQ exists, who reads your pack, and the honesty posture behind every release.",
+    "Pre-tender pack review for Irish construction teams. Source-quoted findings, chartered reviewer gate, honest posture on every release.",
 };
 
 export default function AboutPage() {
@@ -29,10 +29,11 @@ export default function AboutPage() {
         <Wrap narrow>
           <h2 className="t-h2" style={{ marginBottom: 16 }}>What we are.</h2>
           <p className="t-body">
-            A structured, evidence-based answer to one question: are we actually ready to build?
-            We read a design-team pack against the Irish corpus, source-quote every finding, and a
-            chartered reviewer signs the audit log before anything is released. We do not certify,
-            sign, opine, or substitute for professional judgement.
+            A structured, evidence-based read of your tender pack before it goes to market — or
+            before you price it. We read drawings, specifications, schedules, and contract forms
+            against the Irish corpus, source-quote every finding, and a chartered reviewer signs
+            the audit log before anything is released. We do not certify, sign, opine, or substitute
+            for professional judgement.
           </p>
         </Wrap>
       </Section>

@@ -14,6 +14,7 @@ import type * as actions_scan from "../actions/scan.js";
 import type * as actions_uploads from "../actions/uploads.js";
 import type * as auth from "../auth.js";
 import type * as checks from "../checks.js";
+import type * as devAuth from "../devAuth.js";
 import type * as files from "../files.js";
 import type * as findings from "../findings.js";
 import type * as http from "../http.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   "actions/uploads": typeof actions_uploads;
   auth: typeof auth;
   checks: typeof checks;
+  devAuth: typeof devAuth;
   files: typeof files;
   findings: typeof findings;
   http: typeof http;

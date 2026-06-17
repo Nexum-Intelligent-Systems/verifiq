@@ -4,8 +4,6 @@ import { useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { AuthNav } from "@/components/auth/AuthNav";
-
 export default function NewProjectPage() {
   const createDemo = useMutation(api.seed.createDemoProject);
   const router = useRouter();
@@ -26,12 +24,13 @@ export default function NewProjectPage() {
 
   return (
     <div className="mx-auto max-w-lg px-6 py-20 text-center">
-      <div className="mb-8 flex justify-end">
-        <AuthNav />
-      </div>
-      <h1 className="font-serif text-2xl uppercase tracking-widest">New project</h1>
+      <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--gold)]">
+        Tender pack review
+      </p>
+      <h1 className="mt-2 font-serif text-2xl uppercase tracking-widest">New project</h1>
       <p className="mt-4 text-sm text-[var(--muted)]">
-        Create a demo project to open the live Atelier console wired to Convex.
+        Create a demo tender pack to open the live Atelier console — wired to Convex, source-quoted
+        findings, reviewer-gated release.
       </p>
       <button
         type="button"

@@ -43,11 +43,8 @@ export const classifyDisciplineUpload = internalAction({
       await Promise.all(batch.map((file) => classifyFile(ctx, file, upload.discipline)));
     }
 
-    // Mark upload as classified, trigger scan
+    // Mark upload as classified — staff confirms on dashboard before scan runs
     await ctx.runMutation(internal.uploads.markClassified, { uploadId: args.uploadId });
-    await ctx.scheduler.runAfter(0, internal.actions.scan.scanDisciplineUpload, {
-      uploadId: args.uploadId,
-    });
   },
 });
 
@@ -69,9 +66,9 @@ async function classifyFile(
     return;
   }
 
-  // ===== Stage 2: first-page text + cheap model =====
+  // ===== Stage 2: first-page text + cheap model (skipped without API key) =====
   const firstPageText = await extractFirstPageText(ctx, file);
-  if (firstPageText) {
+  if (firstPageText && process.env.ANTHROPIC_API_KEY) {
     const aiClass = await classifyWithCheapModel(file.fileName, firstPageText);
     if (aiClass.confidence >= 0.8) {
       await ctx.runMutation(internal.files.updateClassification, {

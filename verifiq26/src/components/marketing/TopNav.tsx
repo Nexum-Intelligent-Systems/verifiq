@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { StaffAuthNav } from "@/components/auth/StaffAuthNav";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 /** Single source of truth for the public site header. */
@@ -76,6 +77,7 @@ export function TopNav() {
           Request the brief ↗
         </Link>
 
+        <StaffAuthNav />
         <ThemeToggle />
       </div>
     </nav>

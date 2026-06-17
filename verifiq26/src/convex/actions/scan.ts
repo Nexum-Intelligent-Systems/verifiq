@@ -59,6 +59,11 @@ export const scanDisciplineUpload = internalAction({
     // Mark scanning
     await ctx.runMutation(internal.uploads.markScanning, { uploadId: args.uploadId });
 
+    if (!process.env.ANTHROPIC_API_KEY) {
+      await runDemoScan(ctx, upload, project);
+      return;
+    }
+
     // Create check record for tracking cost + tokens
     const checkId = await ctx.runMutation(internal.checks.create, {
       orgId: upload.orgId,
@@ -362,4 +367,61 @@ function shouldTriggerCrossDiscipline(projectStatus: any): boolean {
     (du: any) => du.scanStatus === "completed"
   ).length;
   return completedDisciplines >= 3;
+}
+
+async function runDemoScan(ctx: any, upload: any, project: any): Promise<void> {
+  const checkId = await ctx.runMutation(internal.checks.create, {
+    orgId: upload.orgId,
+    packId: undefined,
+    initiatedBy: project.createdBy,
+    tier: project.tier || "mid",
+    corpusVersion: "local-demo",
+    skillsRun: [`verifiq-${upload.discipline}-demo`],
+  });
+
+  const files = await ctx.runQuery(internal.files.listClassifiedByUpload, {
+    uploadId: upload._id,
+  });
+
+  const severities = ["HIGH", "MEDIUM", "LOW"] as const;
+  let findingsCount = 0;
+
+  for (const file of files.slice(0, 8)) {
+    const severity = severities[findingsCount % severities.length];
+    await ctx.runMutation(internal.findings.create, {
+      orgId: upload.orgId,
+      projectId: upload.projectId,
+      checkId,
+      finding: {
+        findingId: nextFindingId(upload.discipline, findingsCount),
+        discipline: upload.discipline,
+        severity,
+        category: "local-demo",
+        oneSentenceIssue: `Demo review item for ${file.fileName}. Set ANTHROPIC_API_KEY for live corpus scan.`,
+        document: file.fileName,
+        sectionLocation: "—",
+        regulatoryBasis: "Local demo mode — not a regulatory determination",
+        operationalRisk: "Placeholder finding for UI testing",
+        recommendedAction: "Review the source document manually before tender issue",
+        evidenceQuote: `[demo] ${file.fileName}`,
+        status: "pending_review",
+        sourceFile: file.fileName,
+      },
+    });
+    findingsCount++;
+  }
+
+  await ctx.runMutation(internal.checks.complete, {
+    checkId,
+    findingCount: findingsCount,
+    inputTokensConsumed: 0,
+    outputTokensConsumed: 0,
+    inferenceCost_cents: 0,
+  });
+
+  await ctx.runMutation(internal.uploads.markScanComplete, {
+    uploadId: upload._id,
+    checkId,
+    findingsCount,
+  });
 }

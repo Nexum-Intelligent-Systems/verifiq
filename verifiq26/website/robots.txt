@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Wireframe reference pages — not for public indexing
+Disallow: /onboarding-wizard.html
+Disallow: /upload-hub.html
+Disallow: /upload-magic-link.html
+Disallow: /classify-confirm.html
+Disallow: /dashboard-live.html
+Disallow: /build-readiness.html
+Disallow: /workflow-index.html
+Disallow: /scan-result-free.html
+Disallow: /cad-library.html

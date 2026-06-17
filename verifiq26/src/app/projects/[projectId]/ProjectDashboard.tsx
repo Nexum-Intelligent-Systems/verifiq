@@ -4,7 +4,6 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { SeverityPill } from "@/components/ui/SeverityPill";
-import { AuthNav } from "@/components/auth/AuthNav";
 
 const PHASE_LABELS: Record<string, string> = {
   pending: "Pending",
@@ -78,9 +77,6 @@ export function ProjectDashboard({ projectId }: { projectId: Id<"projects"> }) {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <div className="mb-6 flex justify-end">
-        <AuthNav />
-      </div>
       {/* Header */}
       <header className="mb-10 border border-[var(--gold)]/20 bg-[var(--surface)] p-6 md:p-8">
         <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--gold)]">

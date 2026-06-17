@@ -3,6 +3,8 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { MarketingShell } from "@/components/marketing/MarketingShell";
+import { formatAuthError } from "@/lib/authErrors";
 
 type AuthFlow = "signIn" | "signUp";
 
@@ -24,12 +26,24 @@ export default function SignInPage() {
       await signIn("password", { email, password, flow });
       router.push("/projects/new");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed");
+      const message = err instanceof Error ? err.message : "Authentication failed";
+      const friendly = formatAuthError(message, flow);
+
+      if (
+        flow === "signUp" &&
+        (/^Account .+ already exists$/.test(message) ||
+          friendly.includes("already exists"))
+      ) {
+        setFlow("signIn");
+      }
+
+      setError(friendly);
       setLoading(false);
     }
   }
 
   return (
+    <MarketingShell>
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-6 py-16">
       <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--gold)]">
         VerifIQ Atelier
@@ -38,7 +52,8 @@ export default function SignInPage() {
         {flow === "signIn" ? "Sign in" : "Create account"}
       </h1>
       <p className="mt-3 text-sm text-[var(--muted)]">
-        Access your project console with Convex Auth — email and password.
+        Staff access to the Atelier console — upload tender packs, track review progress, and
+        release source-quoted findings.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
@@ -95,5 +110,6 @@ export default function SignInPage() {
           : "Already have an account? Sign in"}
       </button>
     </div>
+    </MarketingShell>
   );
 }

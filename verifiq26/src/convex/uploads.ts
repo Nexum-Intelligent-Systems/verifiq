@@ -14,7 +14,7 @@ export const create = internalMutation({
     orgId: v.id("organizations"),
     projectId: v.id("projects"),
     discipline: v.string(),
-    invitationId: v.id("uploadInvitations"),
+    invitationId: v.optional(v.id("uploadInvitations")),
     zipStorageId: v.id("_storage"),
     uploadedBy: v.string(),
     uploadedAt: v.number(),
@@ -77,7 +77,6 @@ export const markClassified = internalMutation({
 
     await ctx.db.patch(args.uploadId, {
       classificationStatus: "classified",
-      scanStatus: "queued",
     });
 
     await ctx.scheduler.runAfter(0, internal.scanState.syncFromUpload, {

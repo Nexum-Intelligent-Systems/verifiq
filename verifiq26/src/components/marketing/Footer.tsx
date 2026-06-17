@@ -7,7 +7,11 @@ const FOOTER_LINKS = [
   { href: "/studio", label: "Studio" },
   { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About" },
+  { href: "/case-studies/01", label: "Case study" },
   { href: "/legal", label: "Legal" },
+  { href: "/sub-processors", label: "Sub-processors" },
+  { href: "/solo-reviewer-policy", label: "Reviewer policy" },
+  { href: "/request", label: "Request the brief" },
 ];
 
 const monoMeta: React.CSSProperties = {

@@ -24,7 +24,7 @@ verifiq26/
 │   ├── index.html                  # main site — VerifIQ (Verify product)
 │   ├── hunt.html                   # contractor product landing (orange)
 │   ├── studio.html                 # sole-practitioner product landing (emerald)
-│   ├── dashboard.html              # post-login product UI mockup
+│   ├── dashboard-live.html         # Atelier console wireframe (layout reference)
 │   └── three-products.html         # plain-English portfolio explainer
 │
 ├── docs/                           # commercial documentation
@@ -71,7 +71,7 @@ Site map:
 - `website/index.html` → main VerifIQ marketing site
 - `website/hunt.html` → contractor product (VerifIQ Hunt — variation exposure scanner)
 - `website/studio.html` → sole-practitioner product (VerifIQ Studio — single-discipline)
-- `website/dashboard.html` → post-login product UI mockup
+- `website/dashboard-live.html` → Atelier console wireframe (internal reference)
 - `website/three-products.html` → plain-English portfolio strategy explainer
 
 ### Review the business documents
