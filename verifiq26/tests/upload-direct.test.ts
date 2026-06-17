@@ -103,6 +103,18 @@ describe("document registration + seal", () => {
     expect(res).toEqual({ ok: false, error: "unauthorized" });
   });
 
+  it("listSessionDocuments returns [] for an invalid session (no leak)", async () => {
+    const t = convexTest(schema, modules);
+    const docs = await t.query(api.uploadDocs.listSessionDocuments, { sessionToken: "nope" });
+    expect(docs).toEqual([]);
+  });
+
+  // NB: keep this LAST. Sealing schedules the ingest *node* action via
+  // `runAfter(0)`; convex-test runs that on the macrotask queue, and a scheduled
+  // node action that calls runMutation can't complete cleanly in-harness (same
+  // limitation that keeps the runReview action out of phase5's tests). Leaving
+  // it undrained is only safe when no later test opens a transaction while its
+  // setTimeout fires — so this scheduling test must be the final one in the file.
   it("seals the pack and advances uploading → classifying", async () => {
     const t = convexTest(schema, modules);
     const { sessionToken, projectId } = await session(t);
@@ -125,11 +137,5 @@ describe("document registration + seal", () => {
 
     const project = await t.run(async (ctx) => ctx.db.get(projectId as never));
     expect((project as { scan_state: string }).scan_state).toBe("classifying");
-  });
-
-  it("listSessionDocuments returns [] for an invalid session (no leak)", async () => {
-    const t = convexTest(schema, modules);
-    const docs = await t.query(api.uploadDocs.listSessionDocuments, { sessionToken: "nope" });
-    expect(docs).toEqual([]);
   });
 });

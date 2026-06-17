@@ -14,6 +14,7 @@
 
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { hashSecret, isExpired } from "../auth/magic-code";
 
 function pepper(): string {
@@ -99,9 +100,10 @@ export const registerUploadedDocument = mutation({
 
 /**
  * Seal the pack: with at least one document in, advance uploading → classifying
- * so the existing pipeline picks it up (docs/42 §5.2 A6, docs/39 §1). The actual
- * classify-job dispatch is wired when the classify action lands (CLAUDE.md
- * Phase 6); this transition is the trigger point and is audit-logged.
+ * and dispatch the ingest action (docs/42 §5.2 A6, docs/39 §1), which reads the
+ * uploaded files, builds the council RunInput, and kicks off the review. The
+ * transition is the trigger point and is audit-logged; the heavy lifting runs
+ * out of band in `ingest.ingestAndReview` so sealing stays a fast mutation.
  */
 export const sealUploadSession = mutation({
   args: { sessionToken: v.string() },
@@ -133,6 +135,10 @@ export const sealUploadSession = mutation({
       payload_json: JSON.stringify({ documentCount: docs.length }),
       occurred_at: now,
     });
+
+    // Hand off to the council: read the pack, build RunInput, dispatch the
+    // review. Out of band so a large pack's PDF parse never blocks the seal.
+    await ctx.scheduler.runAfter(0, internal.ingest.ingestAndReview, { project_id: projectId });
 
     return { ok: true, projectId, documentCount: docs.length };
   },

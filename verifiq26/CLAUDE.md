@@ -113,12 +113,19 @@ from a clean checkout.
   read queries + frontend build plan are in (PRs #17/#18). **Concrete PDF
   adapters are done:** `src/pdf/` implements the classify ports
   (`PdfRenderer`/`TextExtractor`) over `pdfjs-dist` + `@napi-rs/canvas` —
-  edge-only, lazy-loaded, byte-deterministic tests in `tests/pdf.test.ts`. They
-  are not yet wired into a classify action: `src/convex/classify.ts` only
-  *persists* classifier output; a `"use node"` action that runs
-  `classifyDocument` (passing `createNodePdf()` as `renderer`/`textExtractor`)
-  on upload is the next step. Still open: tus.io resumable upload (mandatory #1),
-  exports (PDF/DOCX/XLSX/CSV/JSON, §05.5), and the classification-confirmation UX.
+  edge-only, lazy-loaded, byte-deterministic tests in `tests/pdf.test.ts`.
+  **The web-upload council handoff is now wired (docs/44):** sealing a pack
+  (`uploadDocs.sealUploadSession`) schedules `ingest.ingestAndReview` (a
+  `"use node"` action) which downloads each file (R2/Convex storage), extracts
+  text (`NodePdfAdapter.allText` for PDFs, UTF-8 for text), groups it by council
+  discipline key (`src/ingest/extract.ts`), and dispatches via
+  `reviewData.requestReview`. A dev-only `uploadTokens.issueDevUploadCode`
+  (gated by `VERIFIQ_DEV_CODES=1`) + `scripts/dev-issue-code.mjs` let you drive
+  `/upload` locally without email. The title-block classifier
+  (`src/convex/classify.ts` + `createNodePdf()`) is still only *persisted*, not
+  run on upload — discipline currently comes from the customer's upload tag.
+  Still open: tus.io resumable upload (mandatory #1), exports
+  (PDF/DOCX/XLSX/CSV/JSON, §05.5), and the classification-confirmation UX.
 
 Note: `requestReview` enforces project ownership only when an authenticated
 identity is present (auth is still stubbed); the workflow/cache mutations are
