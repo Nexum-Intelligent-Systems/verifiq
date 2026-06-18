@@ -1,20 +1,24 @@
 "use client";
 
 /**
- * VerifIQ — direct-upload route (docs/42 §5.2, Sprint 2).
+ * VerifIQ — direct-upload route (docs/42 §5.2; web-upload UX pass, docs/44).
  *
  * The other end of the magic-code handoff: a customer lands here from the
  * emailed link (`/upload?code=…`), the code is verified into a project-scoped
- * upload session, and they drag their pack straight in. Each file is hashed in
- * the browser, uploaded direct to R2 via a signed URL, and registered server
- * side; sealing the pack advances the scan-state into the council pipeline.
+ * upload session, and they drop their pack straight in. A dropped **.zip** is
+ * unpacked in the browser into its individual documents (so the customer never
+ * has to unzip first); each file is hashed, uploaded direct to R2 via a signed
+ * URL, and registered server side. Sealing the pack starts the council read.
  *
- * The session token is held in sessionStorage so a refresh or a dropped
- * connection resumes without re-verifying the (now spent) code (docs/42 A7).
+ * The copy here is deliberately plain — short, friendly, jargon-free — with a
+ * clear three-step flow, visible acknowledgements (✓), warnings (⚠) for files
+ * we can't read, and a confirm step before the read begins. The session token
+ * is held in sessionStorage so a refresh resumes without re-spending the code.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
+import { unzip } from "fflate";
 import { api } from "../../convex/_generated/api";
 import {
   UPLOAD_DISCIPLINES,
@@ -23,8 +27,11 @@ import {
   sha256OfBlob,
   type UploadDiscipline,
 } from "../../storage/upload-client";
+import { fileTextKind } from "../../ingest/extract";
+import { isZipName, isReviewableZipPath, zipEntryBasename } from "../../ingest/zip";
 
 const SESSION_KEY = "verifiq_upload_session";
+/** Where "request a fresh link" sends the customer (the website intake). */
 const INTAKE_URL = process.env.NEXT_PUBLIC_INTAKE_URL ?? "/";
 
 type Phase = "init" | "need-code" | "verifying" | "ready" | "sealed" | "error";
@@ -39,14 +46,63 @@ interface UploadItem {
   error?: string;
 }
 
-const ERROR_COPY: Record<string, string> = {
-  invalid: "That link or code isn't valid. Request a fresh one from the site.",
-  used: "That link has already been used. Request a fresh one from the site.",
-  expired: "That link has expired. Request a fresh one from the site.",
-  revoked: "That link has been revoked. Request a fresh one from the site.",
-  locked: "Too many attempts. Request a fresh link from the site.",
-  session_expired: "Your upload session has expired. Please request a fresh link from the site.",
+type Notice = { id: number; kind: "info" | "warn" | "error"; text: string };
+
+/** Plain-language labels for the file tagger (no in-house jargon). */
+const DISCIPLINE_LABEL: Record<UploadDiscipline, string> = {
+  unclassified: "Let VerifIQ decide (recommended)",
+  architectural: "Architecture / layouts",
+  fire: "Fire safety",
+  access: "Accessibility (DAC)",
+  "mechanical-electrical": "Mechanical & electrical",
+  structural: "Structural",
+  civil: "Civil / site",
+  qs: "Costs / quantities (QS)",
 };
+
+/** Friendly, do-this-next copy for each link/code failure. */
+const ERROR_COPY: Record<string, string> = {
+  invalid: "That link or code isn’t right. Please request a fresh one from the website.",
+  used: "That link has already been used. Please request a fresh one from the website.",
+  expired: "That link has expired. Please request a fresh one from the website.",
+  revoked: "That link was turned off. Please request a fresh one from the website.",
+  locked: "Too many tries. Please request a fresh link from the website.",
+  session_expired: "Your upload session has timed out. Please request a fresh link from the website.",
+};
+
+/** Plain-language per-file status text. */
+function statusText(it: UploadItem): string {
+  switch (it.status) {
+    case "pending":
+      return "Waiting…";
+    case "hashing":
+      return "Checking…";
+    case "uploading":
+      return `Uploading ${Math.round(it.progress * 100)}%`;
+    case "done":
+      return "✓ Ready";
+    case "error":
+      return `⚠ ${it.error ?? "Couldn’t upload"}`;
+  }
+}
+
+/** Unpack a .zip in the browser into individual files we can read. */
+async function expandZip(file: File): Promise<{ files: File[]; skipped: number }> {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const entries = await new Promise<Record<string, Uint8Array>>((resolve, reject) =>
+    unzip(buf, (err, data) => (err ? reject(err) : resolve(data))),
+  );
+  const files: File[] = [];
+  let skipped = 0;
+  for (const [path, bytes] of Object.entries(entries)) {
+    if (isReviewableZipPath(path)) {
+      files.push(new File([bytes], zipEntryBasename(path)));
+    } else if (!path.endsWith("/")) {
+      skipped++;
+    }
+  }
+  return { files, skipped };
+}
 
 export default function UploadPage() {
   const [phase, setPhase] = useState<Phase>("init");
@@ -57,6 +113,10 @@ export default function UploadPage() {
   const [discipline, setDiscipline] = useState<UploadDiscipline>("unclassified");
   const [items, setItems] = useState<UploadItem[]>([]);
   const [sealing, setSealing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [busyNote, setBusyNote] = useState<string | null>(null);
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const noticeSeq = useRef(0);
 
   const verify = useMutation(api.uploadTokens.verifyUploadCode);
   const getUploadUrl = useAction(api.uploadDirect.getUploadUrlForSession);
@@ -80,6 +140,13 @@ export default function UploadPage() {
     }
   }, [sessionCheck, phase]);
 
+  const pushNotice = useCallback((kind: Notice["kind"], text: string) => {
+    setNotices((prev) => [...prev, { id: noticeSeq.current++, kind, text }]);
+  }, []);
+  const dismissNotice = useCallback((id: number) => {
+    setNotices((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
   const doVerify = useCallback(
     async (secret: string) => {
       setPhase("verifying");
@@ -92,11 +159,11 @@ export default function UploadPage() {
           setProjectId(res.projectId);
           setPhase("ready");
         } else {
-          setError(ERROR_COPY[res.error] ?? "That link isn't valid.");
+          setError(ERROR_COPY[res.error] ?? "That link isn’t valid.");
           setPhase("error");
         }
       } catch {
-        setError("Something went wrong verifying your link. Please try again.");
+        setError("Something went wrong opening your link. Please try again in a moment.");
         setPhase("error");
       }
     },
@@ -133,7 +200,7 @@ export default function UploadPage() {
           content_type: item.file.type || "application/octet-stream",
         });
         if (!signed.ok || !signed.uploadUrl || !signed.key) {
-          patch({ status: "error", error: "Couldn't get an upload slot — your link may have expired." });
+          patch({ status: "error", error: "Upload slot expired — refresh and try again" });
           return;
         }
         await putToSignedUrl(signed.uploadUrl, item.file, {
@@ -150,34 +217,74 @@ export default function UploadPage() {
           discipline: item.discipline,
         });
         if (!reg.ok) {
-          patch({ status: "error", error: "Upload couldn't be recorded." });
+          patch({ status: "error", error: "Couldn’t be saved — please retry" });
           return;
         }
         patch({ status: "done", progress: 1 });
       } catch {
-        patch({ status: "error", error: "Upload failed — tap Retry to try again." });
+        patch({ status: "error", error: "Upload failed — you can retry this one" });
       }
     },
     [getUploadUrl, registerDoc, sessionToken],
   );
 
   const addFiles = useCallback(
-    (fileList: FileList | null) => {
+    async (fileList: FileList | null) => {
       if (!fileList || !sessionToken) return;
-      const next: UploadItem[] = Array.from(fileList).map((file) => ({
-        id: `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        file,
-        discipline,
-        status: "pending",
-        progress: 0,
-      }));
+      setConfirming(false);
+
+      // 1) Expand any dropped .zip into its individual documents.
+      const expanded: File[] = [];
+      for (const f of Array.from(fileList)) {
+        if (isZipName(f.name)) {
+          setBusyNote(`Unpacking ${f.name}…`);
+          try {
+            const { files, skipped } = await expandZip(f);
+            expanded.push(...files);
+            if (files.length > 0) {
+              pushNotice(
+                "info",
+                `📦 Unpacked ${f.name} — found ${files.length} file${files.length === 1 ? "" : "s"}` +
+                  (skipped ? `, set aside ${skipped} that aren’t documents.` : "."),
+              );
+            } else {
+              pushNotice(
+                "warn",
+                `${f.name} didn’t have any readable documents inside (maybe just images or folders).`,
+              );
+            }
+          } catch {
+            pushNotice("error", `We couldn’t open ${f.name}. Is it a real .zip file? Try saving it again.`);
+          } finally {
+            setBusyNote(null);
+          }
+        } else {
+          expanded.push(f);
+        }
+      }
+
+      // 2) Keep only files we can read; warn (kindly) about the rest.
+      const next: UploadItem[] = [];
+      for (const file of expanded) {
+        if (fileTextKind(file.name) === "unsupported") {
+          pushNotice("warn", `Set aside ${file.name} — we can only read PDFs and text files.`);
+          continue;
+        }
+        next.push({
+          id: `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          file,
+          discipline,
+          status: "pending",
+          progress: 0,
+        });
+      }
+      if (next.length === 0) return;
+
       setItems((prev) => [...prev, ...next]);
-      void next.reduce(
-        (chain, item) => chain.then(() => uploadOne(item)),
-        Promise.resolve(),
-      );
+      // Upload sequentially to keep memory + connections sane on large packs.
+      void next.reduce((chain, item) => chain.then(() => uploadOne(item)), Promise.resolve());
     },
-    [discipline, sessionToken, uploadOne],
+    [discipline, pushNotice, sessionToken, uploadOne],
   );
 
   const fileInput = useRef<HTMLInputElement>(null);
@@ -185,6 +292,7 @@ export default function UploadPage() {
 
   const doSeal = useCallback(async () => {
     if (!sessionToken) return;
+    setConfirming(false);
     setSealing(true);
     try {
       const res = await seal({ sessionToken });
@@ -193,20 +301,19 @@ export default function UploadPage() {
         sessionStorage.removeItem(SESSION_KEY);
         setPhase("sealed");
       } else if (res.error === "no_documents") {
-        setError("Add at least one file before starting the read.");
+        pushNotice("warn", "Add at least one file before you start the read.");
       } else {
-        setError("Your session has expired. Request a fresh link from the site.");
+        setError(ERROR_COPY.session_expired);
         setPhase("error");
       }
     } finally {
       setSealing(false);
     }
-  }, [seal, sessionToken]);
+  }, [pushNotice, seal, sessionToken]);
 
   const doneCount = items.filter((it) => it.status === "done").length;
   const errorCount = items.filter((it) => it.status === "error").length;
   const busy = items.some((it) => it.status === "hashing" || it.status === "uploading");
-  const uploadingIndex = items.findIndex((it) => it.status === "uploading");
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -214,8 +321,8 @@ export default function UploadPage() {
     return (
       <div>
         <span className="eyebrow">— Secure upload</span>
-        <h1 className="page-title">Opening your upload session…</h1>
-        <p className="lede">One moment while we verify your link.</p>
+        <h1 className="page-title">Opening your upload page…</h1>
+        <p className="lede">One moment while we check your link.</p>
       </div>
     );
   }
@@ -224,11 +331,11 @@ export default function UploadPage() {
     return (
       <div>
         <span className="eyebrow">— Secure upload</span>
-        <h1 className="page-title">We couldn't open that link</h1>
+        <h1 className="page-title">We couldn’t open that link</h1>
         <p className="lede">{error}</p>
         <p>
           <a className="btn" href={INTAKE_URL}>
-            Request a fresh link →
+            Get a fresh link →
           </a>
         </p>
       </div>
@@ -238,18 +345,20 @@ export default function UploadPage() {
   if (phase === "sealed") {
     return (
       <div>
-        <span className="eyebrow">— Pack received</span>
-        <h1 className="page-title">Your pack is in.</h1>
+        <span className="eyebrow">— All done</span>
+        <h1 className="page-title">Your files are in. The read has started. 🎉</h1>
         <p className="lede">
-          We're now classifying your {doneCount} {doneCount === 1 ? "file" : "files"} — this
-          takes a few minutes. Once done, the council will begin its read automatically. You'll
-          get an email when the register is ready.
+          We’re now reading your {doneCount} {doneCount === 1 ? "file" : "files"}. This usually takes
+          a few minutes. You don’t need to keep this page open — we’ll email you when your report is
+          ready.
         </p>
-        <p>
-          <a className="btn" href={projectId ? `/projects/${projectId}` : "/"}>
-            Follow the read →
-          </a>
-        </p>
+        {projectId ? (
+          <p>
+            <a className="btn" href={`/projects/${projectId}`}>
+              Watch the read →
+            </a>
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -258,10 +367,10 @@ export default function UploadPage() {
     return (
       <div>
         <span className="eyebrow">— Secure upload</span>
-        <h1 className="page-title">Enter your upload code</h1>
+        <h1 className="page-title">Enter your 6-character code</h1>
         <p className="lede">
-          Open the link in your email, or enter the 6-character code we sent you. Case doesn't
-          matter. Links expire after 72 hours — check your spam folder if you can't find it.
+          Open the link in your email, or type the 6-character code we sent you (it looks like
+          K7M2QP).
         </p>
         <form
           className="np-form"
@@ -271,43 +380,49 @@ export default function UploadPage() {
           }}
         >
           <div>
-            <label htmlFor="code">Upload code</label>
+            <label htmlFor="code">Your code</label>
             <input
               id="code"
               value={codeInput}
               onChange={(e) => setCodeInput(e.target.value)}
               placeholder="e.g. K7M2QP"
               autoComplete="one-time-code"
-              autoFocus
             />
           </div>
           <button className="btn" type="submit" disabled={!codeInput.trim()}>
-            Verify →
+            Continue →
           </button>
         </form>
-        <p style={{ marginTop: 12, fontSize: "0.85rem", color: "var(--graphite)" }}>
-          Didn't receive an email?{" "}
-          <a href={INTAKE_URL}>Request a fresh link →</a>
-        </p>
       </div>
     );
   }
 
   // phase === "ready"
   const serverCount = Array.isArray(manifest) ? manifest.length : 0;
-  const uploadingItem = uploadingIndex >= 0 ? items[uploadingIndex] : null;
-
   return (
     <div>
       <span className="eyebrow">— Secure upload</span>
-      <h1 className="page-title">Upload your pack</h1>
+      <h1 className="page-title">Add your files</h1>
       <p className="lede">
-        Drag your files in — they upload directly and securely to our servers. The read starts
-        the moment you seal the pack.
+        Three steps: <strong>1.</strong> drop your files (or a ZIP) below. <strong>2.</strong> we
+        check each one. <strong>3.</strong> press the green button to start the read. That’s it.
       </p>
 
+      <details style={{ margin: "8px 0 16px" }}>
+        <summary style={{ cursor: "pointer" }}>What can I add? (tap for help)</summary>
+        <ul style={{ marginTop: 8 }}>
+          <li>Drawings, specs, schedules and reports as <strong>PDF</strong> or text files.</li>
+          <li>
+            Got a folder of files? Pop them in a <strong>.zip</strong> and drop that — we unzip it
+            for you.
+          </li>
+          <li>We set aside anything we can’t read (like photos) and tell you which.</li>
+          <li>Not sure what a file is? Leave the tag on “Let VerifIQ decide”.</li>
+        </ul>
+      </details>
+
       <div style={{ margin: "16px 0" }}>
-        <label htmlFor="disc" style={{ marginRight: 8, fontFamily: "var(--font-mono)", fontSize: "0.625rem", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--graphite)" }}>
+        <label htmlFor="disc" style={{ marginRight: 8 }}>
           Tag new files as
         </label>
         <select
@@ -317,121 +432,141 @@ export default function UploadPage() {
         >
           {UPLOAD_DISCIPLINES.map((d) => (
             <option key={d} value={d}>
-              {d}
+              {DISCIPLINE_LABEL[d]}
             </option>
           ))}
         </select>
-        <span style={{ marginLeft: 10, fontSize: "0.8rem", color: "var(--graphite)" }}>
-          (optional — the classifier will also infer it)
-        </span>
       </div>
 
       <div
         className={dragOver ? "dropzone drag" : "dropzone"}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          void addFiles(e.dataTransfer.files);
+        }}
         onClick={() => fileInput.current?.click()}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.current?.click(); } }}
         role="button"
         tabIndex={0}
-        aria-label="Drop files here or press Enter to choose files"
+        aria-label="Add files: drop them here or click to choose"
         style={{
           border: "1.5px dashed currentColor",
-          padding: "40px 32px",
+          padding: "32px",
           textAlign: "center",
           cursor: "pointer",
-          minHeight: 160,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           opacity: dragOver ? 1 : 0.85,
         }}
       >
-        <div>
-          <p style={{ margin: 0 }}>Drop files here, or click to choose</p>
-          {uploadingItem && (
-            <p style={{ margin: "8px 0 0", fontSize: "0.8rem", color: "var(--graphite)" }}>
-              Uploading {uploadingItem.file.name}
-              {uploadingIndex >= 0 && items.length > 1
-                ? ` (${uploadingIndex + 1} of ${items.length})`
-                : ""}
-              {" "}— {Math.round(uploadingItem.progress * 100)}%
-            </p>
-          )}
-        </div>
+        <p style={{ fontSize: "1.1em", margin: 0 }}>{busyNote ?? "Drop your files or ZIP here"}</p>
+        <p className="meta" style={{ marginTop: 4 }}>
+          …or click to choose them from your computer
+        </p>
         <input
           ref={fileInput}
           type="file"
           multiple
           hidden
-          onChange={(e) => addFiles(e.target.files)}
+          onChange={(e) => void addFiles(e.target.files)}
         />
       </div>
 
-      {items.length > 0 && (
-        <ul className="proj-list" style={{ marginTop: 16 }}>
-          {items.map((it) => (
-            <li key={it.id} className="proj-row" style={{ listStyle: "none" }}>
-              <span className="name">{it.file.name}</span>
-              <span className="meta" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {it.discipline} · {formatBytes(it.file.size)} ·{" "}
-                {it.status === "uploading"
-                  ? `${Math.round(it.progress * 100)}%`
-                  : it.status === "error"
-                    ? (it.error ?? "failed")
-                    : it.status}
-                {it.status === "error" && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setItems((prev) =>
-                        prev.map((x) =>
-                          x.id === it.id ? { ...x, status: "pending", error: undefined, progress: 0 } : x
-                        )
-                      );
-                      void uploadOne({ ...it, status: "pending", error: undefined, progress: 0 });
-                    }}
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "0.6rem",
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      border: "1px solid currentColor",
-                      background: "transparent",
-                      padding: "2px 8px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Retry
-                  </button>
-                )}
-              </span>
+      {notices.length > 0 ? (
+        <ul className="proj-list" style={{ marginTop: 16, listStyle: "none", padding: 0 }}>
+          {notices.map((n) => (
+            <li
+              key={n.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "8px 12px",
+                marginBottom: 6,
+                borderLeft: `3px solid ${
+                  n.kind === "error" ? "#c0392b" : n.kind === "warn" ? "#b7791f" : "#2d7d46"
+                }`,
+                background: "rgba(127,127,127,0.06)",
+              }}
+            >
+              <span>{n.text}</span>
+              <button
+                type="button"
+                aria-label="Dismiss"
+                onClick={() => dismissNotice(n.id)}
+                style={{ border: 0, background: "none", cursor: "pointer", opacity: 0.6 }}
+              >
+                ✕
+              </button>
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
 
-      {items.length > 0 && (
-        <p style={{ marginTop: 8, fontFamily: "var(--font-mono)", fontSize: "0.625rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--graphite)" }}>
-          {doneCount} of {items.length} uploaded
-          {errorCount > 0 ? ` · ${errorCount} failed` : ""}
-          {serverCount > 0 ? ` · ${serverCount} recorded on server` : ""}
-        </p>
-      )}
+      {items.length > 0 ? (
+        <>
+          <p className="meta" style={{ marginTop: 16 }}>
+            {doneCount} of {items.length} ready
+            {errorCount ? ` · ${errorCount} need a retry` : ""}
+          </p>
+          <ul className="proj-list">
+            {items.map((it) => (
+              <li key={it.id} className="proj-row">
+                <span className="name">{it.file.name}</span>
+                <span className="meta">
+                  {DISCIPLINE_LABEL[it.discipline]} · {formatBytes(it.file.size)} · {statusText(it)}
+                  {it.status === "error" ? (
+                    <button
+                      type="button"
+                      onClick={() => void uploadOne(it)}
+                      style={{ marginLeft: 8, cursor: "pointer" }}
+                    >
+                      Retry
+                    </button>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
 
       <div style={{ marginTop: 20 }}>
-        <button
-          className="btn"
-          type="button"
-          disabled={busy || sealing || doneCount === 0}
-          onClick={() => void doSeal()}
-        >
-          {sealing
-            ? "Starting the read…"
-            : `I'm done — start the read (${doneCount} uploaded)`}
-        </button>
-        {error ? <p className="meta" style={{ marginTop: 8, color: "var(--sanguine)" }}>{error}</p> : null}
+        {confirming ? (
+          <div style={{ padding: 16, border: "1px solid currentColor", borderRadius: 6 }}>
+            <p style={{ marginTop: 0 }}>
+              Start the read of your <strong>{doneCount}</strong>{" "}
+              {doneCount === 1 ? "file" : "files"}? Once it starts you can’t add more to this batch.
+            </p>
+            <button className="btn" type="button" disabled={sealing} onClick={() => void doSeal()}>
+              {sealing ? "Starting…" : "Yes, start the read →"}
+            </button>{" "}
+            <button type="button" onClick={() => setConfirming(false)} style={{ marginLeft: 8 }}>
+              Wait, not yet
+            </button>
+          </div>
+        ) : (
+          <button
+            className="btn"
+            type="button"
+            disabled={busy || sealing || doneCount === 0}
+            onClick={() => setConfirming(true)}
+          >
+            {busy
+              ? "Uploading your files…"
+              : doneCount === 0
+                ? "Add a file to begin"
+                : `I’m done — start the read (${doneCount} ready)`}
+          </button>
+        )}
+        {serverCount > 0 ? (
+          <p className="meta" style={{ marginTop: 8 }}>
+            {serverCount} {serverCount === 1 ? "file is" : "files are"} safely saved.
+          </p>
+        ) : null}
       </div>
     </div>
   );

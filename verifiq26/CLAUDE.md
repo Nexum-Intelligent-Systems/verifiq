@@ -113,12 +113,20 @@ from a clean checkout.
   read queries + frontend build plan are in (PRs #17/#18). **Concrete PDF
   adapters are done:** `src/pdf/` implements the classify ports
   (`PdfRenderer`/`TextExtractor`) over `pdfjs-dist` + `@napi-rs/canvas` —
-  edge-only, lazy-loaded, byte-deterministic tests in `tests/pdf.test.ts`. They
-  are not yet wired into a classify action: `src/convex/classify.ts` only
-  *persists* classifier output; a `"use node"` action that runs
-  `classifyDocument` (passing `createNodePdf()` as `renderer`/`textExtractor`)
-  on upload is the next step. Still open: tus.io resumable upload (mandatory #1),
-  exports (PDF/DOCX/XLSX/CSV/JSON, §05.5), and the classification-confirmation UX.
+  edge-only, lazy-loaded, byte-deterministic tests in `tests/pdf.test.ts`.
+  **The web-upload council handoff is wired (docs/44):** sealing a pack
+  (`uploadDocs.sealUploadSession`) schedules `classifyAction.classifyOneDocument`
+  per document — the 3-source title-block classifier (`src/classify/` +
+  `createNodePdf()`) classifies each doc, auto-confirms above threshold (else
+  advances to `confirm_classify`), and once the pack is settled `checkAndAdvance`
+  builds the RunInput and dispatches `runReview`. **ZIPs are supported** — the
+  browser unpacks a dropped `.zip` (fflate, `src/ingest/zip.ts` rules) into its
+  individual files before upload (`fileTextKind` keeps the readable ones). A
+  dev-only `uploadTokens.issueDevUploadCode` (gated by `VERIFIQ_DEV_CODES=1`) +
+  `scripts/dev-issue-code.mjs` let you drive `/upload` locally without email, and
+  the `/upload` UX is a plain-language guided flow (docs/44).
+  Still open: tus.io resumable upload (mandatory #1), exports
+  (PDF/DOCX/XLSX/CSV/JSON, §05.5), and remaining classification-confirmation UX.
 
 Note: `requestReview` enforces project ownership only when an authenticated
 identity is present (auth is still stubbed); the workflow/cache mutations are
