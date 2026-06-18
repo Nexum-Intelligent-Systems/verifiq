@@ -14,6 +14,7 @@
 
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { hashSecret, isExpired } from "../auth/magic-code";
 
 function pepper(): string {
@@ -133,6 +134,13 @@ export const sealUploadSession = mutation({
       payload_json: JSON.stringify({ documentCount: docs.length }),
       occurred_at: now,
     });
+
+    // Schedule one classify action per document (Phase 6).
+    for (const doc of docs) {
+      await ctx.scheduler.runAfter(0, internal.classifyAction.classifyOneDocument, {
+        document_id: doc._id,
+      });
+    }
 
     return { ok: true, projectId, documentCount: docs.length };
   },
