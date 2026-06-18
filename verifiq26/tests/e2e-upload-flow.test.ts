@@ -9,7 +9,7 @@
  *   sealUploadSession  →  scan-state advances into the pipeline
  *
  * The only seams not exercised here are the ones that genuinely need live
- * services: Resend delivery (no-op without a key) and the byte PUT to R2 (the
+ * services: Scaleway TEM delivery (no-op without a key) and the byte PUT to R2 (the
  * signed URL is asserted well-formed instead). Everything else — the real
  * httpAction, the rate limiter, the session auth, the audit trail — runs.
  */

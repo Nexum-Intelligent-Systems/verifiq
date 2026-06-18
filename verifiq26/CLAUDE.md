@@ -34,10 +34,13 @@ The source of truth is `verifiq-prompts/` (and `docs/`). Key files:
 - File storage: **Cloudflare R2** (S3-compatible, EU, zero-egress); `documents`
   carries both optional `storage_id` and `r2_key` — route by size.
 - Frontend: **Next.js 14 App Router** on Vercel (Phase 2+)
-- Auth: **Convex Auth** (`@convex-dev/auth`, email magic-link / OTP via Resend;
-  stubbed in Phase 1, wired alongside the magic-code upload handoff — see
-  `docs/42-magic-code-direct-upload-sprint-plan.md`). **Not Clerk** (superseded
-  2026-06-13 by founder direction). Billing: Stripe (Phase 2). Email: Resend.
+- Auth: **Convex Auth** (`@convex-dev/auth`, email magic-link / OTP via the email
+  provider below; stubbed in Phase 1, wired alongside the magic-code upload
+  handoff — see `docs/42-magic-code-direct-upload-sprint-plan.md`). **Not Clerk**
+  (superseded 2026-06-13 by founder direction). Billing: Stripe (Phase 2).
+- Email: **Scaleway Transactional Email** (EU-owned, full EU data residency;
+  superseded Resend 2026-06-18 by founder direction for true EU residency — not
+  just EU sending). Thin REST `fetch` in `src/convex/email.ts`; see docs/43 §1a.
 - LLMs: Anthropic primary (Sonnet review/chair, Haiku classify, Sonnet-vision
   title-block), OpenAI GPT-4-class for peer challenge / fallback. Failover is
   **per-call, not per-scan**; on dual failure hold the pack in the reviewer queue.
