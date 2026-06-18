@@ -8,7 +8,7 @@
  * Version: 0.6.0-phase4
  */
 
-import { DISCIPLINE_BY_CODE, type ClassificationResult } from "./types.js";
+import { DISCIPLINE_BY_CODE, type ClassificationResult } from "./types";
 
 const DISCIPLINE_TOKENS: { re: RegExp; discipline: string }[] = [
   { re: /\b(arc|arch|architect)\w*/i, discipline: "architectural" },

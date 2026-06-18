@@ -21,6 +21,8 @@
  */
 
 import { mutation, internalMutation, internalAction, query } from "./_generated/server";
+import type { GenericMutationCtx } from "convex/server";
+import type { DataModel } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { sendUploadLinkEmail } from "./email";
@@ -48,23 +50,36 @@ function pepper(): string {
 
 const PURPOSE = v.union(v.literal("first_read"), v.literal("pilot_upload"));
 
+interface IntakeArgs {
+  name: string;
+  email: string;
+  project_name: string;
+  building_type?: string;
+  practice?: string;
+  notes?: string;
+  purpose?: "first_read" | "pilot_upload";
+  ttl_ms?: number;
+}
+
+interface IssuedIntake {
+  projectId: string;
+  tokenId: string;
+  linkToken: string;
+  shortCode: string;
+  expiresAt: number;
+}
+
 /**
- * Create the project + issue a magic code for a website intake. Internal: only
- * the `submitIntake` action (which also sends the email) may call it.
+ * Core intake: find/create user, create the project (pending), issue a hashed
+ * link+code token, audit. Shared by the internal `createIntake` mutation and
+ * the dev-only `issueDevUploadCode` so the issuance logic lives in one place.
+ * Returns the RAW secrets to the caller ONLY — they are never persisted raw.
  */
-export const createIntake = internalMutation({
-  args: {
-    name: v.string(),
-    email: v.string(),
-    project_name: v.string(),
-    building_type: v.optional(v.string()),
-    practice: v.optional(v.string()),
-    notes: v.optional(v.string()),
-    purpose: v.optional(PURPOSE),
-    ttl_ms: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const email = normalizeEmail(args.email);
+async function createIntakeRecord(
+  ctx: GenericMutationCtx<DataModel>,
+  args: IntakeArgs,
+): Promise<IssuedIntake> {
+  const email = normalizeEmail(args.email);
     const now = Date.now();
 
     // Find or create the customer (data-minimised stub identity; Convex Auth
@@ -143,6 +158,55 @@ export const createIntake = internalMutation({
     // Raw secrets returned to the action ONLY (to build the email). Callers must
     // never surface these over HTTP.
     return { projectId, tokenId, linkToken, shortCode, expiresAt: expires_at };
+}
+
+/**
+ * Create the project + issue a magic code for a website intake. Internal: only
+ * the `submitIntake` action (which also sends the email) may call it.
+ */
+export const createIntake = internalMutation({
+  args: {
+    name: v.string(),
+    email: v.string(),
+    project_name: v.string(),
+    building_type: v.optional(v.string()),
+    practice: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    purpose: v.optional(PURPOSE),
+    ttl_ms: v.optional(v.number()),
+  },
+  handler: (ctx, args) => createIntakeRecord(ctx, args),
+});
+
+/**
+ * Dev-only intake: issue a magic code AND return it raw (code + one-click link),
+ * so a developer can exercise the `/upload` flow end-to-end without wiring email
+ * (Resend). Hard-gated behind `VERIFIQ_DEV_CODES=1`; with the flag unset it
+ * refuses, so production never leaks a code over the wire (docs/42 §5.4 N1).
+ */
+export const issueDevUploadCode = mutation({
+  args: {
+    name: v.string(),
+    email: v.string(),
+    project_name: v.string(),
+    building_type: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<
+    | { ok: true; projectId: string; code: string; link: string }
+    | { ok: false; error: "disabled" }
+  > => {
+    if (process.env.VERIFIQ_DEV_CODES !== "1") return { ok: false, error: "disabled" };
+    const issued = await createIntakeRecord(ctx, { ...args, purpose: "pilot_upload" });
+    const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
+    return {
+      ok: true,
+      projectId: issued.projectId,
+      code: issued.shortCode,
+      link: `${base}/upload?code=${issued.linkToken}`,
+    };
   },
 });
 

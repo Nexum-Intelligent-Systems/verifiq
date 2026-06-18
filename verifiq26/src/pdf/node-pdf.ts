@@ -109,6 +109,34 @@ export class NodePdfAdapter implements PdfRenderer, TextExtractor {
     }
   }
 
+  /**
+   * Full-document text for the council review (every page, in order), clamped
+   * to `maxChars` so a huge pack can't blow the token budget. Distinct from
+   * `firstText`, which is the classifier's page-1-only title-block read.
+   */
+  async allText(bytes: Uint8Array, maxChars: number): Promise<string> {
+    const pdfjs = await loadPdfjs();
+    const task = pdfjs.getDocument(documentParams(bytes));
+    const doc = await task.promise;
+    try {
+      let text = "";
+      for (let p = 1; p <= doc.numPages; p++) {
+        const page = await doc.getPage(p);
+        const content = await page.getTextContent();
+        for (const item of content.items) {
+          if (!("str" in item)) continue; // skip TextMarkedContent markers
+          text += item.str;
+          text += item.hasEOL ? "\n" : " ";
+          if (text.length >= maxChars) return text.slice(0, maxChars).trim();
+        }
+        text += "\n";
+      }
+      return text.slice(0, maxChars).trim();
+    } finally {
+      await task.destroy();
+    }
+  }
+
   async renderFirstPagePng(bytes: Uint8Array): Promise<Uint8Array> {
     const [pdfjs, canvasMod] = await Promise.all([loadPdfjs(), loadCanvas()]);
     const task = pdfjs.getDocument(documentParams(bytes));
