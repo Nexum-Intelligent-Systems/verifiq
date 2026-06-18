@@ -1,9 +1,24 @@
 # 44 — Web upload, end to end (run a trial from the browser)
 
-Phase 6 wiring that turns a sealed upload pack into a full council review — so a
-trial run via the website produces the same findings + Build Readiness Report
-the terminal `run-review` script does. Until this landed, the `/upload` flow
-stored files and stopped at `classifying`; nothing read them.
+How a trial run via the website produces a full council review — findings + a
+Build Readiness Report — and the ZIP + plain-language UX that make `/upload`
+something a non-expert can complete confidently.
+
+## The pipeline (seal → classify → review)
+
+Sealing a pack (`uploadDocs.sealUploadSession`) schedules
+`classifyAction.classifyOneDocument` for each uploaded document:
+
+1. **Classify each document.** The 3-source title-block classifier
+   (`src/classify/` over `createNodePdf()` + the LLM) assigns discipline / type
+   and a confidence, and saves a text preview. High-confidence docs auto-confirm;
+   low-confidence ones advance the project to `confirm_classify` for review.
+2. **Advance the pack.** When every document is settled, `checkAndAdvance`
+   builds the `RunInput` from the extracted text, moves the project to
+   `scanning`, persists the payload, and dispatches `runReview` — the resumable
+   council orchestrator → findings + Build Readiness Report.
+
+Discipline therefore comes from the real classifier, not a fixed tag.
 
 ## ZIPs and the upload UX
 
@@ -11,55 +26,13 @@ stored files and stopped at `classifying`; nothing read them.
   (via `fflate`) into its individual PDFs / text files, so the customer never
   has to unzip first. OS junk (`__MACOSX/`, `.DS_Store`), folders, nested zips
   and unsupported binaries (images) are set aside with a plain-language notice.
-  Shared keep/skip rules live in `src/ingest/zip.ts` (unit-tested).
-- **Server-side safety net.** If a raw `.zip` ever reaches the backend, the
-  ingest action expands it too (same `fflate` + `src/ingest/zip.ts` rules,
-  capped at 500 entries), so ZIP packs work regardless of upload path.
-- **Smarter discipline routing.** `resolveAgentDiscipline` (in
-  `src/ingest/extract.ts`) respects an explicit upload tag, but routes
-  untagged / "Let VerifIQ decide" files by a filename heuristic
-  (`src/classify/filename`) — so a mixed unpacked ZIP still reaches fire /
-  access / M&E / QS rather than dumping everything on the Architect.
-- **Plain-language UX.** The page is a guided three-step flow with friendly
-  discipline labels, per-file status (`Checking… / Uploading 42% / ✓ Ready`),
-  dismissible info/warning/error notices, retry on a failed file, and a
-  confirm step before the read starts.
-
-## What got wired
-
-1. **Seal → ingest.** `uploadDocs.sealUploadSession` now schedules
-   `ingest.ingestAndReview` (a `"use node"` action) after advancing the pack to
-   `classifying`.
-2. **Ingest → review.** `src/convex/ingest.ts` downloads each file (R2 by
-   `r2_key`, Convex storage by `storage_id`), turns bytes into review text
-   (pdfjs for PDFs via the new `NodePdfAdapter.allText`, UTF-8 for text files),
-   groups the text under each file's council discipline-agent key
-   (`src/ingest/extract.ts`), and dispatches the review via
-   `reviewData.requestReview` — which persists the RunInput and schedules the
-   resumable `review.runReview` orchestrator.
-3. **Dev magic code.** `uploadTokens.issueDevUploadCode` (gated behind
-   `VERIFIQ_DEV_CODES=1`) mints a code AND returns it, so you can open `/upload`
-   locally without wiring Resend. `scripts/dev-issue-code.mjs` prints the link.
-
-Per-file isolation: an unreadable file is recorded and skipped; if **nothing**
-in the pack yields text, ingest throws (the pack stays at `classifying` and the
-skip reasons land in the scheduled-function error log) rather than dispatching an
-empty review.
-
-### Discipline mapping (`src/ingest/extract.ts`)
-
-The customer tags each file at upload; the tag maps onto a council agent key:
-
-| upload tag              | agent key   |
-| ----------------------- | ----------- |
-| architectural           | architect   |
-| fire                    | fire        |
-| access                  | access      |
-| mechanical-electrical   | m-and-e     |
-| qs                      | qs          |
-| structural / civil / unclassified / unknown | architect (generalist fallback) |
-
-There is no MVP structural/civil agent, so those fold onto the Architect.
+  Keep/skip rules live in `src/ingest/zip.ts`; `fileTextKind`
+  (`src/ingest/extract.ts`) decides PDF vs text vs unsupported. Both are pure and
+  unit-tested (`tests/zip.test.ts`, `tests/ingest.test.ts`).
+- **Plain-language UX.** A guided three-step flow with friendly discipline
+  labels, per-file status (`Checking… / Uploading 42% / ✓ Ready`), dismissible
+  info / warning / error notices, retry on a failed file, expired-session
+  detection, and a confirm step before the read starts.
 
 ## Run three trials from the browser
 
@@ -90,15 +63,15 @@ node scripts/dev-issue-code.mjs "Trial 1 — Office" "Office building"
 > can't read (images, etc.) are set aside and listed, not silently dropped.
 
 Watch progress in the Convex dashboard → Data: `projects.scan_state` walks
-`classifying → scanning → peer_challenge → adjudicate → reviewer_queue`, and
-`findings` / `reports` fill in. Repeat with `"Trial 2 …"` / `"Trial 3 …"` for
-three independent reports.
+`classifying → (confirm_classify) → scanning → peer_challenge → adjudicate →
+reviewer_queue`, and `findings` / `reports` fill in. Repeat with `"Trial 2 …"` /
+`"Trial 3 …"` for three independent reports.
 
-## Notes / still open
+## Notes
 
-- The browser `/upload` direct-upload path needs R2 (signed PUT URLs). A small
-  file can be Convex-stored (`storage_id`) — ingest reads either.
+- The browser direct-upload path needs R2 (signed PUT URLs); a small file can be
+  Convex-stored (`storage_id`) instead.
 - `issueDevUploadCode` is a deliberate dev seam. With `VERIFIQ_DEV_CODES` unset
   it refuses, so production never returns a code over the wire (docs/42 §5.4 N1).
-- The ingest action's happy path makes live model + storage calls, so (like
-  `runReview`) it is verified locally, not in the credential-less test harness.
+- The classify + review legs make live model + storage calls, so (like
+  `runReview`) they are verified locally, not in the credential-less test harness.

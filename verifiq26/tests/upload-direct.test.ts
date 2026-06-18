@@ -7,7 +7,8 @@
  */
 
 /// <reference types="vite/client" />
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
+
 import { convexTest } from "convex-test";
 import schema from "../src/convex/schema";
 import { api, internal } from "../src/convex/_generated/api";
@@ -25,6 +26,10 @@ beforeAll(() => {
   process.env.R2_ACCESS_KEY_ID = "test-access-key";
   process.env.R2_SECRET_ACCESS_KEY = "test-secret-key";
   process.env.R2_BUCKET_NAME = "verifiq-prod-eu-west";
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 /** Issue a code and verify it to obtain a live upload session. */
@@ -103,18 +108,6 @@ describe("document registration + seal", () => {
     expect(res).toEqual({ ok: false, error: "unauthorized" });
   });
 
-  it("listSessionDocuments returns [] for an invalid session (no leak)", async () => {
-    const t = convexTest(schema, modules);
-    const docs = await t.query(api.uploadDocs.listSessionDocuments, { sessionToken: "nope" });
-    expect(docs).toEqual([]);
-  });
-
-  // NB: keep this LAST. Sealing schedules the ingest *node* action via
-  // `runAfter(0)`; convex-test runs that on the macrotask queue, and a scheduled
-  // node action that calls runMutation can't complete cleanly in-harness (same
-  // limitation that keeps the runReview action out of phase5's tests). Leaving
-  // it undrained is only safe when no later test opens a transaction while its
-  // setTimeout fires — so this scheduling test must be the final one in the file.
   it("seals the pack and advances uploading → classifying", async () => {
     const t = convexTest(schema, modules);
     const { sessionToken, projectId } = await session(t);
@@ -137,5 +130,19 @@ describe("document registration + seal", () => {
 
     const project = await t.run(async (ctx) => ctx.db.get(projectId as never));
     expect((project as { scan_state: string }).scan_state).toBe("classifying");
+
+    // Give the event loop a few ticks so convex-test's scheduled-function
+    // runner can transition classifyOneDocument to "inProgress", then drain it.
+    // The action degrades gracefully in the test environment (no R2/LLM keys).
+    await new Promise((r) => setTimeout(r, 0));
+    await t.finishInProgressScheduledFunctions().catch(() => {});
+    await new Promise((r) => setTimeout(r, 0));
+    await t.finishInProgressScheduledFunctions().catch(() => {});
+  }, 15_000);
+
+  it("listSessionDocuments returns [] for an invalid session (no leak)", async () => {
+    const t = convexTest(schema, modules);
+    const docs = await t.query(api.uploadDocs.listSessionDocuments, { sessionToken: "nope" });
+    expect(docs).toEqual([]);
   });
 });

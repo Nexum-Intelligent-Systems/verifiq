@@ -10,6 +10,19 @@ import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 
+const STATE_LABELS: Record<string, string> = {
+  pending: "Ready to upload",
+  uploading: "Receiving files",
+  classifying: "Analysing",
+  confirm_classify: "Needs review",
+  scanning: "Reading",
+  cross_ref: "Cross-referencing",
+  peer_challenge: "Challenging",
+  adjudicate: "Adjudicating",
+  reviewer_queue: "Awaiting sign-off",
+  released: "Complete",
+};
+
 export default function Dashboard() {
   const projects = useQuery(api.projectData.listProjects);
   const createUser = useMutation(api.mutations.createUser);
@@ -42,8 +55,8 @@ export default function Dashboard() {
   return (
     <div>
       <span className="eyebrow">— Projects</span>
-      <h1 className="page-title">The register desk</h1>
-      <p className="lede">Create a project, run a read, watch the findings come in.</p>
+      <h1 className="page-title">Your projects</h1>
+      <p className="lede">Return to a project below, or create a new one to run a sample review.</p>
 
       <form className="np-form" onSubmit={onCreate}>
         <div>
@@ -80,7 +93,7 @@ export default function Dashboard() {
               <span className="name">{p.name}</span>
               <span className="meta">
                 {p.building_type ? `${p.building_type} · ` : ""}
-                {p.scan_state}
+                {STATE_LABELS[p.scan_state] ?? p.scan_state}
               </span>
             </a>
           ))}

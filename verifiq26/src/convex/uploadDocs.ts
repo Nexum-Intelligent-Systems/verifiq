@@ -100,10 +100,9 @@ export const registerUploadedDocument = mutation({
 
 /**
  * Seal the pack: with at least one document in, advance uploading → classifying
- * and dispatch the ingest action (docs/42 §5.2 A6, docs/39 §1), which reads the
- * uploaded files, builds the council RunInput, and kicks off the review. The
- * transition is the trigger point and is audit-logged; the heavy lifting runs
- * out of band in `ingest.ingestAndReview` so sealing stays a fast mutation.
+ * so the existing pipeline picks it up (docs/42 §5.2 A6, docs/39 §1). The actual
+ * classify-job dispatch is wired when the classify action lands (CLAUDE.md
+ * Phase 6); this transition is the trigger point and is audit-logged.
  */
 export const sealUploadSession = mutation({
   args: { sessionToken: v.string() },
@@ -136,9 +135,12 @@ export const sealUploadSession = mutation({
       occurred_at: now,
     });
 
-    // Hand off to the council: read the pack, build RunInput, dispatch the
-    // review. Out of band so a large pack's PDF parse never blocks the seal.
-    await ctx.scheduler.runAfter(0, internal.ingest.ingestAndReview, { project_id: projectId });
+    // Schedule one classify action per document (Phase 6).
+    for (const doc of docs) {
+      await ctx.scheduler.runAfter(0, internal.classifyAction.classifyOneDocument, {
+        document_id: doc._id,
+      });
+    }
 
     return { ok: true, projectId, documentCount: docs.length };
   },

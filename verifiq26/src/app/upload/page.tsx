@@ -31,9 +31,10 @@ import { fileTextKind } from "../../ingest/extract";
 import { isZipName, isReviewableZipPath, zipEntryBasename } from "../../ingest/zip";
 
 const SESSION_KEY = "verifiq_upload_session";
+/** Where "request a fresh link" sends the customer (the website intake). */
+const INTAKE_URL = process.env.NEXT_PUBLIC_INTAKE_URL ?? "/";
 
 type Phase = "init" | "need-code" | "verifying" | "ready" | "sealed" | "error";
-
 type FileStatus = "pending" | "hashing" | "uploading" | "done" | "error";
 
 interface UploadItem {
@@ -66,6 +67,7 @@ const ERROR_COPY: Record<string, string> = {
   expired: "That link has expired. Please request a fresh one from the website.",
   revoked: "That link was turned off. Please request a fresh one from the website.",
   locked: "Too many tries. Please request a fresh link from the website.",
+  session_expired: "Your upload session has timed out. Please request a fresh link from the website.",
 };
 
 /** Plain-language per-file status text. */
@@ -124,6 +126,19 @@ export default function UploadPage() {
     api.uploadDocs.listSessionDocuments,
     sessionToken ? { sessionToken } : "skip",
   );
+  const sessionCheck = useQuery(
+    api.uploadTokens.checkUploadSession,
+    sessionToken && phase === "ready" ? { sessionToken } : "skip",
+  );
+
+  // Detect expired sessions restored from sessionStorage.
+  useEffect(() => {
+    if (sessionCheck !== undefined && !sessionCheck.ok && phase === "ready") {
+      sessionStorage.removeItem(SESSION_KEY);
+      setError(ERROR_COPY.session_expired);
+      setPhase("error");
+    }
+  }, [sessionCheck, phase]);
 
   const pushNotice = useCallback((kind: Notice["kind"], text: string) => {
     setNotices((prev) => [...prev, { id: noticeSeq.current++, kind, text }]);
@@ -182,6 +197,7 @@ export default function UploadPage() {
           sha256,
           size_bytes: item.file.size,
           discipline: item.discipline,
+          content_type: item.file.type || "application/octet-stream",
         });
         if (!signed.ok || !signed.uploadUrl || !signed.key) {
           patch({ status: "error", error: "Upload slot expired — refresh and try again" });
@@ -287,7 +303,7 @@ export default function UploadPage() {
       } else if (res.error === "no_documents") {
         pushNotice("warn", "Add at least one file before you start the read.");
       } else {
-        setError("Your link has timed out. Please request a fresh one from the website.");
+        setError(ERROR_COPY.session_expired);
         setPhase("error");
       }
     } finally {
@@ -318,7 +334,7 @@ export default function UploadPage() {
         <h1 className="page-title">We couldn’t open that link</h1>
         <p className="lede">{error}</p>
         <p>
-          <a className="btn" href="/first-read.html">
+          <a className="btn" href={INTAKE_URL}>
             Get a fresh link →
           </a>
         </p>
@@ -446,9 +462,7 @@ export default function UploadPage() {
           opacity: dragOver ? 1 : 0.85,
         }}
       >
-        <p style={{ fontSize: "1.1em", margin: 0 }}>
-          {busyNote ?? "Drop your files or ZIP here"}
-        </p>
+        <p style={{ fontSize: "1.1em", margin: 0 }}>{busyNote ?? "Drop your files or ZIP here"}</p>
         <p className="meta" style={{ marginTop: 4 }}>
           …or click to choose them from your computer
         </p>
@@ -522,13 +536,7 @@ export default function UploadPage() {
 
       <div style={{ marginTop: 20 }}>
         {confirming ? (
-          <div
-            style={{
-              padding: 16,
-              border: "1px solid currentColor",
-              borderRadius: 6,
-            }}
-          >
+          <div style={{ padding: 16, border: "1px solid currentColor", borderRadius: 6 }}>
             <p style={{ marginTop: 0 }}>
               Start the read of your <strong>{doneCount}</strong>{" "}
               {doneCount === 1 ? "file" : "files"}? Once it starts you can’t add more to this batch.

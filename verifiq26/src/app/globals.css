@@ -66,6 +66,8 @@ a { color: var(--brass); }
 .np-form { display: grid; gap: 14px; max-width: 480px; border: 1px solid var(--ink); background: var(--paper); padding: 22px; margin: 0 0 36px; }
 .np-form label { font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--graphite); display: block; margin-bottom: 5px; }
 .np-form input { width: 100%; font-family: var(--font-sans); font-size: 0.95rem; padding: 10px 11px; border: 1px solid var(--ink); background: var(--bone); color: var(--ink); }
+.np-form input:focus { outline: 2px solid var(--brass); outline-offset: 2px; }
+.dropzone:focus { outline: 2px solid var(--brass); outline-offset: 2px; }
 .btn {
   display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--ink);
   background: var(--ink); color: var(--bone); font-family: var(--font-mono);
@@ -86,7 +88,7 @@ a { color: var(--brass); }
 .empty { font-family: var(--font-serif); font-style: italic; color: var(--ink-soft); }
 
 /* Status band */
-.status-band { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--ink); border: 1px solid var(--ink); margin: 22px 0 30px; }
+.status-band { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--ink); border: 1px solid var(--ink); margin: 22px 0 30px; }
 @media (min-width: 720px) { .status-band { grid-template-columns: repeat(5, 1fr); } }
 .status-band .cell { background: var(--bone); padding: 16px 16px; }
 .status-band .num { font-family: var(--font-serif); font-size: 1.7rem; }

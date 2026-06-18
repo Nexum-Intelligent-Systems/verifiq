@@ -10,6 +10,12 @@
  * send is a no-op that reports `{ sent: false }` rather than throwing — so the
  * intake flow still creates the project + code and stays testable. The raw code
  * is NEVER logged or returned over HTTP; it travels only inside this email.
+ *
+ * EU sending: our recipients are EU-resident, so mail must leave from the EU.
+ * Resend's region is a per-DOMAIN setting (`eu-west-1`, Ireland), not a request
+ * parameter — so this module and the `api.resend.com` base URL are unchanged;
+ * the EU-ness comes entirely from authenticating `EMAIL_FROM`'s domain in
+ * Resend's EU region. See docs/43 §1a (incl. the US-metadata residency caveat).
  */
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";

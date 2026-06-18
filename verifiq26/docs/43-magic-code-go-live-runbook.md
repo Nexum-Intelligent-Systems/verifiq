@@ -35,12 +35,36 @@ or `npx convex env set NAME value`):
 | `UPLOAD_TOKEN_PEPPER` | a long random secret (e.g. `openssl rand -hex 32`) — **never reuse across envs** |
 | `APP_BASE_URL` | `https://app.verifiq.ie` (where the upload link points — D3) |
 | `INTAKE_ALLOWED_ORIGIN` | the live site origin, e.g. `https://verifiq.ie` |
-| `RESEND_API_KEY` | from resend.com (EU) |
-| `EMAIL_FROM` | `VerifIQ <hello@verifiq.ie>` (domain verified in Resend) |
+| `RESEND_API_KEY` | from resend.com — key for the **EU-region** sending domain (see §1a) |
+| `EMAIL_FROM` | `VerifIQ <hello@verifiq.ie>` (the EU-region-verified domain) |
 | `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` | Cloudflare R2 (EU bucket) |
 
 Deploy: `npx convex deploy`. Note the HTTP Actions URL —
 `https://<deployment>.convex.site` — `/intake` lives there.
+
+## Step 1a — Resend in the EU (sending region) ⚠️
+
+Our customers are EU-resident, so the upload-link email must be **sent from the
+EU**. In Resend this is a **per-domain** setting, not an API parameter — the
+code (`src/convex/email.ts`) and the `https://api.resend.com` base URL do not
+change; the EU-ness comes from the domain you authenticate:
+
+1. Resend dashboard → **Domains → Add Domain** → choose region **`eu-west-1`
+   (Ireland)** *before* verifying. (Region is fixed at creation — a US domain
+   can't be moved to the EU; you'd re-add it.)
+2. Add the SPF/DKIM DNS records it shows for `verifiq.ie`; verify.
+3. Use an API key scoped to that account and set `EMAIL_FROM` to an address on
+   the EU-verified domain.
+
+> **Residency caveat — decide before launch.** Resend's region controls where
+> mail is *dispatched from* (Ireland), but Resend stores account data, email
+> **metadata, logs and API records in the US** regardless of region. That is EU
+> *sending*, not full EU *data residency*, and sits in tension with VerifIQ's
+> R2-EU / docs/20 GDPR posture: recipient email + name metadata would transit US
+> servers (Schrems II → needs SCCs in the Resend DPA, and a line in the
+> sub-processor register). If strict residency is required, a provider with true
+> EU-pinned storage (e.g. SendGrid EU-pinned, or an EU-native API) is the
+> alternative. This is a business/legal decision, not a code change.
 
 ## Step 2 — Convex Auth (replaces Clerk; docs/42 D1)
 
