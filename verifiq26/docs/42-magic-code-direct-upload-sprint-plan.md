@@ -201,8 +201,9 @@ them through ownership-checked mutations.
   Resend send → audit. Idempotent on (email, open token) to avoid duplicate codes.
 - **B2** `issueUploadCode` / `verifyUploadCode` / `mintSession` / `revokeToken`
   mutations+actions; code generation = 32+ bits entropy, human-typeable.
-- **B3** Resend integration (env `RESEND_API_KEY`, `EMAIL_FROM`) using a new
-  docs/18 template "Your secure upload link".
+- **B3** Email integration (env `SCW_SECRET_KEY` / `SCW_PROJECT_ID` /
+  `EMAIL_FROM`) using a new docs/18 template "Your secure upload link".
+  *(Provider: Scaleway TEM — superseded Resend 2026-06-18; see docs/43 §1a.)*
 - **B4** `getUploadUrl` / multipart endpoints become **session-authenticated**
   (today they're provider methods with no caller auth) — every call checks the
   session→project binding before signing.
@@ -214,7 +215,9 @@ them through ownership-checked mutations.
   ≤5 verify attempts then lockout; per-IP and per-email rate limits on issue &
   verify; signed URLs short-TTL (already 1h in `r2.ts`); no enumeration leak.
 - **N2 Data residency:** R2 EU bucket only (`R2_BUCKET_NAME=verifiq-prod-eu-west`),
-  Resend EU — consistent with docs/27 / docs/20 GDPR posture.
+  email via Scaleway TEM (EU-owned, all data in-EU) — consistent with docs/27 /
+  docs/20 GDPR posture. (Scaleway chosen over Resend for *full* EU residency, not
+  just EU sending; see docs/43 §1a.)
 - **N3 Auditability:** issue / send / verify / upload / advance each write
   `audit_log` (mutations, never actions — docs/39 §2).
 - **N4 Resilience:** upload survives refresh + single network drop; partial

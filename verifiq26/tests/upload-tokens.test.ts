@@ -8,7 +8,7 @@
  *      rejection path: reuse, expiry, wrong secret, replay lockout, session
  *      validation. These are the acceptance gates listed in docs/42 §5.5.
  *
- * No live credentials: a dev pepper is set in-process, Resend is never called
+ * No live credentials: a dev pepper is set in-process, Scaleway TEM is never called
  * (createIntake/verify are pure DB), and the offline convex-test harness runs
  * against the schema directly.
  */
