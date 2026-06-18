@@ -10,6 +10,7 @@
 import { describe, it, expect } from "vitest";
 import {
   mapDiscipline,
+  resolveAgentDiscipline,
   fileTextKind,
   AGENT_DISCIPLINES,
   DEFAULT_AGENT_DISCIPLINE,
@@ -36,12 +37,39 @@ describe("mapDiscipline", () => {
     expect(mapDiscipline("unclassified")).toBe(DEFAULT_AGENT_DISCIPLINE);
   });
 
+  it("also maps the filename classifier's vocabulary", () => {
+    expect(mapDiscipline("mechanical")).toBe("m-and-e");
+    expect(mapDiscipline("electrical")).toBe("m-and-e");
+    expect(mapDiscipline("quantity-surveying")).toBe("qs");
+    expect(mapDiscipline("unsorted")).toBe(DEFAULT_AGENT_DISCIPLINE);
+  });
+
   it("is case/whitespace tolerant and defaults unknown or missing tags", () => {
     expect(mapDiscipline("  Fire ")).toBe("fire");
     expect(mapDiscipline("nonsense")).toBe(DEFAULT_AGENT_DISCIPLINE);
     expect(mapDiscipline(undefined)).toBe(DEFAULT_AGENT_DISCIPLINE);
     expect(mapDiscipline(null)).toBe(DEFAULT_AGENT_DISCIPLINE);
     expect(mapDiscipline("")).toBe(DEFAULT_AGENT_DISCIPLINE);
+  });
+});
+
+describe("resolveAgentDiscipline", () => {
+  it("respects an explicit, specific upload tag over the filename", () => {
+    expect(resolveAgentDiscipline("fire", "Architectural Plan.pdf")).toBe("fire");
+    expect(resolveAgentDiscipline("qs", "Fire Strategy.pdf")).toBe("qs");
+  });
+
+  it("routes untagged / 'unclassified' files by a filename heuristic", () => {
+    expect(resolveAgentDiscipline("unclassified", "Fire Plan.pdf")).toBe("fire");
+    expect(resolveAgentDiscipline("unclassified", "Mechanical Services.pdf")).toBe("m-and-e");
+    expect(resolveAgentDiscipline(null, "QS BOQ.pdf")).toBe("qs");
+    expect(resolveAgentDiscipline(undefined, "Structural Calcs.pdf")).toBe(DEFAULT_AGENT_DISCIPLINE);
+  });
+
+  it("falls back to the Architect when the filename gives no clue", () => {
+    expect(resolveAgentDiscipline("unclassified", "untitled-document.pdf")).toBe(
+      DEFAULT_AGENT_DISCIPLINE,
+    );
   });
 });
 

@@ -5,6 +5,26 @@ trial run via the website produces the same findings + Build Readiness Report
 the terminal `run-review` script does. Until this landed, the `/upload` flow
 stored files and stopped at `classifying`; nothing read them.
 
+## ZIPs and the upload UX
+
+- **Drop a ZIP.** The `/upload` page unpacks a dropped `.zip` in the browser
+  (via `fflate`) into its individual PDFs / text files, so the customer never
+  has to unzip first. OS junk (`__MACOSX/`, `.DS_Store`), folders, nested zips
+  and unsupported binaries (images) are set aside with a plain-language notice.
+  Shared keep/skip rules live in `src/ingest/zip.ts` (unit-tested).
+- **Server-side safety net.** If a raw `.zip` ever reaches the backend, the
+  ingest action expands it too (same `fflate` + `src/ingest/zip.ts` rules,
+  capped at 500 entries), so ZIP packs work regardless of upload path.
+- **Smarter discipline routing.** `resolveAgentDiscipline` (in
+  `src/ingest/extract.ts`) respects an explicit upload tag, but routes
+  untagged / "Let VerifIQ decide" files by a filename heuristic
+  (`src/classify/filename`) — so a mixed unpacked ZIP still reaches fire /
+  access / M&E / QS rather than dumping everything on the Architect.
+- **Plain-language UX.** The page is a guided three-step flow with friendly
+  discipline labels, per-file status (`Checking… / Uploading 42% / ✓ Ready`),
+  dismissible info/warning/error notices, retry on a failed file, and a
+  confirm step before the read starts.
+
 ## What got wired
 
 1. **Seal → ingest.** `uploadDocs.sealUploadSession` now schedules
@@ -62,12 +82,12 @@ Then, for **each** of the three trials:
 ```bash
 npm run app:dev                                   # Next.js on :3000 (once)
 node scripts/dev-issue-code.mjs "Trial 1 — Office" "Office building"
-# → prints an /upload?code=… link. Open it, drag your UNZIPPED files in,
-#   tag each by discipline, then "start the read".
+# → prints an /upload?code=… link. Open it, drag your files (or a whole .zip)
+#   in, leave the tag on "Let VerifIQ decide", then "start the read".
 ```
 
-> VerifIQ does not unpack ZIPs — unzip locally first and drag the individual
-> PDFs / text files in. A stray `.zip` (or image) is recorded and skipped.
+> Drop a `.zip` and we unpack it for you — no need to unzip first. Files we
+> can't read (images, etc.) are set aside and listed, not silently dropped.
 
 Watch progress in the Convex dashboard → Data: `projects.scan_state` walks
 `classifying → scanning → peer_challenge → adjudicate → reviewer_queue`, and

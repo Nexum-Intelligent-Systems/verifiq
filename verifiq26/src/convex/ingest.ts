@@ -26,15 +26,19 @@
 
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
+import { unzipSync } from "fflate";
 import { api, internal } from "./_generated/api";
 import { r2FromEnv } from "../storage/r2.js";
 import { createNodePdf } from "../pdf/index.js";
-import { mapDiscipline, fileTextKind } from "../ingest/extract.js";
+import { resolveAgentDiscipline, fileTextKind } from "../ingest/extract.js";
+import { isZipName, isReviewableZipPath, zipEntryBasename } from "../ingest/zip.js";
 import type { RunInput } from "../orchestrator";
 import type { ReviewDocument } from "../agents/agent.js";
 
 /** Per-file text clamp — keeps a huge pack inside the council's token budget. */
 const MAX_DOC_CHARS = 200_000;
+/** Cap on files pulled out of a single archive — a guard against zip bombs. */
+const MAX_ZIP_ENTRIES = 500;
 
 export const ingestAndReview = internalAction({
   args: { project_id: v.id("projects") },
@@ -64,6 +68,29 @@ export const ingestAndReview = internalAction({
     const documentsByDiscipline: Record<string, ReviewDocument[]> = {};
     const skipped: { filename: string; reason: string }[] = [];
 
+    // Turn raw bytes into review text (PDF parse / UTF-8 decode), or null if the
+    // type is unsupported or the parse fails — caller records the skip reason.
+    const toText = async (filename: string, bytes: Uint8Array): Promise<string | null> => {
+      const kind = fileTextKind(filename);
+      try {
+        if (kind === "pdf") return await pdf.allText(bytes, MAX_DOC_CHARS);
+        if (kind === "text") return decoder.decode(bytes).slice(0, MAX_DOC_CHARS);
+        return null;
+      } catch {
+        return null;
+      }
+    };
+
+    // Add one extracted document under the council agent for its tag/filename.
+    const add = (tag: string | null, filename: string, text: string) => {
+      if (!text.trim()) {
+        skipped.push({ filename, reason: "empty_text" });
+        return;
+      }
+      const key = resolveAgentDiscipline(tag, filename);
+      (documentsByDiscipline[key] ??= []).push({ filename, text });
+    };
+
     for (const d of docs) {
       // 1) bytes
       let bytes: Uint8Array | null = null;
@@ -86,28 +113,41 @@ export const ingestAndReview = internalAction({
         continue;
       }
 
-      // 2) text
-      const kind = fileTextKind(d.filename);
-      let text = "";
-      try {
-        if (kind === "pdf") text = await pdf.allText(bytes, MAX_DOC_CHARS);
-        else if (kind === "text") text = decoder.decode(bytes).slice(0, MAX_DOC_CHARS);
-        else {
-          skipped.push({ filename: d.filename, reason: "unsupported_type" });
+      // 2a) a raw ZIP that reached the server: unpack it and review its entries.
+      // (The browser usually expands ZIPs before upload; this is the safety net.)
+      if (isZipName(d.filename)) {
+        let entries: Record<string, Uint8Array>;
+        try {
+          entries = unzipSync(bytes);
+        } catch {
+          skipped.push({ filename: d.filename, reason: "zip_unreadable" });
           continue;
         }
-      } catch {
-        skipped.push({ filename: d.filename, reason: "extract_failed" });
-        continue;
-      }
-      if (!text.trim()) {
-        skipped.push({ filename: d.filename, reason: "empty_text" });
+        let count = 0;
+        for (const [path, entryBytes] of Object.entries(entries)) {
+          if (!isReviewableZipPath(path)) {
+            if (!path.endsWith("/")) skipped.push({ filename: path, reason: "zip_entry_unsupported" });
+            continue;
+          }
+          if (++count > MAX_ZIP_ENTRIES) {
+            skipped.push({ filename: d.filename, reason: "zip_too_many_entries" });
+            break;
+          }
+          const name = zipEntryBasename(path);
+          const text = await toText(name, entryBytes);
+          if (text === null) skipped.push({ filename: name, reason: "extract_failed" });
+          else add(d.discipline, name, text);
+        }
         continue;
       }
 
-      // 3) group under the council discipline key
-      const key = mapDiscipline(d.discipline);
-      (documentsByDiscipline[key] ??= []).push({ filename: d.filename, text });
+      // 2b) a normal document.
+      const text = await toText(d.filename, bytes);
+      if (text === null) {
+        skipped.push({ filename: d.filename, reason: "unsupported_type" });
+        continue;
+      }
+      add(d.discipline, d.filename, text);
     }
 
     const ingested = Object.values(documentsByDiscipline).reduce((n, v2) => n + v2.length, 0);

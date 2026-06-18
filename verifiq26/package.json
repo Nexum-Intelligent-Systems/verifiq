@@ -28,9 +28,10 @@
     "@aws-sdk/s3-request-presigner": "3.726.1",
     "@napi-rs/canvas": "0.1.84",
     "convex": "1.17.4",
+    "fflate": "^0.8.2",
+    "next": "14.2.21",
     "openai": "4.77.3",
     "pdfjs-dist": "6.0.227",
-    "next": "14.2.21",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

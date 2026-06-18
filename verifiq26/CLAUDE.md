@@ -121,9 +121,13 @@ from a clean checkout.
   discipline key (`src/ingest/extract.ts`), and dispatches via
   `reviewData.requestReview`. A dev-only `uploadTokens.issueDevUploadCode`
   (gated by `VERIFIQ_DEV_CODES=1`) + `scripts/dev-issue-code.mjs` let you drive
-  `/upload` locally without email. The title-block classifier
+  `/upload` locally without email. **ZIPs are supported** — the browser unpacks
+  a dropped `.zip` (fflate) into individual files, with a server-side expansion
+  safety net in the ingest action (`src/ingest/zip.ts` rules). Discipline comes
+  from the customer's upload tag, falling back to a filename heuristic
+  (`resolveAgentDiscipline`) for untagged files; the title-block classifier
   (`src/convex/classify.ts` + `createNodePdf()`) is still only *persisted*, not
-  run on upload — discipline currently comes from the customer's upload tag.
+  run on upload. The `/upload` UX is a plain-language guided flow (docs/44).
   Still open: tus.io resumable upload (mandatory #1), exports
   (PDF/DOCX/XLSX/CSV/JSON, §05.5), and the classification-confirmation UX.
 
