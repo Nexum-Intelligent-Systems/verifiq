@@ -39,6 +39,39 @@ export const markCrossDisciplineComplete = internalMutation({
   },
 });
 
+export const setCouncilPhase = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    councilPhase: v.union(
+      v.literal("pending"),
+      v.literal("peer_challenge"),
+      v.literal("adjudicate"),
+      v.literal("chair"),
+      v.literal("complete"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.projectId, {
+      councilPhase: args.councilPhase,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const setCouncilComplete = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    councilReportId: v.id("councilReports"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.projectId, {
+      councilPhase: "complete",
+      councilReportId: args.councilReportId,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
 export const getPublic = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {

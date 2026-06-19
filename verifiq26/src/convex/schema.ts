@@ -58,6 +58,53 @@ export const FindingReviewStatus = v.union(
   v.literal("rejected"),
 );
 
+export const CouncilDecision = v.union(
+  v.literal("Retained"),
+  v.literal("Amended"),
+  v.literal("Merged"),
+  v.literal("Downgraded"),
+  v.literal("Escalated"),
+  v.literal("Deleted"),
+);
+
+export const CouncilPhase = v.union(
+  v.literal("pending"),
+  v.literal("peer_challenge"),
+  v.literal("adjudicate"),
+  v.literal("chair"),
+  v.literal("complete"),
+);
+
+export const PipelineJobType = v.union(
+  v.literal("classify"),
+  v.literal("review_discipline"),
+  v.literal("cross_reference"),
+  v.literal("peer_challenge"),
+  v.literal("adjudicate"),
+  v.literal("council_chair"),
+);
+
+export const PipelineJobStatus = v.union(
+  v.literal("pending"),
+  v.literal("running"),
+  v.literal("succeeded"),
+  v.literal("failed"),
+);
+
+export const BuildReadinessRating = v.union(
+  v.literal("Green"),
+  v.literal("Amber"),
+  v.literal("Red"),
+  v.literal("Grey"),
+);
+
+export const ExecutiveDecision = v.union(
+  v.literal("Proceed"),
+  v.literal("Proceed with conditions"),
+  v.literal("Pause before build"),
+  v.literal("Insufficient information"),
+);
+
 export default defineSchema({
   ...authTables,
 
@@ -75,6 +122,8 @@ export default defineSchema({
     crossDisciplineCheckId: v.optional(v.id("checks")),
     crossDisciplineComplete: v.optional(v.boolean()),
     crossDisciplineFindingsCount: v.optional(v.number()),
+    councilPhase: v.optional(CouncilPhase),
+    councilReportId: v.optional(v.id("councilReports")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -111,6 +160,10 @@ export default defineSchema({
     scanStatus: UploadScanStatus,
     checkId: v.optional(v.id("checks")),
     findingsCount: v.optional(v.number()),
+    filesClassified: v.optional(v.number()),
+    filesScanned: v.optional(v.number()),
+    currentActivity: v.optional(v.string()),
+    currentFileName: v.optional(v.string()),
   })
     .index("by_project", ["projectId"])
     .index("by_project_discipline", ["projectId", "discipline"]),
@@ -130,6 +183,15 @@ export default defineSchema({
     classificationConfidence: v.optional(v.number()),
     classificationMethod: v.optional(v.string()),
     checkId: v.optional(v.id("checks")),
+    scanStatus: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("classified"),
+        v.literal("scanning"),
+        v.literal("scanned"),
+        v.literal("skipped"),
+      ),
+    ),
   })
     .index("by_upload", ["uploadId"]),
 
@@ -153,6 +215,10 @@ export default defineSchema({
     status: FindingReviewStatus,
     sourceFile: v.optional(v.string()),
     sourcePageRange: v.optional(v.string()),
+    councilDecision: v.optional(CouncilDecision),
+    adjudicationRationale: v.optional(v.string()),
+    peerChallengeBy: v.optional(v.string()),
+    selfCheckPassed: v.optional(v.boolean()),
     createdAt: v.number(),
   })
     .index("by_project", ["projectId"])
@@ -183,8 +249,61 @@ export default defineSchema({
     etaMs: v.optional(v.number()),
     filesProcessed: v.optional(v.number()),
     filesTotal: v.optional(v.number()),
+    filesClassified: v.optional(v.number()),
     findingsCount: v.optional(v.number()),
+    councilProgressPct: v.optional(v.number()),
+    activeStage: v.optional(v.string()),
+    activeDetail: v.optional(v.string()),
     updatedAt: v.number(),
+  }).index("by_project", ["projectId"]),
+
+  pipelineEvents: defineTable({
+    projectId: v.id("projects"),
+    stage: v.string(),
+    discipline: v.optional(v.string()),
+    message: v.string(),
+    detail: v.optional(v.string()),
+    progressPct: v.optional(v.number()),
+    fileName: v.optional(v.string()),
+    occurredAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_time", ["projectId", "occurredAt"]),
+
+  pipelineJobs: defineTable({
+    projectId: v.id("projects"),
+    jobType: PipelineJobType,
+    status: PipelineJobStatus,
+    discipline: v.optional(v.string()),
+    payloadJson: v.optional(v.string()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_status", ["projectId", "status"]),
+
+  peerChallenges: defineTable({
+    projectId: v.id("projects"),
+    findingId: v.string(),
+    challengerDiscipline: v.string(),
+    decision: CouncilDecision,
+    reason: v.string(),
+    revisedRisk: v.optional(FindingSeverity),
+    createdAt: v.number(),
+  }).index("by_project", ["projectId"]),
+
+  councilReports: defineTable({
+    projectId: v.id("projects"),
+    buildReadinessRating: BuildReadinessRating,
+    executiveDecision: ExecutiveDecision,
+    summary: v.string(),
+    reportMarkdown: v.string(),
+    criticalBlockers: v.number(),
+    highRiskConditions: v.number(),
+    corpusVersion: v.string(),
+    createdAt: v.number(),
   }).index("by_project", ["projectId"]),
 
   auditLog: defineTable({

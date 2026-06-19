@@ -16,12 +16,22 @@ type ScanPhaseValue =
 
 function derivePhase(
   uploads: Array<{ scanStatus: string; classificationStatus?: string }>,
-  crossDisciplineComplete?: boolean,
+  project: {
+    crossDisciplineComplete?: boolean;
+    councilPhase?: string;
+  },
 ): ScanPhaseValue {
   if (uploads.length === 0) return "pending";
 
+  if (project.councilPhase === "complete") return "reviewer_queue";
+
+  if (project.councilPhase === "chair") return "adjudicate";
+  if (project.councilPhase === "adjudicate") return "adjudicate";
+  if (project.councilPhase === "peer_challenge") return "peer_challenge";
+
+  if (project.crossDisciplineComplete) return "cross_ref";
+
   const allCompleted = uploads.every((u) => u.scanStatus === "completed");
-  if (allCompleted && crossDisciplineComplete) return "cross_ref";
   if (allCompleted) return "scanning";
 
   const anyScanning = uploads.some((u) => u.scanStatus === "scanning");
@@ -43,39 +53,70 @@ function derivePhase(
 
 function deriveProgress(
   phase: ScanPhaseValue,
-  uploads: Array<{ scanStatus: string; fileCount: number }>,
+  uploads: Array<{
+    scanStatus: string;
+    fileCount: number;
+    filesClassified?: number;
+    filesScanned?: number;
+  }>,
+  project: { councilPhase?: string },
 ): number {
   if (phase === "pending") return 0;
   if (phase === "released") return 100;
 
   const totalFiles = uploads.reduce((sum, u) => sum + u.fileCount, 0);
+  const filesClassified = uploads.reduce((sum, u) => sum + (u.filesClassified ?? 0), 0);
+  const filesScanned = uploads.reduce((sum, u) => sum + (u.filesScanned ?? 0), 0);
   const completedUploads = uploads.filter((u) => u.scanStatus === "completed").length;
-  const scanningUploads = uploads.filter((u) => u.scanStatus === "scanning").length;
 
   const phaseBase: Record<ScanPhaseValue, number> = {
     pending: 0,
-    uploading: 10,
-    classifying: 25,
-    confirm_classify: 35,
-    scanning: 50,
-    cross_ref: 75,
-    peer_challenge: 82,
-    adjudicate: 88,
+    uploading: 8,
+    classifying: 18,
+    confirm_classify: 32,
+    scanning: 45,
+    cross_ref: 68,
+    peer_challenge: 78,
+    adjudicate: 86,
     reviewer_queue: 94,
     released: 100,
   };
 
   let progress = phaseBase[phase];
-  if (uploads.length > 0 && phase === "scanning") {
-    const uploadProgress =
-      ((completedUploads + scanningUploads * 0.5) / uploads.length) * 30;
-    progress += uploadProgress;
-  }
+
   if (totalFiles > 0 && phase === "classifying") {
-    progress += Math.min(10, totalFiles / 50);
+    progress += Math.round((filesClassified / totalFiles) * 14);
   }
 
+  if (totalFiles > 0 && (phase === "scanning" || phase === "confirm_classify")) {
+    progress += Math.round((filesScanned / totalFiles) * 22);
+  }
+
+  if (uploads.length > 0 && phase === "scanning" && completedUploads < uploads.length) {
+    progress += Math.round((completedUploads / uploads.length) * 8);
+  }
+
+  if (project.councilPhase === "peer_challenge") progress = Math.max(progress, 78);
+  if (project.councilPhase === "adjudicate") progress = Math.max(progress, 86);
+  if (project.councilPhase === "chair") progress = Math.max(progress, 90);
+  if (project.councilPhase === "complete") progress = Math.max(progress, 94);
+
   return Math.min(99, Math.round(progress));
+}
+
+function councilProgressPct(councilPhase?: string): number {
+  switch (councilPhase) {
+    case "peer_challenge":
+      return 33;
+    case "adjudicate":
+      return 66;
+    case "chair":
+      return 85;
+    case "complete":
+      return 100;
+    default:
+      return 0;
+  }
 }
 
 export const syncFromUpload = internalMutation({
@@ -94,12 +135,14 @@ export const syncFromUpload = internalMutation({
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
-    const phase = derivePhase(uploads, project.crossDisciplineComplete);
-    const progressPct = deriveProgress(phase, uploads);
+    const phase = derivePhase(uploads, project);
+    const progressPct = deriveProgress(phase, uploads, project);
     const filesTotal = uploads.reduce((sum, u) => sum + u.fileCount, 0);
-    const filesProcessed = uploads
-      .filter((u) => u.scanStatus === "completed" || u.scanStatus === "scanning")
-      .reduce((sum, u) => sum + u.fileCount, 0);
+    const filesClassified = uploads.reduce((sum, u) => sum + (u.filesClassified ?? 0), 0);
+    const filesProcessed = uploads.reduce(
+      (sum, u) => sum + (u.filesScanned ?? (u.scanStatus === "completed" ? u.fileCount : 0)),
+      0,
+    );
 
     const existing = await ctx.db
       .query("scanStates")
@@ -112,7 +155,9 @@ export const syncFromUpload = internalMutation({
       progressPct,
       filesProcessed,
       filesTotal,
+      filesClassified,
       findingsCount: findings.length,
+      councilProgressPct: councilProgressPct(project.councilPhase),
       updatedAt: Date.now(),
     };
 
@@ -147,6 +192,11 @@ export const getState = query({
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
+    const jobs = await ctx.db
+      .query("pipelineJobs")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
     const severityCounts = {
       critical: findings.filter((f) => f.severity === "CRITICAL").length,
       high: findings.filter((f) => f.severity === "HIGH").length,
@@ -159,7 +209,11 @@ export const getState = query({
       scanStatus: u.scanStatus,
       classificationStatus: u.classificationStatus,
       fileCount: u.fileCount,
+      filesClassified: u.filesClassified ?? 0,
+      filesScanned: u.filesScanned ?? 0,
       findingsCount: u.findingsCount ?? 0,
+      currentActivity: u.currentActivity,
+      currentFileName: u.currentFileName,
     }));
 
     return {
@@ -168,15 +222,26 @@ export const getState = query({
         name: project.name,
         contractType: project.contractType,
         tier: project.tier,
+        councilPhase: project.councilPhase ?? "pending",
+        crossDisciplineComplete: project.crossDisciplineComplete ?? false,
       },
       phase: scanState?.phase ?? "pending",
       progressPct: scanState?.progressPct ?? 0,
       filesProcessed: scanState?.filesProcessed ?? 0,
       filesTotal: scanState?.filesTotal ?? 0,
+      filesClassified: scanState?.filesClassified ?? 0,
       findingsCount: scanState?.findingsCount ?? findings.length,
+      councilProgressPct: scanState?.councilProgressPct ?? 0,
+      activeStage: scanState?.activeStage,
+      activeDetail: scanState?.activeDetail,
       severityCounts,
       disciplineUploads: disciplineCards,
-      crossDisciplineComplete: project.crossDisciplineComplete ?? false,
+      pipelineJobs: jobs.map((j) => ({
+        jobType: j.jobType,
+        status: j.status,
+        discipline: j.discipline,
+        error: j.error,
+      })),
       updatedAt: scanState?.updatedAt ?? project.updatedAt,
     };
   },

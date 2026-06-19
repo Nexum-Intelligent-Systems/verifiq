@@ -60,6 +60,21 @@ export const updateClassification = internalMutation({
       docType: args.docType,
       classificationConfidence: args.classificationConfidence,
       classificationMethod: args.classificationMethod,
+      scanStatus: "classified",
     });
+  },
+});
+
+export const markFileScanning = internalMutation({
+  args: { fileId: v.id("files") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.fileId, { scanStatus: "scanning" });
+  },
+});
+
+export const markFileScanned = internalMutation({
+  args: { fileId: v.id("files") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.fileId, { scanStatus: "scanned" });
   },
 });

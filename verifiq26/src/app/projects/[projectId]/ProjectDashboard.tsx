@@ -6,6 +6,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { SeverityPill } from "@/components/ui/SeverityPill";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StartReviewButton, TenderUploadPanel } from "@/components/project/TenderUploadPanel";
+import { PipelineConsole } from "@/components/project/PipelineConsole";
 import {
   computePipelineProgress,
   disciplineProgressLabel,
@@ -167,6 +168,24 @@ export function ProjectDashboard({ projectId }: { projectId: Id<"projects"> }) {
       </header>
 
       <TenderUploadPanel projectId={projectId} />
+
+      {state.disciplineUploads.length > 0 && (
+        <PipelineConsole
+          projectId={projectId}
+          phase={state.phase}
+          councilPhase={state.project.councilPhase}
+          progressPct={state.progressPct}
+          councilProgressPct={state.councilProgressPct}
+          filesClassified={state.filesClassified}
+          filesTotal={state.filesTotal}
+          filesProcessed={state.filesProcessed}
+          activeStage={state.activeStage}
+          activeDetail={state.activeDetail}
+          disciplineUploads={state.disciplineUploads}
+          pipelineJobs={state.pipelineJobs}
+        />
+      )}
+
       {state.disciplineUploads.length > 0 && (
         <StartReviewButton
           variant="panel"

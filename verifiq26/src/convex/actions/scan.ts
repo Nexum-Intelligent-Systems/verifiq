@@ -26,6 +26,7 @@ import { internal } from "../_generated/api";
 import { callClaudeWithCache, ClaudeResponse } from "../lib/anthropicClient";
 import { loadDisciplineCorpus, buildSystemPrompt } from "../lib/corpus";
 import { verifySourceQuotes } from "../lib/sourceQuote";
+import { runSelfCheck } from "../lib/selfCheck";
 import { extractPdfText, extractPdfImages } from "../lib/extract";
 
 // Tier budgets (tunable per pack tier)
@@ -59,6 +60,14 @@ export const scanDisciplineUpload = internalAction({
     // Mark scanning
     await ctx.runMutation(internal.uploads.markScanning, { uploadId: args.uploadId });
 
+    await ctx.runMutation(internal.pipeline.logEvent, {
+      projectId: upload.projectId,
+      stage: "scanning",
+      discipline: upload.discipline,
+      message: `Discipline review starting — ${upload.discipline.toUpperCase()}`,
+      detail: "TGD · BCAR · planning corpus loaded into reviewer",
+    });
+
     if (!process.env.ANTHROPIC_API_KEY) {
       await runDemoScan(ctx, upload, project);
       return;
@@ -91,6 +100,14 @@ export const scanDisciplineUpload = internalAction({
 
     // Group files by doc-type for batching
     const grouped = groupByDocType(files);
+    const allScanFiles = [
+      ...grouped.specifications,
+      ...grouped.schedules,
+      ...grouped.drawings,
+      ...grouped.reports,
+      ...grouped.registers,
+    ];
+    let filesScanned = 0;
 
     let totalFindings = 0;
     let totalInputTokens = 0;
@@ -98,8 +115,18 @@ export const scanDisciplineUpload = internalAction({
 
     // Process specs first (biggest, highest signal)
     for (const file of grouped.specifications) {
-      if (budgetRemaining <= tierBudget.perFile * 0.5) break; // out of budget
+      if (budgetRemaining <= tierBudget.perFile * 0.5) break;
+      await ctx.runMutation(internal.pipeline.updateUploadProgress, {
+        uploadId: args.uploadId,
+        filesScanned,
+        currentActivity: "Scanning specifications",
+        currentFileName: file.fileName,
+      });
+      await ctx.runMutation(internal.files.markFileScanning, { fileId: file._id });
       const result = await scanSpecFile(ctx, file, systemPrompt, tierBudget.perFile, upload, checkId);
+      await ctx.runMutation(internal.files.markFileScanned, { fileId: file._id });
+      filesScanned++;
+      await logScanProgress(ctx, upload, filesScanned, allScanFiles.length, file.fileName, "specification");
       totalFindings += result.findingsCount;
       totalInputTokens += result.inputTokens;
       totalOutputTokens += result.outputTokens;
@@ -109,7 +136,17 @@ export const scanDisciplineUpload = internalAction({
     // Then schedules (high data density)
     for (const file of grouped.schedules) {
       if (budgetRemaining <= tierBudget.perFile * 0.3) break;
+      await ctx.runMutation(internal.pipeline.updateUploadProgress, {
+        uploadId: args.uploadId,
+        filesScanned,
+        currentActivity: "Scanning schedules",
+        currentFileName: file.fileName,
+      });
+      await ctx.runMutation(internal.files.markFileScanning, { fileId: file._id });
       const result = await scanScheduleFile(ctx, file, systemPrompt, tierBudget.perFile / 2, upload, checkId);
+      await ctx.runMutation(internal.files.markFileScanned, { fileId: file._id });
+      filesScanned++;
+      await logScanProgress(ctx, upload, filesScanned, allScanFiles.length, file.fileName, "schedule");
       totalFindings += result.findingsCount;
       totalInputTokens += result.inputTokens;
       totalOutputTokens += result.outputTokens;
@@ -118,9 +155,23 @@ export const scanDisciplineUpload = internalAction({
 
     // Then drawings via vision (parallelisable)
     const drawingBatch = grouped.drawings.slice(0, Math.floor(budgetRemaining / 20_000));
+    for (const d of drawingBatch) {
+      await ctx.runMutation(internal.pipeline.updateUploadProgress, {
+        uploadId: args.uploadId,
+        filesScanned,
+        currentActivity: "Vision scan — drawings",
+        currentFileName: d.fileName,
+      });
+      await ctx.runMutation(internal.files.markFileScanning, { fileId: d._id });
+    }
     const drawingResults = await Promise.all(
       drawingBatch.map((d) => scanDrawingFile(ctx, d, systemPrompt, tierBudget.perFile / 4, upload, checkId))
     );
+    for (const d of drawingBatch) {
+      await ctx.runMutation(internal.files.markFileScanned, { fileId: d._id });
+      filesScanned++;
+      await logScanProgress(ctx, upload, filesScanned, allScanFiles.length, d.fileName, "drawing");
+    }
     for (const r of drawingResults) {
       totalFindings += r.findingsCount;
       totalInputTokens += r.inputTokens;
@@ -130,7 +181,17 @@ export const scanDisciplineUpload = internalAction({
     // Reports + register hygiene last (smallest impact)
     for (const file of [...grouped.reports, ...grouped.registers]) {
       if (budgetRemaining <= 30_000) break;
+      await ctx.runMutation(internal.pipeline.updateUploadProgress, {
+        uploadId: args.uploadId,
+        filesScanned,
+        currentActivity: "Hygiene check — registers",
+        currentFileName: file.fileName,
+      });
+      await ctx.runMutation(internal.files.markFileScanning, { fileId: file._id });
       const result = await scanHygieneFile(ctx, file, systemPrompt, 60_000, upload, checkId);
+      await ctx.runMutation(internal.files.markFileScanned, { fileId: file._id });
+      filesScanned++;
+      await logScanProgress(ctx, upload, filesScanned, allScanFiles.length, file.fileName, "register");
       totalFindings += result.findingsCount;
       totalInputTokens += result.inputTokens;
       totalOutputTokens += result.outputTokens;
@@ -146,6 +207,15 @@ export const scanDisciplineUpload = internalAction({
         (totalInputTokens / 1_000_000) * 1200 +  // €12 per 1M input, in cents (€1=100c)
         (totalOutputTokens / 1_000_000) * 5000   // €50 per 1M output, in cents
       ),
+    });
+
+    await ctx.runMutation(internal.pipeline.logEvent, {
+      projectId: upload.projectId,
+      stage: "scanning",
+      discipline: upload.discipline,
+      message: `${upload.discipline.toUpperCase()} scan complete`,
+      detail: `${totalFindings} findings · ${filesScanned} files`,
+      progressPct: 100,
     });
 
     // Mark discipline upload as scan-complete
@@ -199,9 +269,9 @@ async function scanSpecFile(
 
     // Source-quote verification gate
     const verified = await verifySourceQuotes(response.findings, [chunk.text]);
+    const passed = verified.filter((f) => runSelfCheck({ ...f, discipline: upload.discipline }).passed);
 
-    // Persist verified findings
-    for (const f of verified) {
+    for (const f of passed) {
       await ctx.runMutation(internal.findings.create, {
         orgId: upload.orgId,
         projectId: upload.projectId,
@@ -209,9 +279,11 @@ async function scanSpecFile(
         finding: {
           ...f,
           findingId: nextFindingId(upload.discipline, findingsCount),
+          discipline: upload.discipline,
           status: "pending_review",
           sourceFile: file.fileName,
           sourcePageRange: chunk.page_range,
+          selfCheckPassed: true,
         },
       });
       findingsCount++;
@@ -234,8 +306,9 @@ async function scanScheduleFile(ctx: any, file: any, systemPrompt: string, budge
   });
 
   const verified = await verifySourceQuotes(response.findings, [text]);
+  const passed = verified.filter((f) => runSelfCheck({ ...f, discipline: upload.discipline }).passed);
   let count = 0;
-  for (const f of verified) {
+  for (const f of passed) {
     await ctx.runMutation(internal.findings.create, {
       orgId: upload.orgId,
       projectId: upload.projectId,
@@ -243,8 +316,10 @@ async function scanScheduleFile(ctx: any, file: any, systemPrompt: string, budge
       finding: {
         ...f,
         findingId: nextFindingId(upload.discipline, count),
+        discipline: upload.discipline,
         status: "pending_review",
         sourceFile: file.fileName,
+        selfCheckPassed: true,
       },
     });
     count++;
@@ -271,7 +346,8 @@ async function scanDrawingFile(ctx: any, file: any, systemPrompt: string, budget
     totalOut += response.usage.output_tokens;
 
     const verified = await verifySourceQuotes(response.findings, [`Drawing ${file.fileName} page ${img.page}`]);
-    for (const f of verified) {
+    const passed = verified.filter((f) => runSelfCheck({ ...f, discipline: upload.discipline }).passed);
+    for (const f of passed) {
       await ctx.runMutation(internal.findings.create, {
         orgId: upload.orgId,
         projectId: upload.projectId,
@@ -279,9 +355,11 @@ async function scanDrawingFile(ctx: any, file: any, systemPrompt: string, budget
         finding: {
           ...f,
           findingId: nextFindingId(upload.discipline, findingsCount),
+          discipline: upload.discipline,
           status: "pending_review",
           sourceFile: file.fileName,
           sourcePageRange: String(img.page),
+          selfCheckPassed: true,
         },
       });
       findingsCount++;
@@ -302,8 +380,9 @@ async function scanHygieneFile(ctx: any, file: any, systemPrompt: string, budget
   });
 
   const verified = await verifySourceQuotes(response.findings, [text]);
+  const passed = verified.filter((f) => runSelfCheck({ ...f, discipline: upload.discipline }).passed);
   let count = 0;
-  for (const f of verified) {
+  for (const f of passed) {
     await ctx.runMutation(internal.findings.create, {
       orgId: upload.orgId,
       projectId: upload.projectId,
@@ -311,8 +390,10 @@ async function scanHygieneFile(ctx: any, file: any, systemPrompt: string, budget
       finding: {
         ...f,
         findingId: nextFindingId(upload.discipline, count),
+        discipline: upload.discipline,
         status: "pending_review",
         sourceFile: file.fileName,
+        selfCheckPassed: true,
       },
     });
     count++;
@@ -323,6 +404,29 @@ async function scanHygieneFile(ctx: any, file: any, systemPrompt: string, budget
 // ===================================================
 // HELPERS
 // ===================================================
+
+async function logScanProgress(
+  ctx: any,
+  upload: { projectId: string; discipline: string; _id: string },
+  filesScanned: number,
+  filesTotal: number,
+  fileName: string,
+  docType: string,
+) {
+  await ctx.runMutation(internal.pipeline.updateUploadProgress, {
+    uploadId: upload._id,
+    filesScanned,
+  });
+  await ctx.runMutation(internal.pipeline.logEvent, {
+    projectId: upload.projectId,
+    stage: "scanning",
+    discipline: upload.discipline,
+    message: `Scanned ${filesScanned} / ${filesTotal} — ${docType}`,
+    fileName,
+    progressPct: filesTotal > 0 ? Math.round((filesScanned / filesTotal) * 100) : 0,
+  });
+  await ctx.runMutation(internal.scanState.syncFromUpload, { projectId: upload.projectId });
+}
 
 function groupByDocType(files: any[]) {
   return {
@@ -361,12 +465,9 @@ function nextFindingId(disc: string, base: number): string {
 }
 
 function shouldTriggerCrossDiscipline(projectStatus: any): boolean {
-  // Run cross-disc pass when 3+ disciplines have completed
-  // OR when customer manually triggers
-  const completedDisciplines = projectStatus.disciplineUploads.filter(
-    (du: any) => du.scanStatus === "completed"
-  ).length;
-  return completedDisciplines >= 3;
+  const uploads = projectStatus.disciplineUploads;
+  if (uploads.length === 0) return false;
+  return uploads.every((du: { scanStatus: string }) => du.scanStatus === "completed");
 }
 
 async function runDemoScan(ctx: any, upload: any, project: any): Promise<void> {

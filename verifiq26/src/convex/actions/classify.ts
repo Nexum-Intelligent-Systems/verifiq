@@ -37,22 +37,62 @@ export const classifyDisciplineUpload = internalAction({
       fileIds: upload.fileIds,
     });
 
-    // Classify in parallel batches of 10
+    await ctx.runMutation(internal.pipeline.logEvent, {
+      projectId: upload.projectId,
+      stage: "classifying",
+      discipline: upload.discipline,
+      message: `Classifying ${filesToClassify.length} files`,
+      detail: `Gate: ${upload.discipline.toUpperCase()}`,
+    });
+
+    let classified = 0;
     const BATCH = 10;
     for (let i = 0; i < filesToClassify.length; i += BATCH) {
       const batch = filesToClassify.slice(i, i + BATCH);
-      await Promise.all(batch.map((file) => classifyFile(ctx, file, upload.discipline)));
+      await Promise.all(
+        batch.map((file) => classifyFile(ctx, file, upload.discipline, upload)),
+      );
+      classified += batch.length;
+
+      await ctx.runMutation(internal.pipeline.updateUploadProgress, {
+        uploadId: args.uploadId,
+        filesClassified: classified,
+        currentActivity: "Classifying",
+        currentFileName: batch[batch.length - 1]?.fileName,
+      });
+
+      await ctx.runMutation(internal.pipeline.logEvent, {
+        projectId: upload.projectId,
+        stage: "classifying",
+        discipline: upload.discipline,
+        message: `Classified ${classified} / ${filesToClassify.length}`,
+        progressPct: Math.round((classified / filesToClassify.length) * 100),
+        fileName: batch[batch.length - 1]?.fileName,
+      });
+
+      await ctx.runMutation(internal.scanState.syncFromUpload, {
+        projectId: upload.projectId,
+      });
     }
 
-    // Mark upload as classified — staff confirms on dashboard before scan runs
     await ctx.runMutation(internal.uploads.markClassified, { uploadId: args.uploadId });
+
+    await ctx.runMutation(internal.pipeline.logEvent, {
+      projectId: upload.projectId,
+      stage: "confirm_classify",
+      discipline: upload.discipline,
+      message: `${upload.discipline.toUpperCase()} gate ready for review`,
+      detail: `${filesToClassify.length} files tagged`,
+      progressPct: 100,
+    });
   },
 });
 
 async function classifyFile(
   ctx: any,
   file: { _id: string; fileName: string; mimeType: string; storageId: string },
-  parentDiscipline: string
+  parentDiscipline: string,
+  upload: { projectId: string; discipline: string; _id: string },
 ) {
   // ===== Stage 1: filename pattern matching =====
   const filenameClass = classifyByFilename(file.fileName);

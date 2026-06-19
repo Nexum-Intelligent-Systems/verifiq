@@ -10,6 +10,7 @@
 
 import type * as actions_classify from "../actions/classify.js";
 import type * as actions_coordinate from "../actions/coordinate.js";
+import type * as actions_council from "../actions/council.js";
 import type * as actions_scan from "../actions/scan.js";
 import type * as actions_uploads from "../actions/uploads.js";
 import type * as auth from "../auth.js";
@@ -24,7 +25,9 @@ import type * as lib_corpus from "../lib/corpus.js";
 import type * as lib_disciplineInfer from "../lib/disciplineInfer.js";
 import type * as lib_extract from "../lib/extract.js";
 import type * as lib_requireAuth from "../lib/requireAuth.js";
+import type * as lib_selfCheck from "../lib/selfCheck.js";
 import type * as lib_sourceQuote from "../lib/sourceQuote.js";
+import type * as pipeline from "../pipeline.js";
 import type * as projects from "../projects.js";
 import type * as scanState from "../scanState.js";
 import type * as seed from "../seed.js";
@@ -41,6 +44,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "actions/classify": typeof actions_classify;
   "actions/coordinate": typeof actions_coordinate;
+  "actions/council": typeof actions_council;
   "actions/scan": typeof actions_scan;
   "actions/uploads": typeof actions_uploads;
   auth: typeof auth;
@@ -55,7 +59,9 @@ declare const fullApi: ApiFromModules<{
   "lib/disciplineInfer": typeof lib_disciplineInfer;
   "lib/extract": typeof lib_extract;
   "lib/requireAuth": typeof lib_requireAuth;
+  "lib/selfCheck": typeof lib_selfCheck;
   "lib/sourceQuote": typeof lib_sourceQuote;
+  pipeline: typeof pipeline;
   projects: typeof projects;
   scanState: typeof scanState;
   seed: typeof seed;

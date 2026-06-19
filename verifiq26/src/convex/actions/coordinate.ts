@@ -36,7 +36,23 @@ export const runCrossDisciplinePass = internalAction({
       projectId: args.projectId,
     });
 
-    if (allFindings.length === 0) return;
+    if (allFindings.length === 0) {
+      await ctx.runMutation(internal.projects.markCrossDisciplineComplete, {
+        projectId: args.projectId,
+        crossDisciplineFindingsCount: 0,
+      });
+      await ctx.runMutation(internal.pipeline.logEvent, {
+        projectId: args.projectId,
+        stage: "cross_ref",
+        message: "Cross-discipline pass — no findings to coordinate",
+        progressPct: 100,
+      });
+      await ctx.runMutation(internal.scanState.syncFromUpload, { projectId: args.projectId });
+      await ctx.scheduler.runAfter(0, internal.actions.council.startCouncilPipeline, {
+        projectId: args.projectId,
+      });
+      return;
+    }
 
     // Group findings by discipline for compact summarisation
     const byDisc: Record<string, any[]> = {};
@@ -86,6 +102,20 @@ export const runCrossDisciplinePass = internalAction({
     await ctx.runMutation(internal.projects.markCrossDisciplineComplete, {
       projectId: args.projectId,
       crossDisciplineFindingsCount: verified.length,
+    });
+
+    await ctx.runMutation(internal.pipeline.logEvent, {
+      projectId: args.projectId,
+      stage: "cross_ref",
+      message: "Cross-discipline coordination pass complete",
+      detail: `${verified.length} coordination findings`,
+      progressPct: 100,
+    });
+
+    await ctx.runMutation(internal.scanState.syncFromUpload, { projectId: args.projectId });
+
+    await ctx.scheduler.runAfter(0, internal.actions.council.startCouncilPipeline, {
+      projectId: args.projectId,
     });
   },
 });

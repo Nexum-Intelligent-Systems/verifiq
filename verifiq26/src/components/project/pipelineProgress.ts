@@ -3,7 +3,11 @@ export type DisciplineUploadProgress = {
   scanStatus: string;
   classificationStatus?: string;
   fileCount: number;
+  filesClassified?: number;
+  filesScanned?: number;
   findingsCount: number;
+  currentActivity?: string;
+  currentFileName?: string;
 };
 
 export type PipelineProgress = {
@@ -15,19 +19,43 @@ export type PipelineProgress = {
 
 export function disciplineProgressPct(du: DisciplineUploadProgress): number {
   if (du.scanStatus === "completed") return 100;
-  if (du.scanStatus === "scanning") return 78;
-  if (du.scanStatus === "queued") return 58;
-  if (du.classificationStatus === "classified") return 42;
-  if (du.fileCount > 0) return 22;
-  return 8;
+  if (du.fileCount === 0) return 0;
+
+  const classifyPct =
+    du.classificationStatus === "classified"
+      ? 100
+      : Math.round(((du.filesClassified ?? 0) / du.fileCount) * 100);
+
+  const scanPct =
+    du.scanStatus === "completed"
+      ? 100
+      : Math.round(((du.filesScanned ?? 0) / du.fileCount) * 100);
+
+  if (du.scanStatus === "scanning" || du.scanStatus === "queued") {
+    return Math.min(99, Math.round(35 + classifyPct * 0.15 + scanPct * 0.5));
+  }
+
+  if (du.classificationStatus === "classified") {
+    return Math.min(40, 30 + classifyPct * 0.1);
+  }
+
+  return Math.min(30, Math.round(classifyPct * 0.3));
 }
 
 export function disciplineProgressLabel(du: DisciplineUploadProgress): string {
   if (du.scanStatus === "completed") return "Complete";
-  if (du.scanStatus === "scanning") return "Scanning";
-  if (du.scanStatus === "queued") return "Queued";
+  if (du.currentActivity && du.currentFileName) {
+    return `${du.currentActivity} · ${du.currentFileName}`;
+  }
+  if (du.currentActivity) return du.currentActivity;
+  if (du.scanStatus === "scanning") {
+    return `Scanning ${du.filesScanned ?? 0} / ${du.fileCount}`;
+  }
+  if (du.scanStatus === "queued") return "Queued for scan";
   if (du.classificationStatus === "classified") return "Ready to scan";
-  if (du.fileCount > 0 && du.classificationStatus === "pending") return "Classifying";
+  if (du.fileCount > 0 && du.classificationStatus === "pending") {
+    return `Classifying ${du.filesClassified ?? 0} / ${du.fileCount}`;
+  }
   if (du.fileCount > 0) return "Extracted";
   return "Waiting";
 }

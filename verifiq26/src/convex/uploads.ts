@@ -113,6 +113,9 @@ export const markScanComplete = internalMutation({
       scanStatus: "completed",
       checkId: args.checkId,
       findingsCount: args.findingsCount,
+      filesScanned: upload.fileCount,
+      currentActivity: "Complete",
+      currentFileName: undefined,
     });
 
     await ctx.scheduler.runAfter(0, internal.scanState.syncFromUpload, {
