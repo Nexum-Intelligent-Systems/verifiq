@@ -185,7 +185,10 @@ async function persistDisciplineFiles(
   let estimatedPages = 0;
 
   for (const file of args.files) {
-    const fileStorageId = await ctx.storage.store(new Blob([new Uint8Array(file.data)]));
+    const mimeType = mimeFromExt(file.ext);
+    const fileStorageId = await ctx.storage.store(
+      new Blob([new Uint8Array(file.data)], { type: mimeType }),
+    );
     totalSize += file.sizeBytes;
     estimatedPages += estimatePagesFromSize(file.sizeBytes, file.ext);
 
@@ -195,7 +198,7 @@ async function persistDisciplineFiles(
       packId: undefined,
       fileName: file.fileName,
       filePath: file.filePath,
-      mimeType: mimeFromExt(file.ext),
+      mimeType,
       sizeBytes: file.sizeBytes,
       storageId: fileStorageId,
       estimatedPages: estimatePagesFromSize(file.sizeBytes, file.ext),
