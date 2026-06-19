@@ -70,7 +70,12 @@ export async function loadDisciplineCorpus(
   if (discipline === "mech") return MECH_CORPUS_V_2026_06;
   if (discipline === "elec") return ELEC_CORPUS_V_2026_06;
   if (discipline === "fire") return FIRE_CORPUS_V_2026_06;
-  throw new Error(`Unknown discipline: ${discipline}`);
+  if (discipline === "qs") return QS_CORPUS_V_2026_06;
+  if (discipline === "bcar") return BCAR_CORPUS_V_2026_06;
+  // Unknown discipline: degrade to a generic document-quality review rather than
+  // throwing and killing the whole scan (which produced zero findings silently).
+  console.warn(`loadDisciplineCorpus: no corpus for "${discipline}" — using generic fallback`);
+  return GENERIC_CORPUS_V_2026_06;
 }
 
 // ===================================================
@@ -416,5 +421,121 @@ const FIRE_CORPUS_V_2026_06: DisciplineCorpus = {
     "Flag FSC conditions not propagated through downstream design (M&E, Arch fire-stopping)",
     "Flag design changes that may trigger SI 496 §11 revised FSC requirement",
     "Flag two TGD-B versions in same document (e.g. 2024 in body, 2006 reprint 2020 in conditions)",
+  ],
+};
+
+const QS_CORPUS_V_2026_06: DisciplineCorpus = {
+  discipline: "qs",
+  version: "v.2026.06",
+  personaText: "You are a Chartered Quantity Surveyor (MSCSI MRICS) with 30 years of Irish public-sector experience under the Capital Works Management Framework (CWMF), performing an indicative document-quality check on a tender pack's commercial documents (BoQ, pricing document, preliminaries, contract form). You do NOT certify, sign off, or provide professional opinions.",
+  entries: [
+    {
+      code: "PW-CF (CWMF)",
+      body: "Public Works Contract forms under the Capital Works Management Framework",
+      status: "current",
+      keyClauses: [
+        { ref: "PW-CF1/2/3/5", summary: "Standard forms — employer-designed (CF1/2) vs contractor-designed (CF3/5); correct form must match procurement route" },
+      ],
+      commonReferences: ["PW-CF5", "CWMF", "Public Works Contract"],
+      cutPasteMarkers: ["RIAI Yellow/Blue form (private)", "JCT", "NEC3/NEC4 (UK)", "GCCC superseded forms"],
+    },
+    {
+      code: "ARM4",
+      body: "Agreed Rules of Measurement 4th edition (SCSI)",
+      status: "current",
+      keyClauses: [
+        { ref: "ARM4", summary: "Measurement basis for building works BoQ in Ireland" },
+      ],
+      commonReferences: ["ARM4", "Agreed Rules of Measurement"],
+      cutPasteMarkers: ["SMM7 (UK)", "NRM2 (UK)", "CESMM (civils only)"],
+    },
+    {
+      code: "Irish VAT",
+      body: "Irish standard-rate VAT on construction services",
+      status: "current",
+      effectiveDate: "2024",
+      keyClauses: [
+        { ref: "Standard rate", summary: "Construction services at 13.5% reduced rate where applicable; standard rate 23% — confirm correct rate per item, not lapsed 21%" },
+      ],
+      commonReferences: ["VAT 23%", "VAT 13.5%"],
+      cutPasteMarkers: ["VAT 21%", "VAT 20% (UK)"],
+    },
+    {
+      code: "SI 291/2013",
+      body: "Safety, Health and Welfare at Work (Construction) Regulations — PSDP/PSCS",
+      status: "current",
+      keyClauses: [
+        { ref: "PSDP/PSCS", summary: "Project Supervisor Design Process / Construction Stage appointments and BoQ preliminaries provision" },
+      ],
+      commonReferences: ["PSDP", "PSCS", "SI 291 of 2013"],
+      cutPasteMarkers: ["CDM Regulations 2015 (UK)"],
+    },
+  ],
+  checkRules: [
+    "Flag BoQ items with blank rate or amount columns (unpriced measured work)",
+    "Flag VAT stated at 21% or 20% — Irish standard rate is 23% (13.5% reduced where applicable)",
+    "Flag use of UK measurement standards (SMM7 / NRM2) instead of ARM4 for building works",
+    "Flag contract form references that are not current PW-CF / CWMF (e.g. RIAI, JCT, NEC, superseded GCCC forms)",
+    "Flag excessive Provisional Sums / Prime Cost sums without defined scope",
+    "Flag absence of PSDP / PSCS preliminaries provision (SI 291/2013)",
+    "Flag BoQ quantities with no corresponding design spec or drawing reference (cross-discipline outlier)",
+    "Flag preliminaries referencing a different project / building type (cut-paste boilerplate)",
+    "Flag missing Pricing Document / Form of Tender or inconsistent contract sum carried forward",
+  ],
+};
+
+const BCAR_CORPUS_V_2026_06: DisciplineCorpus = {
+  discipline: "bcar",
+  version: "v.2026.06",
+  personaText: "You are a chartered design professional acting as BCAR Assigned Certifier / Design Certifier with 30 years of Irish public-sector experience under SI 9/2014, performing an indicative document-quality check on the statutory certification and compliance documentation in a tender pack. You do NOT certify, sign off, or provide professional opinions.",
+  entries: [
+    {
+      code: "SI 9/2014",
+      body: "Building Control (Amendment) Regulations — BCAR",
+      status: "current",
+      effectiveDate: "2014-03",
+      keyClauses: [
+        { ref: "Reg 5", summary: "Designer responsibility for quality and completeness of design information" },
+        { ref: "Reg 9", summary: "Ancillary Certificate allocation — every element must have a named designer/specialist" },
+        { ref: "Reg 6", summary: "Assigned Certifier appointment and inspection plan" },
+      ],
+      commonReferences: ["BCAR", "SI 9 of 2014"],
+      cutPasteMarkers: ["CDM Regulations 2015 (UK)", "Approved Inspector (UK)"],
+    },
+    {
+      code: "SI 496/2009",
+      body: "Building Control Regulations — Commencement Notice, FSC, DAC procedures",
+      status: "current",
+      keyClauses: [
+        { ref: "Commencement Notice", summary: "7–28 day Commencement Notice with statutory documentation set required" },
+        { ref: "Certs of Compliance", summary: "Design and Completion Certificates of Compliance on the statutory register" },
+      ],
+      commonReferences: ["SI 496/2009"],
+      cutPasteMarkers: [],
+    },
+  ],
+  checkRules: [
+    "Flag elements with no named Ancillary Certifier / designer allocation (SI 9/2014 Reg 9)",
+    "Flag missing or incomplete Schedule of Ancillary Certificates",
+    "Flag absence of an Assigned Certifier Inspection Plan (SI 9/2014 Reg 6)",
+    "Flag design information gaps that breach Designer responsibility under Reg 5",
+    "Flag missing FSC / DAC references where the building type requires them",
+    "Flag Commencement Notice documentation set incomplete (SI 496/2009)",
+    "Flag UK certification terminology (Approved Inspector, CDM) in an Irish BCAR pack",
+  ],
+};
+
+const GENERIC_CORPUS_V_2026_06: DisciplineCorpus = {
+  discipline: "generic",
+  version: "v.2026.06",
+  personaText: "You are a chartered Irish design professional performing an indicative document-quality check on a tender pack section whose discipline is not separately catalogued. Apply general Irish construction document-hygiene and standards-currency checks. You do NOT certify, sign off, or provide professional opinions.",
+  entries: [],
+  checkRules: [
+    "Flag references to withdrawn or superseded standards",
+    "Flag UK terminology / standards (Approved Document, BS-only, CDM) where an Irish equivalent governs",
+    "Flag wrong-project or wrong-building-type boilerplate (cut-paste markers)",
+    "Flag documents missing status code, revision, scale, or date",
+    "Flag duplicate or inconsistent drawing/document numbers",
+    "Flag schedules whose content does not match their title",
   ],
 };

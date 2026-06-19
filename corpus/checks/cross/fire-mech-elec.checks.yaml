@@ -1,0 +1,369 @@
+# =============================================================================
+# VerifIQ PILOT — Fire / DAC / FSC  <->  Mechanical  <->  Electrical
+# Cross-discipline propagation matrix. See ../_SCHEMA.md for field definitions.
+#
+# Governing documents = source of truth: Fire Strategy / Engineer's Report, FSC
+# (Fire Safety Certificate) conditions, DAC (Disability Access Certificate)
+# conditions. Each governing CONDITION must be honoured downstream in M&E and/or
+# Electrical design. A condition with no downstream match is the finding.
+#
+# Seed set (~22). Expands toward ~150 cross-checks as standards are ingested.
+# =============================================================================
+
+# ----------------------------------------------------------------------------
+# FIRE  ->  MECHANICAL
+# ----------------------------------------------------------------------------
+- id: FIRE-MECH-DMP-001
+  title: Fire damper at every compartment penetration
+  discipline: cross
+  appliesTo: [fire-strategy, fsc, me-spec, me-schedule, me-drawing]
+  question: >
+    Does every compartment / fire-rated wall or floor penetration required by the fire
+    strategy have a corresponding fire damper in the M&E ductwork design?
+  authority: [tgd-b-2024#3.5.7, is-en-15650#4]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [mech]
+    rule: >
+      Extract every compartment line / fire-rated element the fire strategy identifies as
+      crossed by ductwork. For each, assert a fire (or fire/smoke) damper appears in the M&E
+      duct schedule or drawings at that location. Flag any crossing with no damper.
+  module: fire-life-safety
+
+- id: FIRE-MECH-DMP-002
+  title: Fire dampers CE-marked to I.S. EN 15650 (not BS 476 Pt 8)
+  discipline: cross
+  appliesTo: [me-spec, me-schedule]
+  question: Are fire dampers specified to I.S. EN 15650 under CPR (EU) 305/2011, not the withdrawn BS 476 Part 8:1972?
+  authority: [is-en-15650#4]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [mech]
+    rule: >
+      Where the fire strategy requires fire dampers, assert the M&E spec cites I.S. EN 15650.
+      Flag any reference to BS 476 Part 8:1972 (withdrawn test method).
+  module: fire-life-safety
+
+- id: FIRE-MECH-PEN-003
+  title: M&E service penetrations fire-stopped to compartment rating
+  discipline: cross
+  appliesTo: [fire-strategy, me-spec, me-drawing]
+  question: >
+    Are all M&E service penetrations (pipes, cables, ducts) through compartment lines
+    fire-stopped to maintain the rating required by the fire strategy?
+  authority: [tgd-b-2024#3.5.7]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [mech, elec]
+    rule: >
+      For each compartment rating in the fire strategy, assert the M&E/Elec spec includes a
+      fire-stopping system of equal rating for service penetrations. Flag missing or under-rated.
+  module: fire-life-safety
+
+- id: FIRE-MECH-VENT-004
+  title: Ventilation/AHU shutdown on fire alarm (cause & effect)
+  discipline: cross
+  appliesTo: [fire-strategy, me-spec, fa-cause-effect]
+  question: >
+    Does the M&E control philosophy shut down or control mechanical ventilation / AHUs on a
+    fire alarm signal exactly as the fire strategy cause-and-effect requires?
+  authority: [tgd-b-2024#B3, is-3218-2024#6]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [mech, elec]
+    rule: >
+      Compare the fire strategy cause-and-effect against the M&E control narrative and the
+      fire-alarm cause-and-effect matrix. Flag any required ventilation action not reflected.
+  module: fire-life-safety
+
+- id: FIRE-MECH-SMOKE-005
+  title: Smoke control / ventilation matches fire strategy
+  discipline: cross
+  appliesTo: [fire-strategy, me-spec, me-drawing]
+  question: Is the mechanical/natural smoke control provision consistent with the smoke strategy and AOV requirements in the fire strategy?
+  authority: [tgd-b-2024#B3]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [mech]
+    rule: Extract smoke-control requirements from the fire strategy; assert matching provision in M&E. Flag gaps.
+  module: fire-life-safety
+
+- id: FIRE-MECH-KIT-006
+  title: Kitchen extract fire suppression where fire strategy flags cooking risk
+  discipline: cross
+  appliesTo: [fire-strategy, me-spec, me-schedule]
+  question: Where commercial cooking (e.g. deep-fat fryer) is present, is hood fire suppression specified to I.S. EN 16282-7?
+  authority: [is-en-16282-7#5]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [mech]
+    rule: If the pack includes a commercial kitchen, assert M&E specifies I.S. EN 16282-7 hood suppression. Flag absence.
+  module: catering
+
+# ----------------------------------------------------------------------------
+# FIRE  ->  ELECTRICAL
+# ----------------------------------------------------------------------------
+- id: FIRE-ELEC-FA-007
+  title: Fire detection & alarm covers all areas in the fire strategy (I.S. 3218:2024)
+  discipline: cross
+  appliesTo: [fire-strategy, fsc, elec-spec, elec-drawing]
+  question: >
+    Does the fire detection & alarm system (I.S. 3218:2024) provide the category and coverage
+    (L1/L2/M etc.) the fire strategy / FSC specifies, across all zones?
+  authority: [is-3218-2024#6, tgd-b-2024#B1]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [elec]
+    rule: >
+      Extract the required F&A category and protected areas from the fire strategy/FSC; assert
+      the electrical spec/drawings provide that category and coverage. Flag shortfalls or
+      references to the superseded I.S. 3218:2013.
+  module: fire-life-safety
+
+- id: FIRE-ELEC-CE-008
+  title: Cause-and-effect matrix matches fire strategy zones
+  discipline: cross
+  appliesTo: [fire-strategy, fa-cause-effect, elec-spec]
+  question: Does the fire-alarm cause-and-effect matrix reflect every interface and zone action required by the fire strategy?
+  authority: [is-3218-2024#6]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [elec, mech]
+    rule: >
+      Cross-check each fire strategy interface (dampers, AOVs, door holders, lifts, shutters,
+      ventilation) against the cause-and-effect matrix. Flag any action present in one but not the other.
+  module: fire-life-safety
+
+- id: FIRE-ELEC-EL-009
+  title: Emergency lighting on all escape routes, 3-hour duration (I.S. 3217:2023)
+  discipline: cross
+  appliesTo: [fire-strategy, elec-spec, elec-drawing]
+  question: >
+    Is emergency escape lighting (I.S. 3217:2023, 3-hour minimum) provided on every escape
+    route, stair and final exit identified in the fire strategy?
+  authority: [is-3217-2023#5, tgd-b-2024#B1]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [elec]
+    rule: >
+      Extract escape routes/exits from the fire strategy; assert emergency lighting coverage
+      in the electrical design at 3-hour duration. Flag uncovered routes or I.S. 3217:2013 refs.
+  module: fire-life-safety
+
+- id: FIRE-ELEC-REFUGE-010
+  title: Disabled refuge alarm / EVC where fire strategy + BS 8300-2 require
+  discipline: cross
+  appliesTo: [fire-strategy, dac, elec-spec]
+  question: Where refuges are designated, is a disabled refuge two-way communication / EVC system specified (BS 8300-2 §18.6)?
+  authority: [bs-8300-2#18.6]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [elec]
+    rule: For each refuge in the fire strategy/DAC, assert an EVC/refuge alarm in the electrical spec. Flag missing.
+  module: accessibility
+
+- id: FIRE-ELEC-IFACE-011
+  title: Life-safety interfaces powered, monitored and fire-rated
+  discipline: cross
+  appliesTo: [fire-strategy, elec-spec, me-spec]
+  question: >
+    Are life-safety interfaces (motorised fire dampers, AOVs, door hold-opens, lift homing)
+    provided with monitored power and fire-rated cabling consistent with the fire strategy?
+  authority: [is-3218-2024#6, is-10101-2020#560]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [elec, mech]
+    rule: >
+      For each life-safety interface, assert the electrical design provides monitored supply and
+      fire-resistant cabling. Flag any actuated device with no electrical provision.
+  module: fire-life-safety
+
+- id: FIRE-ELEC-STANDBY-012
+  title: Secondary/standby power for life-safety systems
+  discipline: cross
+  appliesTo: [fire-strategy, elec-spec]
+  question: Do life-safety systems have the standby power / battery autonomy the fire strategy and standards require?
+  authority: [is-3218-2024#6, is-3217-2023#5]
+  severity: MEDIUM
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [elec]
+    rule: Assert standby provision (battery/generator) for F&A and emergency lighting per fire strategy. Flag gaps.
+  module: fire-life-safety
+
+# ----------------------------------------------------------------------------
+# MECHANICAL  <->  ELECTRICAL  (services coordination)
+# ----------------------------------------------------------------------------
+- id: MECH-ELEC-LOAD-013
+  title: Mechanical plant electrical loads carried in the electrical distribution
+  discipline: cross
+  appliesTo: [me-schedule, elec-schedule]
+  question: Is every item of mechanical plant (AHUs, heat pumps, pumps, dampers) represented with a load in the electrical distribution / load schedule?
+  authority: [is-10101-2020#311]
+  severity: MEDIUM
+  evidence: cross_doc
+  crossRef:
+    governing: mech
+    against: [elec]
+    rule: For each mechanical plant item, assert a matching electrical supply/load entry. Flag plant with no electrical provision (and vice-versa).
+  module: services-coordination
+
+- id: MECH-ELEC-DMP-014
+  title: Motorised fire/smoke dampers actuated and monitored from the correct system
+  discipline: cross
+  appliesTo: [me-schedule, elec-spec, fa-cause-effect]
+  question: Are motorised dampers in the M&E schedule given a powered, monitored actuation path in the electrical/fire-alarm design?
+  authority: [is-en-15650#4, is-3218-2024#6]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: mech
+    against: [elec]
+    rule: For each motorised damper, assert matching actuation + monitoring in elec/F&A. Flag unpowered actuated dampers.
+  module: fire-life-safety
+
+# ----------------------------------------------------------------------------
+# DAC (Disability Access Certificate)  ->  M&E / ELEC
+# ----------------------------------------------------------------------------
+- id: DAC-ELEC-ALARM-015
+  title: DAC accessibility conditions propagated to electrical (refuge, evac, alerting)
+  discipline: cross
+  appliesTo: [dac, elec-spec, me-spec]
+  question: Is every DAC condition with an M&E/electrical implication (refuge comms, accessible alarms, evac-lift, hearing enhancement) reflected in design?
+  authority: [bs-8300-2#18.6, tgd-m-2022#2.2]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: dac
+    against: [elec, mech]
+    rule: Extract each DAC condition; assert a documented M&E/electrical response. Flag any DAC condition with no design response.
+  module: accessibility
+
+# ----------------------------------------------------------------------------
+# FSC / DAC condition-register completeness (governance)
+# ----------------------------------------------------------------------------
+- id: FSC-ALL-PROP-016
+  title: Every FSC condition has a named owner and a documented response
+  discipline: cross
+  appliesTo: [fsc, fire-strategy, me-spec, elec-spec, arch-spec]
+  question: Does every condition in the Fire Safety Certificate have an identifiable owner discipline and a documented design response?
+  authority: [si-496-2009#11, si-9-2014#9]
+  severity: CRITICAL
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [mech, elec, arch]
+    rule: >
+      Enumerate FSC conditions. For each, assert a downstream response exists in the relevant
+      discipline. Flag any condition that is unowned or unanswered — this is the propagation gap.
+  module: statutory
+
+- id: FSC-CHANGE-017
+  title: Design changes that may trigger a revised FSC (SI 496 §11)
+  discipline: cross
+  appliesTo: [fsc, fire-strategy, arch-spec, me-spec]
+  question: Are there design changes since FSC grant that may require a revised Fire Safety Certificate under SI 496/2009 §11?
+  authority: [si-496-2009#11]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [arch, mech, elec]
+    rule: Compare FSC-approved design against current pack. Flag material changes that may need a revised FSC.
+  module: statutory
+
+- id: DAC-ALL-PROP-018
+  title: Every DAC condition has a named owner and a documented response
+  discipline: cross
+  appliesTo: [dac, arch-spec, elec-spec, me-spec]
+  question: Does every Disability Access Certificate condition have an owner discipline and a documented design response?
+  authority: [tgd-m-2022#2.2, si-9-2014#9]
+  severity: HIGH
+  evidence: cross_doc
+  crossRef:
+    governing: dac
+    against: [arch, mech, elec]
+    rule: Enumerate DAC conditions; assert a downstream response for each. Flag unowned/unanswered.
+  module: statutory
+
+# ----------------------------------------------------------------------------
+# CONSISTENCY across Fire / M&E / Elec packs
+# ----------------------------------------------------------------------------
+- id: XREF-DESCR-019
+  title: Project descriptor consistent across fire/M&E/electrical title blocks
+  discipline: cross
+  appliesTo: [fire-strategy, me-spec, elec-spec]
+  question: Do the project name, number, client and address match across the fire, mechanical and electrical documents?
+  authority: []
+  severity: MEDIUM
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [mech, elec]
+    rule: Compare title-block descriptors across disciplines. Flag any drift (a cut-paste / wrong-project marker).
+  module: document-hygiene
+
+- id: XREF-STDVER-020
+  title: Same standard version cited across disciplines
+  discipline: cross
+  appliesTo: [fire-strategy, me-spec, elec-spec]
+  question: Do all disciplines cite the same (current) version of shared standards — e.g. TGD-B 2024, not a mix with 2006 reprint 2020?
+  authority: [tgd-b-2024]
+  severity: MEDIUM
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [mech, elec]
+    rule: Detect version mismatches for shared standards across disciplines. Flag the inconsistency.
+  module: document-hygiene
+
+- id: XREF-WITHDRAWN-021
+  title: No superseded life-safety standards anywhere in the cross set
+  discipline: cross
+  appliesTo: [me-spec, elec-spec, fire-strategy]
+  question: Are any superseded standards cited (BS 476 Pt 8:1972, I.S. 3218:2013, I.S. 3217:2013, BS 7671/IEE 16th)?
+  authority: [is-en-15650#4, is-3218-2024#6, is-3217-2023#5, is-10101-2020]
+  severity: MEDIUM
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [mech, elec]
+    rule: Scan all three packs for withdrawn standard references. Flag each with the current replacement.
+  module: document-hygiene
+
+- id: XREF-REVDATE-022
+  title: Consistent revision / issue status across the discipline packs
+  discipline: cross
+  appliesTo: [fire-strategy, me-spec, elec-spec]
+  question: Are the fire, M&E and electrical documents issued at a coordinated revision/suitability status and date?
+  authority: []
+  severity: LOW
+  evidence: cross_doc
+  crossRef:
+    governing: fire
+    against: [mech, elec]
+    rule: Compare issue status/revision/date across disciplines. Flag uncoordinated issue (e.g. one pack still at preliminary).
+  module: document-hygiene

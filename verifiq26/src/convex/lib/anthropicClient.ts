@@ -162,7 +162,7 @@ async function callOpenAIFallback(req: ClaudeRequest): Promise<ClaudeResponse> {
 // ===========================================================
 
 const PRICING_PER_M_TOKENS = {
-  "claude-sonnet-4-6-20250115":  { input: 12, output: 50 }, // €
+  "claude-sonnet-4-6":  { input: 12, output: 50 }, // €
   "claude-haiku-4-5-20251001":   { input: 0.8, output: 3 }, // €
 };
 
