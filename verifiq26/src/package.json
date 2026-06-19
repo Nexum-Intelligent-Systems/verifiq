@@ -12,7 +12,9 @@
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy",
     "test": "vitest",
-    "scan:test": "tsx scripts/test-scan.ts"
+    "scan:test": "tsx scripts/test-drawing-scan.ts",
+    "scan:zip": "tsx scripts/build-drawing-test-zip.ts",
+    "scan:e2e": "tsx scripts/run-drawing-e2e.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",

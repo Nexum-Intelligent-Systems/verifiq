@@ -62,6 +62,13 @@ export async function extractPdfTextRange(
   }
 }
 
+export async function loadPdfBase64(ctx: any, storageId: string): Promise<string | null> {
+  const blob = await ctx.storage.get(storageId);
+  if (!blob) return null;
+  const buffer = Buffer.from(await blob.arrayBuffer());
+  return buffer.toString("base64");
+}
+
 export async function extractPdfImages(
   ctx: any,
   storageId: string,

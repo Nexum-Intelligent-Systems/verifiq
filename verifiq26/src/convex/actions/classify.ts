@@ -96,7 +96,7 @@ async function classifyFile(
 ) {
   // ===== Stage 1: filename pattern matching =====
   const filenameClass = classifyByFilename(file.fileName);
-  if (filenameClass.confidence >= 0.9) {
+  if (filenameClass.confidence >= 0.85) {
     await ctx.runMutation(internal.files.updateClassification, {
       fileId: file._id,
       discipline: filenameClass.discipline || parentDiscipline,
@@ -110,16 +110,20 @@ async function classifyFile(
   // ===== Stage 2: first-page text + cheap model (skipped without API key) =====
   const firstPageText = await extractFirstPageText(ctx, file);
   if (firstPageText && process.env.ANTHROPIC_API_KEY) {
-    const aiClass = await classifyWithCheapModel(file.fileName, firstPageText);
-    if (aiClass.confidence >= 0.8) {
-      await ctx.runMutation(internal.files.updateClassification, {
-        fileId: file._id,
-        discipline: aiClass.discipline || parentDiscipline,
-        docType: aiClass.docType,
-        classificationConfidence: aiClass.confidence,
-        classificationMethod: "cheap-llm",
-      });
-      return;
+    try {
+      const aiClass = await classifyWithCheapModel(file.fileName, firstPageText);
+      if (aiClass.confidence >= 0.8) {
+        await ctx.runMutation(internal.files.updateClassification, {
+          fileId: file._id,
+          discipline: aiClass.discipline || parentDiscipline,
+          docType: aiClass.docType,
+          classificationConfidence: aiClass.confidence,
+          classificationMethod: "cheap-llm",
+        });
+        return;
+      }
+    } catch (e) {
+      console.warn(`Cheap-model classify failed for ${file.fileName}:`, e);
     }
   }
 

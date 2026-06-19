@@ -239,7 +239,13 @@ async function readZipEntries(zipBuffer: Buffer): Promise<ExtractedZipFile[]> {
   for (const [name, entry] of Object.entries(entries)) {
     if (entry.isDirectory) continue;
 
-    const ext = name.toLowerCase().substring(name.lastIndexOf("."));
+    const filePath = name.replace(/\\/g, "/");
+    if (filePath.includes("..") || filePath.startsWith("/")) {
+      console.warn(`Skipping unsafe zip path: ${name}`);
+      continue;
+    }
+
+    const ext = filePath.toLowerCase().substring(filePath.lastIndexOf("."));
     if (!SUPPORTED_EXTENSIONS.includes(ext)) {
       console.warn(`Skipping unsupported file: ${name}`);
       continue;
@@ -251,8 +257,8 @@ async function readZipEntries(zipBuffer: Buffer): Promise<ExtractedZipFile[]> {
 
     const data = Buffer.from(await zip.entryData(name));
     extracted.push({
-      filePath: name,
-      fileName: name.split("/").pop()?.split("\\").pop() || name,
+      filePath,
+      fileName: filePath.split("/").pop() || filePath,
       ext,
       sizeBytes: entry.size,
       data,

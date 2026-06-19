@@ -8,8 +8,14 @@ export function classifyByFilename(fileName: string): {
 } {
   const lower = fileName.toLowerCase();
 
+  let discipline: string | null = null;
+  let conf = 0.5;
+
   let docType = "unknown";
-  if (/(drawing|drwg|dwg|plan|elev|sect|detail|GA|RCP|key[- ]plan)/.test(lower)) docType = "drawing";
+  if (/(drawing|drwg|dwg|plan|elev|sect|detail|GA|RCP|key[- ]plan|CIX[-_]?TD|TD[-_]\d|_TD_|[-_]TD[-_])/i.test(lower)) {
+    docType = "drawing";
+    conf = Math.max(conf, 0.88);
+  }
   else if (/(spec|specification|NBS)/.test(lower)) docType = "specification";
   else if (/(schedule|sched|register|sched\.|finishes)/.test(lower)) docType = "schedule";
   else if (/(report|narrative|design[- ]statement)/.test(lower)) docType = "report";
@@ -17,8 +23,6 @@ export function classifyByFilename(fileName: string): {
   else if (/(BoQ|bill[- ]of[- ]quantities|FoT|ITT|pricing)/.test(lower)) docType = "boq";
   else if (/(FSC|fire[- ]cert|DAC|safety[- ]cert)/.test(lower)) docType = "certification";
 
-  let discipline: string | null = null;
-  let conf = 0.5;
   if (/(-AR-|RHA-AR-|architect|RIAI)/.test(fileName)) {
     discipline = "arch";
     conf = 0.92;

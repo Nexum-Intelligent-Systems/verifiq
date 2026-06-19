@@ -27,7 +27,7 @@ import { callClaudeWithCache, ClaudeResponse } from "../lib/anthropicClient";
 import { loadDisciplineCorpus, buildSystemPrompt } from "../lib/corpus";
 import { verifySourceQuotes } from "../lib/sourceQuote";
 import { runSelfCheck } from "../lib/selfCheck";
-import { extractPdfText, extractPdfImages } from "../lib/extract";
+import { extractPdfText, extractPdfImages, loadPdfBase64 } from "../lib/extract";
 
 // Tier budgets (tunable per pack tier)
 const TIER_TOKEN_BUDGETS = {
@@ -328,44 +328,165 @@ async function scanScheduleFile(ctx: any, file: any, systemPrompt: string, budge
 }
 
 async function scanDrawingFile(ctx: any, file: any, systemPrompt: string, budget: number, upload: any, checkId: string) {
-  // Drawings: vision-based, page-by-page
-  const images = await extractPdfImages(ctx, file.storageId, file.estimatedPages);
-  let totalIn = 0, totalOut = 0, findingsCount = 0;
+  const drawingPrompt = (mode: string) =>
+    `Drawing review (${mode}) — ${file.fileName}:\n\nCheck title block, drawing number, status code, revision, scale, dimensions, standards references (TGD / I.S.). Cite verbatim text from the title block or notes for every evidence_quote.`;
 
-  for (const img of images.slice(0, 8)) { // cap pages per drawing
+  const extractedText = await extractPdfText(ctx, file.storageId, file.estimatedPages);
+  const quoteSources = [extractedText, file.fileName, file.filePath].filter(Boolean);
+
+  let totalIn = 0;
+  let totalOut = 0;
+  let findingsCount = 0;
+
+  const images = await extractPdfImages(ctx, file.storageId, file.estimatedPages);
+
+  if (images.length > 0) {
+    await ctx.runMutation(internal.pipeline.logEvent, {
+      projectId: upload.projectId,
+      stage: "scanning",
+      discipline: upload.discipline,
+      message: `Vision scan (rendered pages) — ${file.fileName}`,
+      detail: `${images.length} page(s)`,
+      fileName: file.fileName,
+    });
+
+    for (const img of images.slice(0, 8)) {
+      const response = await callClaudeWithCache({
+        model: "claude-sonnet-4-6",
+        systemPrompt,
+        userPrompt: drawingPrompt(`page ${img.page}`),
+        images: [img.base64],
+        maxTokens: 2_000,
+        cacheControl: { type: "ephemeral" },
+      });
+
+      totalIn += response.usage.input_tokens;
+      totalOut += response.usage.output_tokens;
+      findingsCount += await persistDrawingFindings(
+        ctx,
+        response.findings,
+        quoteSources,
+        upload,
+        checkId,
+        file,
+        String(img.page),
+        findingsCount,
+      );
+    }
+    return { findingsCount, inputTokens: totalIn, outputTokens: totalOut };
+  }
+
+  const pdfBase64 = await loadPdfBase64(ctx, file.storageId);
+  if (pdfBase64 && process.env.ANTHROPIC_API_KEY) {
+    await ctx.runMutation(internal.pipeline.logEvent, {
+      projectId: upload.projectId,
+      stage: "scanning",
+      discipline: upload.discipline,
+      message: `Vision scan (PDF document) — ${file.fileName}`,
+      detail: "Page render unavailable — sending native PDF to Claude",
+      fileName: file.fileName,
+    });
+
     const response = await callClaudeWithCache({
       model: "claude-sonnet-4-6",
       systemPrompt,
-      userPrompt: `Drawing page — ${file.fileName} (page ${img.page}):\n\nCheck title block, drawing number, status code, revision, scale, dimensions, standards references.`,
-      images: [img.base64],
+      userPrompt: drawingPrompt("full PDF"),
+      pdfBase64,
       maxTokens: 2_000,
       cacheControl: { type: "ephemeral" },
     });
 
     totalIn += response.usage.input_tokens;
     totalOut += response.usage.output_tokens;
-
-    const verified = await verifySourceQuotes(response.findings, [`Drawing ${file.fileName} page ${img.page}`]);
-    const passed = verified.filter((f) => runSelfCheck({ ...f, discipline: upload.discipline }).passed);
-    for (const f of passed) {
-      await ctx.runMutation(internal.findings.create, {
-        orgId: upload.orgId,
-        projectId: upload.projectId,
-        checkId,
-        finding: {
-          ...f,
-          findingId: nextFindingId(upload.discipline, findingsCount),
-          discipline: upload.discipline,
-          status: "pending_review",
-          sourceFile: file.fileName,
-          sourcePageRange: String(img.page),
-          selfCheckPassed: true,
-        },
-      });
-      findingsCount++;
-    }
+    findingsCount += await persistDrawingFindings(
+      ctx,
+      response.findings,
+      quoteSources,
+      upload,
+      checkId,
+      file,
+      "1",
+      findingsCount,
+    );
+    return { findingsCount, inputTokens: totalIn, outputTokens: totalOut };
   }
-  return { findingsCount, inputTokens: totalIn, outputTokens: totalOut };
+
+  if (extractedText.length > 40) {
+    await ctx.runMutation(internal.pipeline.logEvent, {
+      projectId: upload.projectId,
+      stage: "scanning",
+      discipline: upload.discipline,
+      message: `Text-layer drawing scan — ${file.fileName}`,
+      detail: "No vision path — reading embedded PDF text",
+      fileName: file.fileName,
+    });
+
+    const response = await callClaudeWithCache({
+      model: "claude-sonnet-4-6",
+      systemPrompt,
+      userPrompt: `${drawingPrompt("text layer")}\n\n---\n${extractedText.slice(0, 30_000)}`,
+      maxTokens: 2_000,
+      cacheControl: { type: "ephemeral" },
+    });
+
+    totalIn += response.usage.input_tokens;
+    totalOut += response.usage.output_tokens;
+    findingsCount += await persistDrawingFindings(
+      ctx,
+      response.findings,
+      quoteSources,
+      upload,
+      checkId,
+      file,
+      "text",
+      findingsCount,
+    );
+    return { findingsCount, inputTokens: totalIn, outputTokens: totalOut };
+  }
+
+  await ctx.runMutation(internal.pipeline.logEvent, {
+    projectId: upload.projectId,
+    stage: "scanning",
+    discipline: upload.discipline,
+    message: `Drawing skipped — no vision or text layer — ${file.fileName}`,
+    detail: "Raster-only PDF; re-issue as native vector PDF for drawing review",
+    fileName: file.fileName,
+  });
+
+  return { findingsCount: 0, inputTokens: totalIn, outputTokens: totalOut };
+}
+
+async function persistDrawingFindings(
+  ctx: any,
+  rawFindings: Awaited<ReturnType<typeof callClaudeWithCache>>["findings"],
+  quoteSources: string[],
+  upload: any,
+  checkId: string,
+  file: { fileName: string },
+  pageRange: string,
+  findingsCount: number,
+): Promise<number> {
+  const verified = await verifySourceQuotes(rawFindings, quoteSources);
+  const passed = verified.filter((f) => runSelfCheck({ ...f, discipline: upload.discipline }).passed);
+  let created = 0;
+  for (const f of passed) {
+    await ctx.runMutation(internal.findings.create, {
+      orgId: upload.orgId,
+      projectId: upload.projectId,
+      checkId,
+      finding: {
+        ...f,
+        findingId: nextFindingId(upload.discipline, findingsCount + created),
+        discipline: upload.discipline,
+        status: "pending_review",
+        sourceFile: file.fileName,
+        sourcePageRange: pageRange,
+        selfCheckPassed: true,
+      },
+    });
+    created++;
+  }
+  return created;
 }
 
 async function scanHygieneFile(ctx: any, file: any, systemPrompt: string, budget: number, upload: any, checkId: string) {

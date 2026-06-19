@@ -22,7 +22,8 @@ export interface ClaudeRequest {
   systemPrompt: string;
   userPrompt: string;
   maxTokens?: number;
-  images?: string[];        // base64-encoded image data
+  images?: string[]; // base64-encoded PNG/JPEG
+  pdfBase64?: string; // full PDF as base64 — used when page rendering unavailable (Convex)
   cacheControl?: { type: "ephemeral" };
 }
 
@@ -55,8 +56,17 @@ export async function callClaudeWithCache(req: ClaudeRequest): Promise<ClaudeRes
     try {
       const messages: any[] = [];
 
-      // Build user message with optional image
       const userContent: any[] = [];
+      if (req.pdfBase64) {
+        userContent.push({
+          type: "document",
+          source: {
+            type: "base64",
+            media_type: "application/pdf",
+            data: req.pdfBase64,
+          },
+        });
+      }
       if (req.images?.length) {
         for (const img of req.images) {
           userContent.push({
