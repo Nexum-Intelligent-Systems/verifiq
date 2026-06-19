@@ -70,7 +70,7 @@ export const runCrossDisciplinePass = internalAction({
 
     // Single Claude call with the consolidated brief — bounded budget
     const response = await callClaudeWithCache({
-      model: "claude-sonnet-4-6-20250115",
+      model: "claude-sonnet-4-6",
       systemPrompt,
       userPrompt: `Project: ${project.name}\nContract: ${project.contractType || "PW-CF5"}\n\nDISCIPLINE FINDINGS SUMMARY:\n\n${summaryBrief}\n\nIdentify cross-discipline coordination gaps. Each finding MUST cite at least two source documents from different disciplines.`,
       maxTokens: 6_000,

@@ -133,7 +133,7 @@ export const runPeerChallenge = internalAction({
           .join("\n");
 
         const response = await callClaudeWithCache({
-          model: "claude-sonnet-4-6-20250115",
+          model: "claude-sonnet-4-6",
           systemPrompt: PEER_SYSTEM,
           userPrompt: `You are the ${challenger.toUpperCase()} discipline challenging ${originDisc.toUpperCase()} findings:\n\n${brief}`,
           maxTokens: 3_000,
@@ -235,7 +235,7 @@ export const runAdjudication = internalAction({
       .join("\n");
 
     const response = await callClaudeWithCache({
-      model: "claude-sonnet-4-6-20250115",
+      model: "claude-sonnet-4-6",
       systemPrompt: ADJUDICATOR_SYSTEM,
       userPrompt: `ORIGINAL FINDINGS:\n${findingsBrief}\n\nPEER CHALLENGES:\n${challengesBrief}`,
       maxTokens: 6_000,
@@ -326,7 +326,7 @@ export const runCouncilChair = internalAction({
       .join("\n");
 
     const response = await callClaudeWithCache({
-      model: "claude-sonnet-4-6-20250115",
+      model: "claude-sonnet-4-6",
       systemPrompt: CHAIR_SYSTEM,
       userPrompt: `Project: ${project?.name}\nContract: ${project?.contractType ?? "PW-CF5"}\n\nADJUDICATED REGISTER:\n${register}`,
       maxTokens: 8_000,

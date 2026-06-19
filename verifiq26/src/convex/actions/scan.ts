@@ -257,7 +257,7 @@ async function scanSpecFile(
     if ((totalIn + totalOut) >= budgetTokens) break;
 
     const response = await callClaudeWithCache({
-      model: "claude-sonnet-4-6-20250115",
+      model: "claude-sonnet-4-6",
       systemPrompt,           // cached — only paid for once across all calls
       userPrompt: `Spec extract — ${file.fileName} (${chunk.page_range}):\n\n${chunk.text}`,
       maxTokens: 4_000,
@@ -298,7 +298,7 @@ async function scanScheduleFile(ctx: any, file: any, systemPrompt: string, budge
   const text = await extractPdfText(ctx, file.storageId, file.estimatedPages);
 
   const response = await callClaudeWithCache({
-    model: "claude-sonnet-4-6-20250115",
+    model: "claude-sonnet-4-6",
     systemPrompt,
     userPrompt: `Schedule sheet — ${file.fileName}:\n\n${text.slice(0, 40_000)}\n\nCheck for: blank required fields, inconsistent values, missing standards references, content mismatched to schedule name.`,
     maxTokens: 3_000,
@@ -334,7 +334,7 @@ async function scanDrawingFile(ctx: any, file: any, systemPrompt: string, budget
 
   for (const img of images.slice(0, 8)) { // cap pages per drawing
     const response = await callClaudeWithCache({
-      model: "claude-sonnet-4-6-20250115",
+      model: "claude-sonnet-4-6",
       systemPrompt,
       userPrompt: `Drawing page — ${file.fileName} (page ${img.page}):\n\nCheck title block, drawing number, status code, revision, scale, dimensions, standards references.`,
       images: [img.base64],
