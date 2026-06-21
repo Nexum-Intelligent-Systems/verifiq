@@ -1,7 +1,0 @@
-@import "tailwindcss";
-
-/* Accessibility: visible focus everywhere (assistive-tech-heavy user base). */
-:focus-visible {
-  outline: 3px solid #2563eb;
-  outline-offset: 2px;
-}
